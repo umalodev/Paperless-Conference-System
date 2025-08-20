@@ -17,8 +17,9 @@
 
 ## frontend set up
 
--cd ../frontend
--npm install
+- cd ../frontend
+- npm install
+- npm install react-router-dom
 
 ### running frontend
 
