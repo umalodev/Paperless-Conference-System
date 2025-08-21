@@ -1,0 +1,12 @@
+:root {
+  --font-main: "Inter", sans-serif;
+  --font-size-base: 14px;
+  --font-size-title: 18px;
+
+  --color-primary: #107c10;
+  --color-primary-hover: #15803d;
+  --color-text: #333;
+  --color-subtext: #666;
+  --color-bg: #f7f7f7;
+  --color-white: #ffffff;
+}
