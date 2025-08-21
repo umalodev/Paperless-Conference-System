@@ -5,6 +5,7 @@ import Login from "./pages/login/login.jsx";
 import Start from "./pages/start/start_meeting.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Dashboard from "./pages/dashboard/dashboard.jsx";
+import ScreenShare from "./pages/screen-share/screen-share.jsx";
 
 function App() {
   return (
@@ -21,6 +22,14 @@ function App() {
         />
 
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+          path="/screen-share"
+          element={
+            <ProtectedRoute>
+              <ScreenShare />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>

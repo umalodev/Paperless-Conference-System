@@ -50,7 +50,12 @@ export default function Dashboard() {
             <h3 className="hd-card-title">Quick Start</h3>
           </div>
           <p className="hd-card-desc">Start an instant meeting right now</p>
-          <button className="hd-btn hd-btn-primary">Start Meeting</button>
+          <button 
+            onClick={() => navigate("/screen-share")} 
+            className="hd-btn hd-btn-primary"
+          >
+            Start Meeting
+          </button>
         </div>
 
         {/* Schedule Meeting */}

@@ -1,9 +1,7 @@
 import { app, BrowserWindow } from 'electron'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
-const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -27,12 +25,42 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 
 function createWindow() {
+  console.log('main: Creating window...');
+  console.log('main: Preload path:', path.join(__dirname, 'preload.mjs'));
+  
+  const preloadPath = path.join(__dirname, 'preload.mjs');
+  
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: preloadPath,
+      // CRITICAL: Enable screen sharing
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false, // Disable for localhost development
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true
     },
   })
+  
+  console.log('main: Window created with preload:', preloadPath);
+
+  // CRITICAL: Set ALL permissions to ALLOW
+  win.webContents.session.setPermissionRequestHandler((_, permission, callback) => {
+    console.log('Permission request:', permission);
+    // Allow ALL permissions for screen sharing
+    callback(true);
+  });
+
+  // CRITICAL: Set ALL permission checks to ALLOW
+  win.webContents.session.setPermissionCheckHandler((_, permission, requestingOrigin) => {
+    console.log('Permission check:', permission, requestingOrigin);
+    // Allow ALL permissions for local development
+    return true;
+  });
+  
+  // CRITICAL: Enable all permissions for screen sharing
+  console.log('main: All permissions enabled for screen sharing');
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
