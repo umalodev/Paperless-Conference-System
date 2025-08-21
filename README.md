@@ -7,6 +7,7 @@
 - npm install mysql2
 - npm install cors
 - npm install dotenv
+- npm install sequelize sequelize-cli mysql2
 
 - create .env file, isi configurasi database
 

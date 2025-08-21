@@ -1,13 +1,47 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { API_URL } from "../../config.js";
 import "./Login.css";
 
 export default function Login() {
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login attempt:", { username, password });
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for session
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Store user data in localStorage for frontend use
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Redirect to start meeting page
+        navigate('/start');
+      } else {
+        setError(data.message || 'Login gagal');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Terjadi kesalahan koneksi');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -23,6 +57,12 @@ export default function Login() {
           </div>
         </div>
 
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="label-bold" htmlFor="username">
@@ -35,6 +75,8 @@ export default function Login() {
               className="login-input"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              disabled={loading}
+              required
             />
           </div>
 
@@ -49,11 +91,17 @@ export default function Login() {
               className="login-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              required
             />
           </div>
 
-          <button type="submit" className="login-button">
-            Login
+          <button 
+            type="submit" 
+            className="login-button"
+            disabled={loading}
+          >
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
       </div>

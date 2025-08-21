@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const Sequelize = require('sequelize');
+const { Sequelize } = require('sequelize');
 const basename = path.basename(__filename);
 const sequelize = require('../db/db.js');
 const db = {};
@@ -16,7 +16,7 @@ fs
     );
   })
   .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+    const model = require(path.join(__dirname, file))(sequelize, Sequelize);
     db[model.name] = model;
   });
 
