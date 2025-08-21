@@ -5,6 +5,7 @@ import Login from "./pages/login/login.jsx";
 import Start from "./pages/start/start_meeting.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Dashboard from "./pages/dashboard/dashboard.jsx";
+import DashboardUser from "./pages/dashboard/dashboard_v2.jsx";
 
 function App() {
   return (
@@ -19,7 +20,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route path="/dashboard-user" element={<DashboardUser />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

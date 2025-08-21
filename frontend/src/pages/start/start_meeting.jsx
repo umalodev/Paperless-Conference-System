@@ -24,6 +24,9 @@ export default function Start() {
     }
   }, [navigate]);
 
+  const role = (user?.role || "").toLowerCase();
+  const isAdmin = role === "admin";
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!username.trim()) return;
@@ -34,8 +37,11 @@ export default function Start() {
       createdAt: new Date().toISOString(),
     };
     localStorage.setItem("currentMeeting", JSON.stringify(meeting));
-
-    navigate("/dashboard", { state: { meeting } });
+    if (isAdmin) {
+      navigate("/dashboard", { state: { meeting } });
+    } else {
+      navigate("/dashboard-user", { state: { meeting } });
+    }
   };
   if (!user) {
     return <div>Loading...</div>;
@@ -63,8 +69,14 @@ export default function Start() {
 
         <label className="label-bold">I want to :</label>
         <div className="option-box">
-          <img src="/img/pc.png" alt="PC" className="icon" />
-          <span className="option-text">Host a meeting</span>
+          <img
+            src={isAdmin ? "/img/pc.png" : "/img/people.png"}
+            alt="PC"
+            className="icon"
+          />
+          <span className="option-text">
+            {isAdmin ? "Host a meeting" : "Join a meeting"}
+          </span>
         </div>
 
         <form onSubmit={handleSubmit}>
