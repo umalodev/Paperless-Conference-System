@@ -1,37 +1,52 @@
 const express = require("express");
 const cors = require("cors");
-const db = require("./db/db");
+const session = require("express-session");
+const routes = require("./routes");
 
 const app = express();
 const PORT = 3000;
 
-app.use(cors());
+// Middleware
+app.use(cors({
+  origin: 'http://localhost:5173', // Frontend URL
+  credentials: true
+}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get("/api/notes", async (req, res) => {
-  try {
-    const [rows] = await db.query("SELECT * FROM notes");
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Database error" });
+// Session configuration
+app.use(session({
+  secret: 'paperless-conference-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
+}));
+
+// Use routes
+app.use('/api', routes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Terjadi kesalahan server'
+  });
 });
 
-app.post("/api/notes", async (req, res) => {
-  const { title, content } = req.body;
-  try {
-    const [result] = await db.query(
-      "INSERT INTO notes (title, content) VALUES (?, ?)",
-      [title, content]
-    );
-    res.json({ id: result.insertId, title, content });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Insert error" });
-  }
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint tidak ditemukan'
+  });
 });
 
 app.listen(PORT, () => {
   console.log(`Backend running at http://localhost:${PORT}`);
+  console.log(`API endpoints available at http://localhost:${PORT}/api`);
 });
