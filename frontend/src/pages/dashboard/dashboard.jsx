@@ -36,7 +36,7 @@ export default function Dashboard() {
           type="button"
           aria-label="Logout"
         >
-          <span className="hd-logout-icon">↗</span>
+          <span className="hd-logout-icon">↪</span>
           Logout
         </button>
       </header>
