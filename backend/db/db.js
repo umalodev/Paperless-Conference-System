@@ -1,33 +1,45 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
+// Default database configuration for development
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'paperless_conference',
+  dialect: 'mysql',
+  logging: console.log,
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
+};
+
+console.log('Database configuration:', {
+  host: dbConfig.host,
+  user: dbConfig.user,
+  database: dbConfig.database,
+  dialect: dbConfig.dialect
+});
+
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
+  dbConfig.database,
+  dbConfig.user,
+  dbConfig.password,
   {
-    host: process.env.DB_HOST,
-    dialect: 'mysql',
-    logging: console.log,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
+    host: dbConfig.host,
+    dialect: dbConfig.dialect,
+    logging: dbConfig.logging,
+    pool: dbConfig.pool
   }
 );
 
-// Test connection and sync database
+// Test connection
 sequelize.authenticate()
   .then(() => {
     console.log('Database connection established successfully.');
-    // Load models first, then sync database
-    require('../models/index.js');
-    return sequelize.sync({ force: false, alter: true });
-  })
-  .then(() => {
-    console.log('Database synced successfully - tables created/updated');
   })
   .catch(err => {
     console.error('Database error:', err);

@@ -7,7 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate": "node migration/migrate.js",
     "start": "node index.js",
-    "create-users": "node scripts/createUsers.js"
+    "seed": "node scripts/seedDatabase.js",
+    "create-users": "node scripts/createUsers.js",
+    "media": "node mediaServer.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,9 @@
     "express-session": "^1.18.0",
     "mysql2": "^3.14.3",
     "sequelize": "^6.37.7",
-    "sequelize-cli": "^6.6.3"
+    "sequelize-cli": "^6.6.3",
+    "mediasoup": "^3.13.24",
+    "socket.io": "^4.7.4",
+    "winston": "^3.11.0"
   }
 }

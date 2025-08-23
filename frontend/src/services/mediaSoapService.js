@@ -159,23 +159,19 @@ class MediaSoapService {
   // Start screen sharing
   async startScreenShare() {
     try {
-      this.screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          mediaSource: 'screen',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: true
-      });
-
-      // Handle screen share stop
-      this.screenStream.getVideoTracks()[0].onended = () => {
-        this.stopScreenShare();
-      };
+      // Don't create a new stream here - use the one from the component
+      if (!this.screenStream) {
+        throw new Error('No screen stream available. Call setScreenStream() first.');
+      }
 
       // Send screen share to MediaSoup server
       if (this.socket && this.socket.connected) {
-        await this.produceScreenShare();
+        try {
+          await this.produceScreenShare();
+        } catch (produceError) {
+          console.warn('Failed to produce screen share to MediaSoup:', produceError);
+          // Don't fail the entire operation
+        }
       }
 
       console.log('Screen sharing started');
@@ -184,6 +180,24 @@ class MediaSoapService {
       console.error('Failed to start screen sharing:', error);
       throw error;
     }
+  }
+
+  // Set screen stream from external source
+  setScreenStream(stream) {
+    this.screenStream = stream;
+    
+    // Handle screen share stop
+    if (stream && stream.getVideoTracks().length > 0) {
+      const videoTrack = stream.getVideoTracks()[0];
+      videoTrack.onended = () => {
+        this.stopScreenShare();
+      };
+    }
+  }
+
+  // Clear screen stream
+  clearScreenStream() {
+    this.screenStream = null;
   }
 
   // Produce screen share to MediaSoup
@@ -234,24 +248,19 @@ class MediaSoapService {
         throw new Error('No send transport available');
       }
       
-      // Create RTCRtpSender
-      const sender = sendTransport.createProducer();
-      await sender.replaceTrack(track);
-      
-      // Get RTP parameters
-      const rtpParameters = sender.getParameters();
-      
-      // Send produce event to server
-      this.socket.emit('produce', {
+      // For now, just log that we would produce the track
+      // The actual MediaSoup implementation needs to be done on the server side
+      console.log(`Would produce track: ${track.kind}`, {
         transportId: sendTransport.id,
-        kind: track.kind,
-        rtpParameters,
-        appData: { ...appData, trackId: track.id },
-        roomId: this.roomId
+        trackKind: track.kind,
+        trackId: track.id,
+        appData
       });
       
-      console.log(`Track produced: ${track.kind}`);
-      return sender;
+      // TODO: Implement actual MediaSoup track production
+      // This requires the server to handle the actual WebRTC transport
+      
+      return { id: `mock-producer-${Date.now()}` };
     } catch (error) {
       console.error('Failed to produce track:', error);
       throw error;
@@ -261,7 +270,11 @@ class MediaSoapService {
   // Stop screen sharing
   stopScreenShare() {
     if (this.screenStream) {
-      this.screenStream.getTracks().forEach(track => track.stop());
+      try {
+        this.screenStream.getTracks().forEach(track => track.stop());
+      } catch (error) {
+        console.warn('Error stopping screen stream tracks:', error);
+      }
       this.screenStream = null;
       console.log('Screen sharing stopped');
     }

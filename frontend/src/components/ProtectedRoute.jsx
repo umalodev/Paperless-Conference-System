@@ -17,10 +17,10 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     if (requiredRole) {
       const userRole = user.role;
       
-      // Role hierarchy: admin > moderator > user
+      // Role hierarchy: participant < host < admin
       const roleHierarchy = {
-        'user': 1,
-        'moderator': 2,
+        'participant': 1,
+        'host': 2,
         'admin': 3
       };
       

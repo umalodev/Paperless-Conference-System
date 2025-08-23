@@ -31,8 +31,17 @@ export default function Login() {
         // Store user data in localStorage for frontend use
         localStorage.setItem('user', JSON.stringify(data.user));
         
-        // Redirect to start meeting page
-        navigate('/start');
+        // Redirect to role-specific dashboard
+        if (data.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (data.user.role === 'host') {
+          navigate('/host/dashboard');
+        } else if (data.user.role === 'participant') {
+          navigate('/participant/dashboard');
+        } else {
+          // Fallback to admin dashboard if role is unknown
+          navigate('/admin/dashboard');
+        }
       } else {
         setError(data.message || 'Login gagal');
       }

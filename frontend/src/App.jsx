@@ -1,35 +1,48 @@
-import { useEffect, useState } from "react";
-import { API_URL } from "./config.js";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/login/login.jsx";
-import Start from "./pages/start/start_meeting.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import Dashboard from "./pages/dashboard/dashboard.jsx";
-import ScreenShare from "./pages/screen-share/screen-share.jsx";
+
+// Import role-specific dashboards
+import AdminDashboard from "./pages/admin/dashboard/admin-dashboard.jsx";
+import HostDashboard from "./pages/host/dashboard/host-dashboard.jsx";
+import ParticipantDashboard from "./pages/participant/dashboard/participant-dashboard.jsx";
 
 function App() {
   return (
     <HashRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+
+        {/* Role-specific dashboard routes */}
         <Route
-          path="/start"
+          path="/admin/dashboard"
           element={
-            <ProtectedRoute>
-              <Start />
+            <ProtectedRoute requiredRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/host/dashboard"
+          element={
+            <ProtectedRoute requiredRole="host">
+              <HostDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/participant/dashboard"
+          element={
+            <ProtectedRoute requiredRole="participant">
+              <ParticipantDashboard />
             </ProtectedRoute>
           }
         />
 
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route
-          path="/screen-share"
-          element={
-            <ProtectedRoute>
-              <ScreenShare />
-            </ProtectedRoute>
-          }
-        />
+        {/* Legacy routes - redirect to login */}
+        <Route path="/start" element={<Navigate to="/" replace />} />
+        <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
