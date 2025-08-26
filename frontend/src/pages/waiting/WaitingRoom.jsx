@@ -83,12 +83,24 @@ export default function WaitingRoom() {
         setStarted(on);
         
         if (on) {
-          console.log("Meeting is active, redirecting to dashboard");
+          console.log("Meeting is active, attempting auto-join then redirecting");
+          try {
+            // Attempt auto-join; ignore errors to allow redirect flow
+            await meetingService.autoJoinMeeting(meetingId);
+          } catch (e) {
+            console.warn('Auto-join failed or not required:', e?.message || e);
+          }
         }
       } catch (e) {
         if (!cancel) {
           console.error("Error fetching meeting status:", e);
-          setErr(String(e.message || e));
+          // Suppress 404 not found noise in waiting room; show friendly text
+          const msg = String(e.message || e);
+          if (msg.toLowerCase().includes('not found')) {
+            setErr('Meeting belum tersedia. Menunggu host memulai…');
+          } else {
+            setErr(msg);
+          }
         }
       } finally {
         if (!cancel) setLoading(false);

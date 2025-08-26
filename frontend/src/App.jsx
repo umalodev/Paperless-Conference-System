@@ -16,6 +16,7 @@ import Chat from "./pages/menu/chating/Chating.jsx";
 import Notes from "./pages/menu/notes/Notes.jsx";
 import Start from "./pages/start/Start.jsx";
 import WaitingRoom from "./pages/waiting/WaitingRoom.jsx";
+import SetUp from "./pages/start/SetUp.jsx";
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
         <Route path="/menu/chating" element={<Chat />} />
         <Route path="/menu/notes" element={<Notes />} />
         <Route path="/waiting" element={<WaitingRoom />} />
+        <Route path="/setup" element={<SetUp />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

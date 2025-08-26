@@ -118,6 +118,37 @@ class MeetingService {
     }
   }
 
+  // Auto-join meeting (server validates host started and is online)
+  async autoJoinMeeting(meetingId) {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/auto-join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ meetingId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to auto-join meeting' };
+        }
+        throw new Error(errorData.message || 'Failed to auto-join meeting');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error auto-joining meeting:', error);
+      throw error;
+    }
+  }
+
   // Get meeting status (public endpoint, no auth required)
   async getMeetingStatus(meetingId) {
     try {

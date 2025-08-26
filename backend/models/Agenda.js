@@ -71,13 +71,5 @@ module.exports = (sequelize) => {
     }
   );
 
-  // Nanti bisa ditambahkan setelah Meeting ada:
-  // Agenda.associate = (models) => {
-  //   Agenda.belongsTo(models.Meeting, {
-  //     foreignKey: 'meetingId',
-  //     as: 'meeting',
-  //   });
-  // };
-
   return Agenda;
 };

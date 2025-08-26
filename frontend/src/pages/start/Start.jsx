@@ -13,12 +13,7 @@ export default function Start() {
   const navigate = useNavigate();
 
   const getAccountName = React.useCallback(
-    () =>
-      user?.username ||
-      user?.name ||
-      user?.full_name ||
-      (user?.email ? user.email.split("@")[0] : "") ||
-      "",
+    () => user?.username || user?.name || user?.full_name || "",
     [user]
   );
 
@@ -99,7 +94,7 @@ export default function Start() {
 
   const isHost = role === "host";
   const intentText = isHost ? "Host a meeting" : "Join a meeting";
-  const ctaText = isHost ? "Create Meeting" : "Join Meeting";
+  const ctaText = isHost ? "Set Meeting" : "Join Meeting";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -111,84 +106,43 @@ export default function Start() {
       localStorage.setItem("pconf.useAccountName", useAccountName ? "1" : "0");
 
       if (isHost) {
-        // Host creates a new meeting
-        const meetingData = {
-          title: `Meeting by ${username || user?.username || 'Host'}`,
-          description: 'Conference meeting',
-          startTime: new Date().toISOString(),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
-        };
-
-        const result = await meetingService.createMeeting(meetingData);
-        
-        if (result.success) {
-          // Store meeting info in localStorage
-          const meetingInfo = {
-            id: result.data.meetingId,
-            code: `MTG-${result.data.meetingId}`,
-            title: result.data.title,
-            status: result.data.status
-          };
-          localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
-          
-          // Navigate to waiting room
-          navigate("/waiting");
-        } else {
-          throw new Error(result.message || 'Failed to create meeting');
-        }
+        navigate("/setup");
       } else {
         // Participant automatically finds and joins active meeting
         try {
           // Get active meetings from server
           const activeMeetingsResult = await meetingService.getActiveMeetings();
-          
-          if (activeMeetingsResult.success && activeMeetingsResult.data.length > 0) {
+
+          if (
+            activeMeetingsResult.success &&
+            activeMeetingsResult.data.length > 0
+          ) {
             // Join the first available active meeting
             const activeMeeting = activeMeetingsResult.data[0];
             console.log("Found active meeting:", activeMeeting);
-            
+
             const meetingInfo = {
               id: activeMeeting.meetingId,
               code: activeMeeting.meetingId,
               title: activeMeeting.title || "Active Meeting",
-              status: activeMeeting.status || "started"
+              status: activeMeeting.status || "started",
             };
             localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
-            
+
             // Navigate to waiting room
             navigate("/waiting");
           } else {
-            // If no active meeting found, create a demo meeting info
-            console.log("No active meeting found, creating demo meeting");
-            const meetingInfo = {
-              id: "1234",
-              code: "1234",
-              title: "Demo Meeting",
-              status: "waiting"
-            };
-            localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
-            
-            // Navigate to waiting room
-            navigate("/waiting");
+            // No active meeting found; show a message and keep user here
+            throw new Error('Tidak ada meeting aktif saat ini. Minta host untuk memulai.');
           }
         } catch (statusError) {
-          console.log("Error getting active meetings, creating demo meeting:", statusError);
-          // Create a demo meeting for participant as fallback
-          const meetingInfo = {
-            id: "1234",
-            code: "1234",
-            title: "Demo Meeting",
-            status: "waiting"
-          };
-          localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
-          
-          // Navigate to waiting room
-          navigate("/waiting");
+          console.log("Error getting active meetings:", statusError);
+          setError(statusError?.message || 'Gagal memuat meeting aktif.');
         }
       }
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      setError(error.message || 'An error occurred');
+      console.error("Error in handleSubmit:", error);
+      setError(error.message || "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -247,26 +201,25 @@ export default function Start() {
 
           {!isHost && (
             <div className="form-group">
-              <div style={{ 
-                background: '#f0f9ff', 
-                padding: '12px', 
-                borderRadius: '8px', 
-                border: '1px solid #0ea5e9',
-                fontSize: '14px',
-                color: '#0369a1'
-              }}>
-                <strong>ℹ️ Auto-Join Meeting</strong><br/>
-                Participant akan otomatis bergabung dengan meeting yang tersedia.
-                Tidak perlu input Meeting ID.
+              <div
+                style={{
+                  background: "#f0f9ff",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "1px solid #0ea5e9",
+                  fontSize: "14px",
+                  color: "#0369a1",
+                }}
+              >
+                <strong>ℹ️ Auto-Join Meeting</strong>
+                <br />
+                Participant akan otomatis bergabung dengan meeting yang
+                tersedia. Tidak perlu input Meeting ID.
               </div>
             </div>
           )}
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? "Processing..." : ctaText}
