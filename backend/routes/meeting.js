@@ -198,7 +198,7 @@ router.get('/:meetingId/status', authenticateToken, async (req, res) => {
       participantCount,
       participants: allParticipants.map(p => ({
         userId: p.userId,
-        role: p.role,
+        role: p.userRole,
         status: p.status,
         username: p.User?.username
       }))
@@ -225,6 +225,136 @@ router.get('/:meetingId/status', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error checking meeting status',
+      error: error.message
+    });
+  }
+});
+
+// Public meeting status check (no auth required)
+router.get('/:meetingId/public-status', async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+
+    console.log(`Public meeting status check - Meeting ID: ${meetingId}`);
+
+    // Check if meeting exists
+    const meeting = await models.Meeting.findByPk(meetingId);
+    if (!meeting) {
+      console.log(`Meeting ${meetingId} not found`);
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+
+    // Check if meeting is active and started
+    const isActive = meeting.status === 'started';
+    
+    // Check if meeting has host
+    const hostParticipant = await models.MeetingParticipant.findOne({
+      where: { 
+        meetingId, 
+        role: 'host', 
+        flag: 'Y' 
+      }
+    });
+
+    const hasHost = !!hostParticipant;
+    const hostOnline = hasHost && hostParticipant.status === 'joined';
+    
+    // Get participant count
+    const allParticipants = await models.MeetingParticipant.findAll({
+      where: { meetingId, flag: 'Y' }
+    });
+
+    const participantCount = allParticipants.length;
+    
+    console.log(`Public meeting ${meetingId} status:`, {
+      meetingId: meeting.meetingId,
+      status: meeting.status,
+      isActive,
+      hasHost,
+      hostOnline,
+      participantCount
+    });
+
+    res.json({
+      success: true,
+      data: {
+        meetingId: meeting.meetingId,
+        title: meeting.title,
+        status: meeting.status,
+        isActive,
+        hasHost,
+        hostOnline,
+        participantCount,
+        startTime: meeting.startTime,
+        endTime: meeting.endTime
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking public meeting status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking meeting status',
+      error: error.message
+    });
+  }
+});
+
+// Get active meetings for participants to join (no auth required)
+router.get('/active/public', async (req, res) => {
+  try {
+    console.log('Getting public active meetings');
+
+    // Find meetings that are started and flagged Y (no include to avoid alias issues)
+    const activeMeetings = await models.Meeting.findAll({
+      where: { 
+        status: 'started',
+        flag: 'Y'
+      },
+      order: [['created_at', 'DESC']],
+      limit: 10,
+      raw: true
+    });
+
+    // For each meeting, verify there is a host participant with flag Y
+    const verifiedMeetings = [];
+    for (const meeting of activeMeetings) {
+      const host = await models.MeetingParticipant.findOne({
+        where: {
+          meetingId: meeting.meeting_id || meeting.meetingId,
+          role: 'host',
+          flag: 'Y'
+        },
+        raw: true
+      });
+      if (host) {
+        verifiedMeetings.push({
+          meetingId: meeting.meeting_id || meeting.meetingId,
+          title: meeting.title,
+          description: meeting.description,
+          status: meeting.status,
+          startTime: meeting.start_time || meeting.startTime,
+          endTime: meeting.end_time || meeting.endTime,
+          participantCount: meeting.current_participants || meeting.currentParticipants || 0
+        });
+      }
+    }
+
+    console.log(`Found ${verifiedMeetings.length} active meetings with host`);
+
+    res.json({
+      success: true,
+      data: verifiedMeetings
+    });
+
+  } catch (error) {
+    console.error('Error getting public active meetings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting active meetings',
       error: error.message
     });
   }

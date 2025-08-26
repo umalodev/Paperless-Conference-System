@@ -15,6 +15,7 @@ import Files from "./pages/menu/files/Files.jsx";
 import Chat from "./pages/menu/chating/Chating.jsx";
 import Notes from "./pages/menu/notes/Notes.jsx";
 import Start from "./pages/start/Start.jsx";
+import WaitingRoom from "./pages/waiting/WaitingRoom.jsx";
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
         <Route path="/menu/files" element={<Files />} />
         <Route path="/menu/chating" element={<Chat />} />
         <Route path="/menu/notes" element={<Notes />} />
+        <Route path="/waiting" element={<WaitingRoom />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

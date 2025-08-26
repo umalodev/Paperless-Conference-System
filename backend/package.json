@@ -9,7 +9,9 @@
     "start": "node index.js",
     "seed": "node scripts/seedDatabase.js",
     "create-users": "node scripts/createUsers.js",
-    "media": "node mediaServer.js"
+    "media": "node mediaServer.js",
+    "test-api": "node test-meeting-api.js",
+    "test-simple": "node test-simple.js"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +28,7 @@
     "sequelize-cli": "^6.6.3",
     "mediasoup": "^3.13.24",
     "socket.io": "^4.7.4",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "node-fetch": "^2.7.0"
   }
 }

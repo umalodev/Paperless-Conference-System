@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api/meeting';
+import { API_URL } from '../config.js';
 
 class MeetingService {
   constructor() {
@@ -16,34 +16,18 @@ class MeetingService {
   // Create a new meeting
   async createMeeting(meetingData) {
     try {
-      console.log('Sending meeting data:', meetingData);
-      console.log('Auth headers:', this.getAuthHeaders());
-      console.log('Token from localStorage:', localStorage.getItem('token'));
-      console.log('User from localStorage:', localStorage.getItem('user'));
+      console.log('Creating meeting with data:', meetingData);
       
-      // Get fresh token and user data
-      const token = localStorage.getItem('token');
-      const user = localStorage.getItem('user');
-      
-      if (!token || !user) {
-        throw new Error('User not authenticated');
-      }
-      
-      // Use proper authenticated endpoint
-      const response = await fetch(`${API_BASE_URL}/create`, {
+      const response = await fetch(`${API_URL}/api/meeting/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-User-Id': JSON.parse(user).id
         },
         credentials: 'include', // Include cookies for session
         body: JSON.stringify(meetingData)
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      console.log('Response cookies:', document.cookie);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -60,7 +44,7 @@ class MeetingService {
       }
 
       const result = await response.json();
-      console.log('Success response:', result);
+      console.log('Meeting created successfully:', result);
       return result;
     } catch (error) {
       console.error('Error creating meeting:', error);
@@ -71,19 +55,10 @@ class MeetingService {
   // Start a meeting (host only)
   async startMeeting(meetingId) {
     try {
-      const token = localStorage.getItem('token');
-      const user = localStorage.getItem('user');
-      
-      if (!token || !user) {
-        throw new Error('User not authenticated');
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/start`, {
+      const response = await fetch(`${API_URL}/api/meeting/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-User-Id': JSON.parse(user).id
         },
         credentials: 'include',
         body: JSON.stringify({ meetingId })
@@ -110,11 +85,127 @@ class MeetingService {
     }
   }
 
+  // Join a meeting
+  async joinMeeting(meetingId) {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ meetingId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to join meeting' };
+        }
+        
+        throw new Error(errorData.message || 'Failed to join meeting');
+      }
+
+      const result = await response.json();
+      console.log('Joined meeting successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error joining meeting:', error);
+      throw error;
+    }
+  }
+
+  // Get meeting status (public endpoint, no auth required)
+  async getMeetingStatus(meetingId) {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/${meetingId}/public-status`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to get meeting status' };
+        }
+        
+        throw new Error(errorData.message || 'Failed to get meeting status');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error getting meeting status:', error);
+      throw error;
+    }
+  }
+
+  // Get active meetings for participants to join (no auth required)
+  async getActiveMeetings() {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/active/public`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to get active meetings' };
+        }
+        
+        throw new Error(errorData.message || 'Failed to get active meetings');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error getting active meetings:', error);
+      throw error;
+    }
+  }
+
+  // Get meeting status with authentication (for authenticated users)
+  async getMeetingStatusAuth(meetingId) {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/${meetingId}/status`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to get meeting status' };
+        }
+        
+        throw new Error(errorData.message || 'Failed to get meeting status');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error getting authenticated meeting status:', error);
+      throw error;
+    }
+  }
+
   // Get meetings by current user
   async getMyMeetings() {
     try {
-      const response = await fetch(`${API_BASE_URL}/my-meetings`, {
-        headers: this.getAuthHeaders()
+      const response = await fetch(`${API_URL}/api/meeting/my-meetings`, {
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -132,8 +223,9 @@ class MeetingService {
   // Get all meetings (admin only)
   async getAllMeetings() {
     try {
-      const response = await fetch(`${API_BASE_URL}/all`, {
-        headers: this.getAuthHeaders()
+      const response = await fetch(`${API_URL}/api/meeting/all`, {
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {

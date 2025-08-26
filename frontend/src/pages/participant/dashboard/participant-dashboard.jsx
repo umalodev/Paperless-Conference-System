@@ -10,6 +10,7 @@ export default function ParticipantDashboard() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [currentMeeting, setCurrentMeeting] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,6 +19,16 @@ export default function ParticipantDashboard() {
     const savedName = localStorage.getItem("pconf.displayName");
     if (savedName) {
       setDisplayName(savedName);
+    }
+    
+    // Get current meeting info
+    const meetingRaw = localStorage.getItem("currentMeeting");
+    if (meetingRaw) {
+      try {
+        setCurrentMeeting(JSON.parse(meetingRaw));
+      } catch (e) {
+        console.error("Failed to parse meeting info:", e);
+      }
     }
   }, []);
 
@@ -67,13 +78,24 @@ export default function ParticipantDashboard() {
     localStorage.removeItem("user");
     localStorage.removeItem("pconf.displayName");
     localStorage.removeItem("pconf.useAccountName");
+    localStorage.removeItem("currentMeeting");
     window.location.href = "/";
+  };
+
+  const handleEndMeeting = () => {
+    if (window.confirm("Are you sure you want to end this meeting?")) {
+      localStorage.removeItem("currentMeeting");
+      navigate("/");
+    }
   };
 
   const handleTileClick = (menu) => {
     console.log("open", menu.slug);
     navigate(`/menu/${menu.slug}`);
   };
+
+  const meetingId = currentMeeting?.id || "MTG-001";
+  const meetingCode = currentMeeting?.code || "MTG-001";
 
   return (
     <div className="pd-app">
@@ -82,7 +104,7 @@ export default function ParticipantDashboard() {
           <span className="pd-live" aria-hidden />
           <div>
             <h1 className="pd-title">Conference Meeting</h1>
-            <div className="pd-sub">ID: MTG-001</div>
+            <div className="pd-sub">ID: {meetingId}</div>
           </div>
         </div>
         <div className="pd-right">
@@ -155,7 +177,9 @@ export default function ParticipantDashboard() {
         </div>
         <div className="pd-controls-right">
           <button className="pd-ghost">Menu</button>
-          <button className="pd-danger">End Meeting</button>
+          <button className="pd-danger" onClick={handleEndMeeting}>
+            End Meeting
+          </button>
           <button className="pd-fab" title="Help">
             ?
           </button>
@@ -195,7 +219,7 @@ function getIcon(slug = "") {
       return (
         <svg {...props}>
           <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 3.21 17l.06-.06A1.65 1.65 0 0 0 3.6 15a1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09c.67 0 1.28-.39 1.51-1 .28-.68.14-1.35-.33-1.82l-.06-.06A2 2 0 1 1 6.04 3.21l.06.06c.47.47 1.14.61 1.82.33.61-.23 1-.84 1.09-1.51V2a2 2 0 1 1 4 0v.09c0 .67.39 1.28 1 1.51.68.28 1.35.14 1.82-.33l.06-.06A2 2 0 1 1 20.79 6.04l-.06.06c-.47.47-.61 1.14-.33 1.82.23.61.84 1 1.51 1.09H22a2 2 0 1 1 0 4h-.09c-.67 0-1.28.39-1.51 1z" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 3.21 17l.06-.06a1.65 1.65 0 0 0-1.82.33 1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09c.67 0 1.28-.39 1.51-1 .28-.68.14-1.35-.33-1.82l-.06-.06A2 2 0 1 1 6.04 3.21l.06.06c.47.47 1.14.61 1.82.33.61-.23 1-.84 1.09-1.51V2a2 2 0 1 1 4 0v.09c0 .67.39 1.28 1 1.51.68.28 1.35.14 1.82-.33l.06-.06A2 2 0 1 1 20.79 6.04l-.06.06c-.47.47-.61 1.14-.33 1.82.23.61.84 1 1.51 1.09H22a2 2 0 1 1 0 4h-.09c-.67 0-1.28.39-1.51 1z" />
         </svg>
       );
     default:
