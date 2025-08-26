@@ -17,11 +17,11 @@ export default function Login() {
 
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include', // Include cookies for session
+        credentials: "include", // Include cookies for session
         body: JSON.stringify({ username, password }),
       });
 
@@ -29,25 +29,29 @@ export default function Login() {
 
       if (data.success) {
         // Store user data in localStorage for frontend use
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Redirect to role-specific dashboard
-        if (data.user.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (data.user.role === 'host') {
-          navigate('/host/dashboard');
-        } else if (data.user.role === 'participant') {
-          navigate('/participant/dashboard');
-        } else {
-          // Fallback to admin dashboard if role is unknown
-          navigate('/admin/dashboard');
+        localStorage.setItem("user", JSON.stringify(data.user));
+        if (data.user.role === "admin") navigate("/admin/dashboard");
+        else {
+          navigate("/start");
         }
+
+        // Redirect to role-specific dashboard
+        // if (data.user.role === "admin") {
+        //   navigate("/admin/dashboard");
+        // } else if (data.user.role === "host") {
+        //   navigate("/host/dashboard");
+        // } else if (data.user.role === "participant") {
+        //   navigate("/participant/dashboard");
+        // } else {
+        //   // Fallback to admin dashboard if role is unknown
+        //   navigate("/admin/dashboard");
+        // }
       } else {
-        setError(data.message || 'Login gagal');
+        setError(data.message || "Login gagal");
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError('Terjadi kesalahan koneksi');
+      console.error("Login error:", err);
+      setError("Terjadi kesalahan koneksi");
     } finally {
       setLoading(false);
     }
@@ -66,11 +70,7 @@ export default function Login() {
           </div>
         </div>
 
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
+        {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -105,12 +105,8 @@ export default function Login() {
             />
           </div>
 
-          <button 
-            type="submit" 
-            className="login-button"
-            disabled={loading}
-          >
-            {loading ? 'Logging in...' : 'Login'}
+          <button type="submit" className="login-button" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
       </div>

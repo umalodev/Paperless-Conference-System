@@ -1,89 +1,208 @@
-import React, { useState, useEffect } from 'react';
-import './participant-dashboard.css';
+import React, { useEffect, useMemo, useState } from "react";
+import "./participant-dashboard.css";
+import { API_URL } from "../../../config.js";
+import { useNavigate } from "react-router-dom";
+import Icon from "../../../components/Icon.jsx";
 
-const ParticipantDashboard = () => {
+export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
+  const [menus, setMenus] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Get user from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
+    const u = localStorage.getItem("user");
+    if (u) setUser(JSON.parse(u));
+    const savedName = localStorage.getItem("pconf.displayName");
+    if (savedName) {
+      setDisplayName(savedName);
     }
   }, []);
 
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setErr("");
+        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        const list = Array.isArray(json?.data)
+          ? json.data.map((m) => ({
+              menu_id: m.menuId,
+              display_label: m.displayLabel,
+              slug: m.slug,
+              flag: m.flag ?? "Y",
+
+              iconUrl: m.iconMenu || null,
+              parent: m.parentMenu,
+              seq: m.sequenceMenu,
+            }))
+          : [];
+        if (!cancel) setMenus(list);
+      } catch (e) {
+        if (!cancel) setErr(String(e.message || e));
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [API_URL]);
+
+  const visibleMenus = useMemo(
+    () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
+    [menus]
+  );
+
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    window.location.href = '/';
+    localStorage.removeItem("user");
+    localStorage.removeItem("pconf.displayName");
+    localStorage.removeItem("pconf.useAccountName");
+    window.location.href = "/";
   };
 
-  const participantFeatures = [
-    { id: 1, name: 'Files', icon: '📁', description: 'View conference files' },
-    { id: 2, name: 'Chat/Messaging', icon: '💬', description: 'Join conversations' },
-    { id: 3, name: 'Agenda', icon: '📋', description: 'View meeting agenda' },
-    { id: 4, name: 'Materials', icon: '📚', description: 'Access materials' },
-    { id: 5, name: 'Survey', icon: '📊', description: 'Participate in surveys' }
-  ];
+  const handleTileClick = (menu) => {
+    console.log("open", menu.slug);
+    navigate(`/menu/${menu.slug}`);
+  };
 
   return (
-    <div className="participant-dashboard">
-      <header className="dashboard-header">
-        <div className="header-left">
-          <h1>Participant Dashboard</h1>
-          <p>Join and participate in conferences</p>
+    <div className="pd-app">
+      <header className="pd-topbar">
+        <div className="pd-left">
+          <span className="pd-live" aria-hidden />
+          <div>
+            <h1 className="pd-title">Conference Meeting</h1>
+            <div className="pd-sub">ID: MTG-001</div>
+          </div>
         </div>
-        <div className="header-right">
-          <span className="user-info">Welcome, {user?.username || 'Participant'}!</span>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
+        <div className="pd-right">
+          <div className="pd-clock" aria-live="polite">
+            {new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </div>
+          <div className="pd-user">
+            <div className="pd-avatar">
+              {(displayName || user?.username || "User")
+                .slice(0, 2)
+                .toUpperCase()}
+            </div>
+            <div>
+              <div className="pd-user-name">
+                {displayName || user?.username || "Participant"}
+              </div>
+              <div className="pd-user-role">{user?.role}</div>
+            </div>
+            <button className="pd-ghost" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="dashboard-content">
-        <div className="stats-section">
-          <div className="stat-card">
-            <h3>Joined Meetings</h3>
-            <p className="stat-number">8</p>
-          </div>
-          <div className="stat-card">
-            <h3>Available Now</h3>
-            <p className="stat-number">2</p>
-          </div>
-          <div className="stat-card">
-            <h3>My Files</h3>
-            <p className="stat-number">15</p>
-          </div>
-          <div className="stat-card">
-            <h3>Surveys Taken</h3>
-            <p className="stat-number">5</p>
-          </div>
-        </div>
+      <main className="pd-main">
+        <section className="pd-panel">
+          {loading && <div className="pd-empty">Loading menus…</div>}
+          {err && !loading && (
+            <div className="pd-error">Gagal memuat menu: {err}</div>
+          )}
 
-        <div className="features-section">
-          <h2>Available Features</h2>
-          <div className="features-grid">
-            {participantFeatures.map(feature => (
-              <div key={feature.id} className="feature-card">
-                <div className="feature-icon">{feature.icon}</div>
-                <h3>{feature.name}</h3>
-                <p>{feature.description}</p>
-                <button className="feature-btn">Access</button>
-              </div>
-            ))}
-          </div>
-        </div>
+          {!loading && !err && (
+            <div className="pd-grid">
+              {visibleMenus.map((m) => (
+                <button
+                  key={m.menu_id || m.slug}
+                  className="pd-tile"
+                  onClick={() => handleTileClick(m)}
+                  aria-label={m.display_label || m.slug}
+                >
+                  <span className="pd-tile-icon" aria-hidden>
+                    <Icon slug={m.slug} iconUrl={m.iconUrl} />
+                  </span>
+                  <span className="pd-tile-label">{m.display_label}</span>
+                </button>
+              ))}
+              {visibleMenus.length === 0 && (
+                <div className="pd-empty">Tidak ada menu untuk role ini.</div>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
 
-        <div className="quick-actions">
-          <h2>Quick Actions</h2>
-          <div className="action-buttons">
-            <button className="action-btn primary">Join Meeting</button>
-            <button className="action-btn secondary">Browse Files</button>
-            <button className="action-btn secondary">View Schedule</button>
-            <button className="action-btn secondary">My Profile</button>
-          </div>
+      <footer className="pd-bottombar">
+        <div className="pd-controls-left">
+          <button className="pd-ctrl" title="Mic">
+            {getIcon("mic")}
+          </button>
+          <button className="pd-ctrl" title="Camera">
+            {getIcon("camera")}
+          </button>
+          <button className="pd-ctrl" title="Settings">
+            {getIcon("settings")}
+          </button>
         </div>
-      </div>
+        <div className="pd-controls-right">
+          <button className="pd-ghost">Menu</button>
+          <button className="pd-danger">End Meeting</button>
+          <button className="pd-fab" title="Help">
+            ?
+          </button>
+        </div>
+      </footer>
     </div>
   );
-};
+}
 
-export default ParticipantDashboard;
+function getIcon(slug = "") {
+  const props = {
+    className: "pd-svg",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  };
+  switch (slug.toLowerCase()) {
+    case "mic":
+      return (
+        <svg {...props}>
+          <rect x="9" y="2" width="6" height="11" rx="3" />
+          <path d="M5 10v2a7 7 0 0 0 14 0v-2" />
+          <path d="M12 19v3" />
+        </svg>
+      );
+    case "camera":
+      return (
+        <svg {...props}>
+          <rect x="3" y="6" width="13" height="12" rx="3" />
+          <path d="M16 10l5-3v10l-5-3z" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg {...props}>
+          <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 3.21 17l.06-.06A1.65 1.65 0 0 0 3.6 15a1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09c.67 0 1.28-.39 1.51-1 .28-.68.14-1.35-.33-1.82l-.06-.06A2 2 0 1 1 6.04 3.21l.06.06c.47.47 1.14.61 1.82.33.61-.23 1-.84 1.09-1.51V2a2 2 0 1 1 4 0v.09c0 .67.39 1.28 1 1.51.68.28 1.35.14 1.82-.33l.06-.06A2 2 0 1 1 20.79 6.04l-.06.06c-.47.47-.61 1.14-.33 1.82.23.61.84 1 1.51 1.09H22a2 2 0 1 1 0 4h-.09c-.67 0-1.28.39-1.51 1z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...props}>
+          <rect x="4" y="4" width="16" height="16" rx="4" />
+        </svg>
+      );
+  }
+}

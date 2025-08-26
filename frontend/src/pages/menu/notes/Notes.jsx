@@ -1,0 +1,555 @@
+// src/pages/menu/notes/Notes.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import BottomNav from "../../../components/BottomNav.jsx";
+import Icon from "../../../components/Icon.jsx";
+import { API_URL } from "../../../config.js";
+import "./Notes.css";
+
+export default function Notes() {
+  const [user, setUser] = useState(null);
+
+  // bottom nav
+  const [menus, setMenus] = useState([]);
+  const [loadingMenus, setLoadingMenus] = useState(true);
+  const [errMenus, setErrMenus] = useState("");
+
+  // notes
+  const [notes, setNotes] = useState([]);
+  const [loadingNotes, setLoadingNotes] = useState(true);
+  const [errNotes, setErrNotes] = useState("");
+
+  // composer
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+
+  // editing
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (u) setUser(JSON.parse(u));
+  }, []);
+
+  // Fetch menus untuk bottom nav
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        setLoadingMenus(true);
+        setErrMenus("");
+        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const list = Array.isArray(json?.data)
+          ? json.data.map((m) => ({
+              slug: m.slug,
+              label: m.displayLabel,
+              flag: m.flag ?? "Y",
+              iconUrl: m.iconMenu || null,
+              seq: m.sequenceMenu,
+            }))
+          : [];
+        if (!cancel) setMenus(list);
+      } catch (e) {
+        if (!cancel) setErrMenus(String(e.message || e));
+      } finally {
+        if (!cancel) setLoadingMenus(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  // Fetch notes (GANTI endpoint sesuai backend kamu)
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        setLoadingNotes(true);
+        setErrNotes("");
+
+        // Contoh real:
+        // const res = await fetch(`${API_URL}/api/notes?meetingId=MTG-001`, { credentials: "include" });
+        // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // const json = await res.json();
+        // const data = Array.isArray(json?.data) ? json.data : [];
+
+        // Demo data
+        const data = [
+          {
+            id: "n1",
+            title: "Catatan Pembukaan",
+            body: "Pastikan semua peserta hadir tepat waktu.",
+            updatedAt: "2025-08-15T08:30:00Z",
+            author: "Host",
+          },
+          {
+            id: "n2",
+            title: "Hal Teknis",
+            body: "Gunakan channel chat untuk pertanyaan.\nRekaman tersedia setelah acara.",
+            updatedAt: "2025-08-15T09:10:00Z",
+            author: "Rina",
+          },
+        ];
+
+        if (!cancel) setNotes(data);
+      } catch (e) {
+        if (!cancel) setErrNotes(String(e.message || e));
+      } finally {
+        if (!cancel) setLoadingNotes(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  const visibleMenus = useMemo(
+    () =>
+      (menus || [])
+        .filter((m) => (m?.flag ?? "Y") === "Y")
+        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
+    [menus]
+  );
+
+  const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
+
+  const resetComposer = () => {
+    setTitle("");
+    setBody("");
+  };
+
+  const handleAdd = async () => {
+    const t = title.trim();
+    const b = body.trim();
+    if (!t && !b) return;
+    setSaving(true);
+
+    try {
+      const payload = {
+        meetingId: "MTG-001", // ganti sesuai konteks
+        title: t,
+        body: b,
+      };
+
+      // Real POST:
+      // const res = await fetch(`${API_URL}/api/notes`, {
+      //   method: "POST",
+      //   credentials: "include",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(payload),
+      // });
+      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // const json = await res.json();
+      // const created = json.data;
+
+      // Demo create
+      await new Promise((r) => setTimeout(r, 300));
+      const created = {
+        id: `n-${Date.now()}`,
+        title: t || "Untitled",
+        body: b,
+        updatedAt: new Date().toISOString(),
+        author: user?.username || "You",
+      };
+
+      setNotes((prev) => [created, ...prev]);
+      resetComposer();
+    } catch (e) {
+      alert(`Gagal menambah catatan: ${e.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (n) => {
+    setEditingId(n.id);
+    setEditTitle(n.title || "");
+    setEditBody(n.body || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditBody("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    try {
+      const payload = { title: editTitle.trim(), body: editBody.trim() };
+
+      // Real PUT:
+      // const res = await fetch(`${API_URL}/api/notes/${editingId}`, {
+      //   method: "PUT",
+      //   credentials: "include",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(payload),
+      // });
+      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // const json = await res.json();
+      // const updated = json.data;
+
+      // Demo update
+      await new Promise((r) => setTimeout(r, 300));
+      const updated = {
+        id: editingId,
+        title: payload.title || "Untitled",
+        body: payload.body || "",
+        updatedAt: new Date().toISOString(),
+        author: user?.username || "You",
+      };
+
+      setNotes((prev) => prev.map((x) => (x.id === editingId ? updated : x)));
+      cancelEdit();
+    } catch (e) {
+      alert(`Gagal menyimpan: ${e.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Hapus catatan ini?")) return;
+    setSaving(true);
+    try {
+      // Real DELETE:
+      // const res = await fetch(`${API_URL}/api/notes/${id}`, {
+      //   method: "DELETE",
+      //   credentials: "include",
+      // });
+      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      // Demo delete
+      await new Promise((r) => setTimeout(r, 250));
+      setNotes((prev) => prev.filter((x) => x.id !== id));
+    } catch (e) {
+      alert(`Gagal menghapus: ${e.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="pd-app">
+      {/* Top bar */}
+      <header className="pd-topbar">
+        <div className="pd-left">
+          <span className="pd-live" aria-hidden />
+          <div>
+            <h1 className="pd-title">Notes</h1>
+            <div className="pd-sub">Tulis & simpan catatan sesi</div>
+          </div>
+        </div>
+        <div className="pd-right">
+          <div className="pd-clock" aria-live="polite">
+            {new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </div>
+          <div className="pd-user">
+            <div className="pd-avatar">
+              {(user?.username || "US").slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <div className="pd-user-name">
+                {user?.username || "Participant"}
+              </div>
+              <div className="pd-user-role">Participant</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="pd-main">
+        <section className="notes-wrap">
+          <div className="notes-header">
+            <div className="notes-title">
+              <Icon slug="note" iconUrl="/img/note.svg" size={22} />
+              <span>Catatan</span>
+            </div>
+            <div className="notes-actions">
+              <button
+                className="note-btn ghost"
+                onClick={() => window.location.reload()}
+                title="Refresh"
+              >
+                <RefreshIcon />
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Composer */}
+          <div className="notes-composer">
+            <input
+              className="note-input"
+              placeholder="Judul catatan"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <textarea
+              className="note-textarea"
+              placeholder="Tuliskan catatan…"
+              rows={3}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+            />
+            <div className="notes-composer-actions">
+              <button
+                className="note-btn primary"
+                onClick={handleAdd}
+                disabled={saving || (!title.trim() && !body.trim())}
+              >
+                <SaveIcon />
+                <span>Simpan</span>
+              </button>
+              {(title || body) && (
+                <button
+                  className="note-btn"
+                  onClick={resetComposer}
+                  disabled={saving}
+                >
+                  <ClearIcon />
+                  <span>Bersihkan</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          {loadingNotes && <div className="pd-empty">Memuat catatan…</div>}
+          {errNotes && !loadingNotes && (
+            <div className="pd-error">Gagal memuat catatan: {errNotes}</div>
+          )}
+
+          {!loadingNotes && !errNotes && (
+            <>
+              {notes.length === 0 ? (
+                <div className="pd-empty">Belum ada catatan.</div>
+              ) : (
+                <div className="notes-grid">
+                  {notes.map((n) =>
+                    editingId === n.id ? (
+                      <div className="note-card editing" key={n.id}>
+                        <input
+                          className="note-input"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="Judul catatan"
+                        />
+                        <textarea
+                          className="note-textarea"
+                          rows={4}
+                          value={editBody}
+                          onChange={(e) => setEditBody(e.target.value)}
+                          placeholder="Isi catatan…"
+                        />
+                        <div className="note-meta">
+                          <span>Diedit sekarang</span>
+                        </div>
+                        <div className="note-actions">
+                          <button
+                            className="note-btn primary"
+                            onClick={saveEdit}
+                            disabled={saving}
+                          >
+                            <SaveIcon />
+                            <span>Simpan</span>
+                          </button>
+                          <button
+                            className="note-btn"
+                            onClick={cancelEdit}
+                            disabled={saving}
+                          >
+                            <CancelIcon />
+                            <span>Batal</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="note-card" key={n.id}>
+                        <div className="note-title">
+                          {n.title || "Untitled"}
+                        </div>
+                        <div className="note-body">
+                          {n.body || <i>(tanpa isi)</i>}
+                        </div>
+                        <div className="note-meta">
+                          <span>{formatDate(n.updatedAt)}</span>
+                          {n.author ? <span> · {n.author}</span> : null}
+                        </div>
+                        <div className="note-actions">
+                          <button
+                            className="note-btn"
+                            onClick={() => startEdit(n)}
+                            disabled={saving}
+                          >
+                            <EditIcon />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            className="note-btn danger"
+                            onClick={() => handleDelete(n.id)}
+                            disabled={saving}
+                          >
+                            <TrashIcon />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </main>
+
+      {/* Bottom nav dari DB */}
+      {!loadingMenus && !errMenus && (
+        <BottomNav
+          items={visibleMenus}
+          active="note"
+          onSelect={handleSelectNav}
+        />
+      )}
+    </div>
+  );
+}
+
+/* Utils */
+function formatDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString([], {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+/* Ikon kecil */
+function SaveIcon() {
+  return (
+    <svg
+      className="pd-svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <path d="M17 21V9H7v12" />
+      <path d="M7 3v6h8" />
+    </svg>
+  );
+}
+function ClearIcon() {
+  return (
+    <svg
+      className="pd-svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+function EditIcon() {
+  return (
+    <svg
+      className="pd-svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
+function TrashIcon() {
+  return (
+    <svg
+      className="pd-svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+function CancelIcon() {
+  return (
+    <svg
+      className="pd-svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+function RefreshIcon() {
+  return (
+    <svg
+      className="pd-svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9" />
+      <path d="M3 12l3-3 3 3" />
+      <path d="M21 12l-3 3-3-3" />
+    </svg>
+  );
+}
