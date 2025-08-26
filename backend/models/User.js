@@ -60,6 +60,14 @@ module.exports = (sequelize, Sequelize) => {
       onUpdate: 'CASCADE',
       onDelete: 'RESTRICT'
     });
+
+    // One-to-many relationship with Meeting
+    User.hasMany(models.Meeting, {
+      foreignKey: 'userId',
+      as: 'Meetings',
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE'
+    });
   };
 
   // Add a getter method for role
