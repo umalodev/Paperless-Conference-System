@@ -3,13 +3,15 @@ const router = express.Router();
 
 // Import route modules
 const authRoutes = require('./auth');
-const menuRoutes = require('./menu');
+const menuRoutes = require('./meeting');
 const userRoutes = require('./users');
+const meetingRoutes = require('./meeting');
 
 // Use route modules
 router.use('/auth', authRoutes);
 router.use('/menu', menuRoutes);
 router.use('/users', userRoutes);
+router.use('/meeting', meetingRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

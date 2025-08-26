@@ -54,18 +54,34 @@ const authController = {
         role: user.UserRole ? user.UserRole.nama : 'unknown'
       };
       
-      console.log('Session after setting user:', req.session);
-      console.log('User data stored in session:', req.session.user);
-
-      // Login successful
-      res.json({
-        success: true,
-        message: "Login berhasil",
-        user: {
-          id: user.id,
-          username: user.username,
-          role: user.UserRole ? user.UserRole.nama : 'unknown'
+      // Save session explicitly
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json({ 
+            success: false, 
+            message: "Terjadi kesalahan session" 
+          });
         }
+        
+        console.log('Session after setting user:', req.session);
+        console.log('User data stored in session:', req.session.user);
+        console.log('Session ID:', req.sessionID);
+
+        // Generate a simple token for frontend use
+        const token = `token_${user.id}_${Date.now()}`;
+        
+        // Login successful
+        res.json({
+          success: true,
+          message: "Login berhasil",
+          token: token,
+          user: {
+            id: user.id,
+            username: user.username,
+            role: user.UserRole ? user.UserRole.nama : 'unknown'
+          }
+        });
       });
 
     } catch (error) {
