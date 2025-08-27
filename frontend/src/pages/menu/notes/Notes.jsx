@@ -36,6 +36,48 @@ export default function Notes() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
+  const meetingId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      return cm?.id || cm?.meetingId || cm?.code || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        setLoadingNotes(true);
+        setErrNotes("");
+        if (!meetingId) {
+          setNotes([]); // belum ada meeting
+          return;
+        }
+        const res = await fetch(
+          `${API_URL}/api/notes?meetingId=${encodeURIComponent(meetingId)}`,
+          {
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const data = Array.isArray(json?.data) ? json.data : [];
+        if (!cancel) setNotes(data);
+      } catch (e) {
+        if (!cancel) setErrNotes(String(e.message || e));
+      } finally {
+        if (!cancel) setLoadingNotes(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [meetingId]);
+
   // Fetch menus untuk bottom nav
   useEffect(() => {
     let cancel = false;
@@ -70,50 +112,6 @@ export default function Notes() {
     };
   }, []);
 
-  // Fetch notes (GANTI endpoint sesuai backend kamu)
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setLoadingNotes(true);
-        setErrNotes("");
-
-        // Contoh real:
-        // const res = await fetch(`${API_URL}/api/notes?meetingId=MTG-001`, { credentials: "include" });
-        // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        // const json = await res.json();
-        // const data = Array.isArray(json?.data) ? json.data : [];
-
-        // Demo data
-        const data = [
-          {
-            id: "n1",
-            title: "Catatan Pembukaan",
-            body: "Pastikan semua peserta hadir tepat waktu.",
-            updatedAt: "2025-08-15T08:30:00Z",
-            author: "Host",
-          },
-          {
-            id: "n2",
-            title: "Hal Teknis",
-            body: "Gunakan channel chat untuk pertanyaan.\nRekaman tersedia setelah acara.",
-            updatedAt: "2025-08-15T09:10:00Z",
-            author: "Rina",
-          },
-        ];
-
-        if (!cancel) setNotes(data);
-      } catch (e) {
-        if (!cancel) setErrNotes(String(e.message || e));
-      } finally {
-        if (!cancel) setLoadingNotes(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
   const visibleMenus = useMemo(
     () =>
       (menus || [])
@@ -133,36 +131,22 @@ export default function Notes() {
     const t = title.trim();
     const b = body.trim();
     if (!t && !b) return;
+    if (!meetingId) {
+      alert("Meeting belum aktif/terpilih.");
+      return;
+    }
     setSaving(true);
-
     try {
-      const payload = {
-        meetingId: "MTG-001", // ganti sesuai konteks
-        title: t,
-        body: b,
-      };
-
-      // Real POST:
-      // const res = await fetch(`${API_URL}/api/notes`, {
-      //   method: "POST",
-      //   credentials: "include",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(payload),
-      // });
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // const json = await res.json();
-      // const created = json.data;
-
-      // Demo create
-      await new Promise((r) => setTimeout(r, 300));
-      const created = {
-        id: `n-${Date.now()}`,
-        title: t || "Untitled",
-        body: b,
-        updatedAt: new Date().toISOString(),
-        author: user?.username || "You",
-      };
-
+      const payload = { meetingId, title: t, body: b };
+      const res = await fetch(`${API_URL}/api/notes`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const created = json.data;
       setNotes((prev) => [created, ...prev]);
       resetComposer();
     } catch (e) {
@@ -189,28 +173,15 @@ export default function Notes() {
     setSaving(true);
     try {
       const payload = { title: editTitle.trim(), body: editBody.trim() };
-
-      // Real PUT:
-      // const res = await fetch(`${API_URL}/api/notes/${editingId}`, {
-      //   method: "PUT",
-      //   credentials: "include",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(payload),
-      // });
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // const json = await res.json();
-      // const updated = json.data;
-
-      // Demo update
-      await new Promise((r) => setTimeout(r, 300));
-      const updated = {
-        id: editingId,
-        title: payload.title || "Untitled",
-        body: payload.body || "",
-        updatedAt: new Date().toISOString(),
-        author: user?.username || "You",
-      };
-
+      const res = await fetch(`${API_URL}/api/notes/${editingId}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const updated = json.data;
       setNotes((prev) => prev.map((x) => (x.id === editingId ? updated : x)));
       cancelEdit();
     } catch (e) {
@@ -224,15 +195,11 @@ export default function Notes() {
     if (!confirm("Hapus catatan ini?")) return;
     setSaving(true);
     try {
-      // Real DELETE:
-      // const res = await fetch(`${API_URL}/api/notes/${id}`, {
-      //   method: "DELETE",
-      //   credentials: "include",
-      // });
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      // Demo delete
-      await new Promise((r) => setTimeout(r, 250));
+      const res = await fetch(`${API_URL}/api/notes/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNotes((prev) => prev.filter((x) => x.id !== id));
     } catch (e) {
       alert(`Gagal menghapus: ${e.message || e}`);
@@ -240,7 +207,6 @@ export default function Notes() {
       setSaving(false);
     }
   };
-
   return (
     <div className="pd-app">
       {/* Top bar */}
