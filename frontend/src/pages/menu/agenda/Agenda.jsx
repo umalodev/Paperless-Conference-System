@@ -3,6 +3,8 @@ import BottomNav from "../../../components/BottomNav.jsx";
 import "../../menu/agenda/Agenda.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
+import Icon from "../../../components/Icon.jsx";
+import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
@@ -196,6 +198,8 @@ export default function Agenda() {
     }
   };
 
+  useMeetingGuard({ pollingMs: 5000, showAlert: true });
+
   return (
     <div className="pd-app">
       {/* Top bar */}
@@ -241,7 +245,7 @@ export default function Agenda() {
               onClick={canCreate ? openAdd : undefined}
               disabled={!canCreate}
             >
-              {getIcon("plus")}
+              <Icon slug="plus" />
             </button>
           </div>
 
@@ -416,32 +420,4 @@ function formatRange(start, end) {
   const f = (d) =>
     d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return `${f(s)} - ${f(e)}`;
-}
-
-/* getIcon tetap sama */
-function getIcon(slug = "") {
-  const props = {
-    className: "pd-svg",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": true,
-  };
-  switch (slug.toLowerCase()) {
-    case "plus":
-      return (
-        <svg {...props}>
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...props}>
-          <rect x="4" y="4" width="16" height="16" rx="4" />
-        </svg>
-      );
-  }
 }
