@@ -4,6 +4,7 @@ import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
 import Icon from "../../../components/Icon.jsx";
 import meetingService from "../../../services/meetingService.js";
+import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
@@ -21,14 +22,14 @@ export default function ParticipantDashboard() {
     if (savedName) {
       setDisplayName(savedName);
     }
-    
+
     // Get current meeting info
     const meetingRaw = localStorage.getItem("currentMeeting");
     if (meetingRaw) {
       try {
         const meeting = JSON.parse(meetingRaw);
         setCurrentMeeting(meeting);
-        
+
         // Immediately check meeting status when component mounts
         if (meeting?.meetingId || meeting?.id) {
           const meetingId = meeting?.meetingId || meeting?.id;
@@ -45,35 +46,37 @@ export default function ParticipantDashboard() {
     try {
       console.log(`Immediate check meeting status for meeting ${meetingId}...`);
       const result = await meetingService.checkMeetingStatus(meetingId);
-      
-      console.log('Immediate meeting status check result:', result);
+
+      console.log("Immediate meeting status check result:", result);
 
       // Jika meeting sudah ended, langsung exit
-      if (result?.data?.status === 'ended') {
-        console.log('Meeting already ended, immediate exit...');
+      if (result?.data?.status === "ended") {
+        console.log("Meeting already ended, immediate exit...");
         localStorage.removeItem("currentMeeting");
-        alert('Meeting telah berakhir. Anda akan dikeluarkan dari meeting.');
+        alert("Meeting telah berakhir. Anda akan dikeluarkan dari meeting.");
         navigate("/start");
         return;
       }
 
       // Jika meeting tidak aktif, juga exit
       if (!result?.data?.isActive) {
-        console.log('Meeting not active, immediate exit...');
+        console.log("Meeting not active, immediate exit...");
         localStorage.removeItem("currentMeeting");
-        alert('Meeting tidak aktif. Anda akan dikeluarkan dari meeting.');
+        alert("Meeting tidak aktif. Anda akan dikeluarkan dari meeting.");
         navigate("/start");
         return;
       }
-
     } catch (error) {
-      console.error('Error in immediate meeting status check:', error);
-      
+      console.error("Error in immediate meeting status check:", error);
+
       // Jika error 404, meeting mungkin sudah dihapus
-      if (error.message.includes('404') || error.message.includes('not found')) {
-        console.log('Meeting not found, immediate exit...');
+      if (
+        error.message.includes("404") ||
+        error.message.includes("not found")
+      ) {
+        console.log("Meeting not found, immediate exit...");
         localStorage.removeItem("currentMeeting");
-        alert('Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.');
+        alert("Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.");
         navigate("/start");
         return;
       }
@@ -117,88 +120,6 @@ export default function ParticipantDashboard() {
     };
   }, [API_URL]);
 
-  // Polling untuk check meeting status (auto-exit ketika meeting ended)
-  useEffect(() => {
-    if (!currentMeeting?.meetingId && !currentMeeting?.id) return;
-
-    const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
-    let cancel = false;
-    let intervalId;
-
-    const checkStatus = async () => {
-      try {
-        if (cancel) return;
-        
-        console.log(`Checking meeting status for meeting ${meetingId}...`);
-        const result = await meetingService.checkMeetingStatus(meetingId);
-        
-        if (cancel) return;
-
-        console.log('Meeting status result:', result);
-
-        // Jika meeting sudah ended, auto-exit
-        if (result?.data?.status === 'ended') {
-          console.log('Meeting ended, auto-exiting participant...');
-          
-          // Clear local storage
-          localStorage.removeItem("currentMeeting");
-          
-          // Alert dan redirect
-          alert('Meeting telah berakhir. Anda akan dikeluarkan dari meeting.');
-          navigate("/start");
-          return;
-        }
-
-        // Jika meeting tidak aktif, juga exit
-        if (!result?.data?.isActive) {
-          console.log('Meeting not active, auto-exiting participant...');
-          
-          // Clear local storage
-          localStorage.removeItem("currentMeeting");
-          
-          // Alert dan redirect
-          alert('Meeting tidak aktif. Anda akan dikeluarkan dari meeting.');
-          navigate("/start");
-          return;
-        }
-
-      } catch (error) {
-        console.error('Error checking meeting status:', error);
-        
-        if (cancel) return;
-
-        // Jika error 404 (meeting tidak ditemukan), meeting mungkin sudah dihapus
-        if (error.message.includes('404') || error.message.includes('not found')) {
-          console.log('Meeting not found, auto-exiting participant...');
-          
-          // Clear local storage
-          localStorage.removeItem("currentMeeting");
-          
-          // Alert dan redirect
-          alert('Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.');
-          navigate("/start");
-          return;
-        }
-
-        // Untuk error lain, log saja tapi jangan exit
-        console.warn('Meeting status check failed, but continuing:', error.message);
-      }
-    };
-
-    // Check status setiap 5 detik (lebih responsif)
-    intervalId = setInterval(checkStatus, 5000);
-    
-    // Check status pertama kali
-    checkStatus();
-
-    return () => {
-      cancel = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [currentMeeting, navigate]);
-
   const visibleMenus = useMemo(
     () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
     [menus]
@@ -217,7 +138,7 @@ export default function ParticipantDashboard() {
       try {
         // Get the actual meeting ID from currentMeeting
         const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
-        
+
         if (!meetingId) {
           alert("Meeting ID not found. Cannot end meeting.");
           return;
@@ -225,7 +146,7 @@ export default function ParticipantDashboard() {
 
         // Call the API to end the meeting
         await meetingService.endMeeting(meetingId);
-        
+
         // Clear local storage and redirect
         localStorage.removeItem("currentMeeting");
         alert("Meeting ended successfully!");
@@ -244,6 +165,8 @@ export default function ParticipantDashboard() {
 
   const meetingId = currentMeeting?.id || "MTG-001";
   const meetingCode = currentMeeting?.code || "MTG-001";
+
+  useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
   return (
     <div className="pd-app">
@@ -314,13 +237,13 @@ export default function ParticipantDashboard() {
       <footer className="pd-bottombar">
         <div className="pd-controls-left">
           <button className="pd-ctrl" title="Mic">
-            {getIcon("mic")}
+            <Icon slug="mic" />
           </button>
           <button className="pd-ctrl" title="Camera">
-            {getIcon("camera")}
+            <Icon slug="camera" />
           </button>
           <button className="pd-ctrl" title="Settings">
-            {getIcon("settings")}
+            <Icon slug="settings" />
           </button>
         </div>
         <div className="pd-controls-right">
@@ -335,46 +258,4 @@ export default function ParticipantDashboard() {
       </footer>
     </div>
   );
-}
-
-function getIcon(slug = "") {
-  const props = {
-    className: "pd-svg",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-  };
-  switch (slug.toLowerCase()) {
-    case "mic":
-      return (
-        <svg {...props}>
-          <rect x="9" y="2" width="6" height="11" rx="3" />
-          <path d="M5 10v2a7 7 0 0 0 14 0v-2" />
-          <path d="M12 19v3" />
-        </svg>
-      );
-    case "camera":
-      return (
-        <svg {...props}>
-          <rect x="3" y="6" width="13" height="12" rx="3" />
-          <path d="M16 10l5-3v10l-5-3z" />
-        </svg>
-      );
-    case "settings":
-      return (
-        <svg {...props}>
-          <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 3.21 17l.06-.06a1.65 1.65 0 0 0-1.82.33 1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09c.67 0 1.28-.39 1.51-1 .28-.68.14-1.35-.33-1.82l-.06-.06A2 2 0 1 1 6.04 3.21l.06.06c.47.47 1.14.61 1.82.33.61-.23 1-.84 1.09-1.51V2a2 2 0 1 1 4 0v.09c0 .67.39 1.28 1 1.51.68.28 1.35.14 1.82-.33l.06-.06A2 2 0 1 1 20.79 6.04l-.06.06c-.47.47-.61 1.14-.33 1.82.23.61.84 1 1.51 1.09H22a2 2 0 1 1 0 4h-.09c-.67 0-1.28.39-1.51 1z" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...props}>
-          <rect x="4" y="4" width="16" height="16" rx="4" />
-        </svg>
-      );
-  }
 }

@@ -3,6 +3,8 @@ import BottomNav from "../../../components/BottomNav.jsx";
 import "./materials.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
+import Icon from "../../../components/Icon.jsx";
+import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 
 export default function Materials() {
   const [user, setUser] = useState(null);
@@ -213,6 +215,8 @@ export default function Materials() {
     }
   };
 
+  useMeetingGuard({ pollingMs: 5000, showAlert: true });
+
   return (
     <div className="pd-app">
       {/* Top bar */}
@@ -250,7 +254,7 @@ export default function Materials() {
         <section className="mtl-wrap">
           <div className="mtl-header">
             <div className="mtl-title">
-              {getIcon("materials")} <span>Materials</span>
+              <Icon slug="materials" /> <span>Materials</span>
             </div>
             <div className="mtl-actions">
               <button
@@ -258,7 +262,7 @@ export default function Materials() {
                 onClick={onClickUpload}
                 disabled={!meetingId || uploading}
               >
-                {getIcon("upload")}{" "}
+                <Icon slug="upload" />{" "}
                 <span>{uploading ? "Uploading…" : "Upload"}</span>
               </button>
               <input
@@ -319,7 +323,9 @@ export default function Materials() {
 function MaterialCard({ name, meta, onPreview, onDownload, onDelete }) {
   return (
     <div className="mtl-card">
-      <div className="mtl-fileicon">{getIcon("file")}</div>
+      <div className="mtl-fileicon">
+        <Icon slug="file" />
+      </div>
       <div className="mtl-info">
         <div className="mtl-name" title={name}>
           {name}
@@ -328,13 +334,13 @@ function MaterialCard({ name, meta, onPreview, onDownload, onDelete }) {
       </div>
       <div className="mtl-actions-right">
         <button className="mtl-act" title="Preview" onClick={onPreview}>
-          {getIcon("eye")}
+          <Icon slug="eye" />
         </button>
         <button className="mtl-act" title="Download" onClick={onDownload}>
-          {getIcon("download")}
+          <Icon slug="download" />
         </button>
         <button className="mtl-act danger" title="Delete" onClick={onDelete}>
-          {getIcon("trash")}
+          <Icon slug="trash" />
         </button>
       </div>
     </div>
@@ -385,72 +391,4 @@ function downloadBlob(blob, filename = "file") {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
-
-/* Ikon */
-function getIcon(slug = "") {
-  const props = {
-    className: "pd-svg",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": true,
-  };
-  switch (slug.toLowerCase()) {
-    case "materials":
-    case "files":
-      return (
-        <svg {...props}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <path d="M14 2v6h6" />
-        </svg>
-      );
-    case "file":
-      return (
-        <svg {...props}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8l6-6V4a2 2 0 0 0-2-2z" />
-          <path d="M14 2v6h6" />
-        </svg>
-      );
-    case "eye":
-      return (
-        <svg {...props}>
-          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      );
-    case "download":
-      return (
-        <svg {...props}>
-          <path d="M12 3v12" />
-          <path d="M7 10l5 5 5-5" />
-          <path d="M5 21h14" />
-        </svg>
-      );
-    case "upload":
-      return (
-        <svg {...props}>
-          <path d="M12 21V9" />
-          <path d="M7 14l5-5 5 5" />
-          <path d="M5 3h14" />
-        </svg>
-      );
-    case "trash":
-      return (
-        <svg {...props}>
-          <path d="M3 6h18" />
-          <path d="M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" />
-          <path d="M10 11v6M14 11v6" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...props}>
-          <rect x="4" y="4" width="16" height="16" rx="4" />
-        </svg>
-      );
-  }
 }

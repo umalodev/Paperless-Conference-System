@@ -5,6 +5,7 @@ import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
 import { API_URL } from "../../../config.js";
 import "./Chating.css";
+import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 
 export default function Chat() {
   const [user, setUser] = useState(null);
@@ -209,6 +210,8 @@ export default function Chat() {
       handleSend();
     }
   };
+
+  useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
   return (
     <div className="pd-app">
