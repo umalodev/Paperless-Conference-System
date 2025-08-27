@@ -7,7 +7,10 @@ const menuRoutes = require("./menu");
 const userRoutes = require("./users");
 const agendaRoutes = require("./agenda");
 const meetingRoutes = require("./meeting");
+
 const notesRoutes = require("./notes");
+
+const materialsRoutes = require("./materials");
 
 // Use route modules
 router.use("/auth", authRoutes);
@@ -15,7 +18,10 @@ router.use("/menu", menuRoutes);
 router.use("/users", userRoutes);
 router.use("/agendas", agendaRoutes);
 router.use("/meeting", meetingRoutes);
+
 router.use("/notes", notesRoutes);
+
+router.use("/materials", materialsRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {

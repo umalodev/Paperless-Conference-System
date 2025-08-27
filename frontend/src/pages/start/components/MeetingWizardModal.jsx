@@ -207,9 +207,23 @@ export default function MeetingWizardModal({ open, onClose, onSave }) {
         start_time: a.start ? new Date(a.start).toISOString() : null,
         end_time: a.end ? new Date(a.end).toISOString() : null,
       })),
-      // materials: kirim nama saja atau kirim File[]
-      materials, // File objects; nanti bisa diubah jadi FormData di onSave
+      materials: materials, // File objects - will be processed separately
     };
+
+    // Log payload for debugging
+    console.log("📦 MeetingWizardModal Payload:", {
+      title: payload.title,
+      description: payload.description,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      agendasCount: payload.agendas.length,
+      materialsCount: payload.materials.length,
+      materials: payload.materials.map(m => ({
+        name: m.name,
+        size: m.size,
+        type: m.type
+      }))
+    });
 
     try {
       setSaving(true);

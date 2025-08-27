@@ -38,11 +38,11 @@ module.exports = (sequelize) => {
       }
     },
     // Room status fields
-    status: {
-      type: DataTypes.ENUM('waiting', 'active', 'started', 'ended'),
-      defaultValue: 'waiting',
-      field: 'status'
-    },
+          status: {
+        type: DataTypes.ENUM('started', 'ended', 'scheduled'),
+        defaultValue: 'scheduled',
+        field: 'status'
+      },
     maxParticipants: {
       type: DataTypes.INTEGER,
       defaultValue: 50,
@@ -74,6 +74,11 @@ module.exports = (sequelize) => {
     Meeting.hasMany(models.MeetingParticipant, {
       foreignKey: 'meetingId',
       as: 'Participants'
+    });
+
+    Meeting.hasMany(models.Materials, {
+      foreignKey: 'meetingId',
+      as: 'Materials'
     });
   };
 
