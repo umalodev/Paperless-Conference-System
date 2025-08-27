@@ -2,15 +2,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./SetUp.css";
 import { useNavigate } from "react-router-dom";
 import meetingService from "../../services/meetingService.js";
+import MeetingWizardModal from "./components/MeetingWizardModal.jsx";
 
 export default function SetUp() {
   const [user, setUser] = useState(null);
   const [displayName, setDisplayName] = useState("");
-  const [recent, setRecent] = useState([]);
-  const [loadingRecent, setLoadingRecent] = useState(true);
+  const [scheduled, setScheduled] = useState([]);
+  const [loadingScheduled, setLoadingScheduled] = useState(true);
   const [err, setErr] = useState("");
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
+  const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
@@ -27,33 +29,57 @@ export default function SetUp() {
     [displayName, user]
   );
 
-  // Load recently meetings (scheduled/last started)
+  const handleSaveMeeting = async (payload) => {
+    // TODO: sambungkan ke backend kamu
+    // contoh: await meetingService.scheduleMeeting(payload)
+    console.log("payload to save:", payload);
+    setShowWizard(false);
+  };
+
   useEffect(() => {
     let cancel = false;
     (async () => {
       try {
         setErr("");
-        setLoadingRecent(true);
-        // pakai service kalau ada, fallback ke getActiveMeetings
-        const res =
-          (meetingService.getRecentMeetings &&
-            (await meetingService.getRecentMeetings())) ||
-          (await meetingService.getActiveMeetings());
+        setLoadingScheduled(true);
+
+        // 1) jika service khusus ada
+        let res = meetingService.getScheduledMeetings
+          ? await meetingService.getScheduledMeetings()
+          : null;
+
+        // 2) fallback → pakai recent/active lalu filter ke scheduled
+        if (!res || !Array.isArray(res?.data)) {
+          if (meetingService.getRecentMeetings) {
+            res = await meetingService.getRecentMeetings();
+          } else {
+            res = await meetingService.getActiveMeetings();
+          }
+        }
 
         const arr = Array.isArray(res?.data) ? res.data : [];
-        // normalisasi shape
-        const list = arr.map((m) => ({
-          meetingId: m.meetingId || m.id || String(Math.random()),
-          title: m.title || "Untitled Meeting",
-          status: (m.status || "scheduled").toLowerCase(), // scheduled | started | ended
-          startTime: m.startTime || m.start_time || m.scheduledAt || null,
-          participants: m.participants || 0,
-        }));
-        if (!cancel) setRecent(list);
+
+        // normalisasi + hanya yang scheduled + sort ascending by startTime
+        const list = arr
+          .map((m) => ({
+            meetingId: m.meetingId || m.id || String(Math.random()),
+            title: m.title || "Untitled Meeting",
+            status: (m.status || "scheduled").toLowerCase(),
+            startTime: m.startTime || m.start_time || m.scheduledAt || null,
+            participants: m.participants || 0,
+          }))
+          .filter((m) => m.status === "scheduled")
+          .sort((a, b) => {
+            const da = a.startTime ? new Date(a.startTime).getTime() : Infinity;
+            const db = b.startTime ? new Date(b.startTime).getTime() : Infinity;
+            return da - db;
+          });
+
+        if (!cancel) setScheduled(list);
       } catch (e) {
         if (!cancel) setErr(String(e.message || e));
       } finally {
-        if (!cancel) setLoadingRecent(false);
+        if (!cancel) setLoadingScheduled(false);
       }
     })();
     return () => {
@@ -61,7 +87,7 @@ export default function SetUp() {
     };
   }, []);
 
-  const goSchedule = () => navigate("/schedule"); // stub route
+  const goSchedule = () => setShowWizard(true);
   const goHistory = () => navigate("/history"); // stub route
 
   const toLocalDT = (iso) => {
@@ -83,7 +109,7 @@ export default function SetUp() {
     }
   };
 
-  // Quick Start
+  // Quick Start (instan)
   const quickStart = async () => {
     setCreating(true);
     setErr("");
@@ -113,11 +139,10 @@ export default function SetUp() {
     }
   };
 
-  // Start button di Recently Meeting
+  // Start meeting yang terjadwal
   const handleStartMeeting = async (m) => {
     setErr("");
     try {
-      // kalau ada endpoint khusus start:
       if (meetingService.startMeeting) {
         const res = await meetingService.startMeeting(m.meetingId);
         if (!res?.success)
@@ -186,6 +211,11 @@ export default function SetUp() {
             <button className="hd-btn hd-outline" onClick={goSchedule}>
               Schedule
             </button>
+            <MeetingWizardModal
+              open={showWizard}
+              onClose={() => setShowWizard(false)}
+              onSave={handleSaveMeeting}
+            />
           </div>
 
           <div className="hd-card">
@@ -202,29 +232,27 @@ export default function SetUp() {
           </div>
         </section>
 
-        {/* recently meeting */}
+        {/* scheduled meeting */}
         <section className="hd-recent">
           <div className="hd-recent-head">
             <div>
-              <div className="hd-recent-title">Recently Meeting</div>
-              <div className="hd-recent-sub">
-                Your latest conference sessions
-              </div>
+              <div className="hd-recent-title">Scheduled Meetings</div>
+              <div className="hd-recent-sub">Meetings you’ve planned</div>
             </div>
           </div>
 
           <div className="hd-recent-list">
-            {loadingRecent && <div className="hd-empty">Loading…</div>}
-            {err && !loadingRecent && (
+            {loadingScheduled && <div className="hd-empty">Loading…</div>}
+            {err && !loadingScheduled && (
               <div className="hd-error">Error: {err}</div>
             )}
-            {!loadingRecent && !err && recent.length === 0 && (
-              <div className="hd-empty">No recent meeting.</div>
+            {!loadingScheduled && !err && scheduled.length === 0 && (
+              <div className="hd-empty">No scheduled meetings.</div>
             )}
 
-            {!loadingRecent &&
+            {!loadingScheduled &&
               !err &&
-              recent.map((m) => (
+              scheduled.map((m) => (
                 <div key={m.meetingId} className="hd-meet-item">
                   <div className="hd-meet-left">
                     <div className="hd-meet-title">{m.title}</div>
