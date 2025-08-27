@@ -31,4 +31,10 @@ router.patch('/:materialId/restore', authenticateToken, MaterialsController.rest
 // Download material file
 router.get('/:materialId/download', authenticateToken, MaterialsController.downloadMaterial);
 
+// Clean up duplicate materials for a meeting
+router.post('/cleanup/:meetingId', authenticateToken, MaterialsController.cleanupDuplicateMaterials);
+
+// Delete materials with "undefined" paths
+router.post('/delete-undefined/:meetingId', authenticateToken, MaterialsController.deleteUndefinedMaterials);
+
 module.exports = router;

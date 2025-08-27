@@ -44,29 +44,77 @@ const uploadFile = async (req, res) => {
     const { meetingId } = req.params;
     const { originalname, filename, mimetype, size } = req.file;
 
-    // Create material record
-    const material = await createMaterial({
-      body: {
-        meetingId: meetingId,
-        originalName: originalname,
-        fileSize: size,
-        mimeType: mimetype
-      }
-    }, res);
+    console.log('📁 Uploading file:', {
+      meetingId,
+      originalname,
+      filename,
+      mimetype,
+      size
+    });
 
-    // Update the file path to include the actual uploaded filename
-    if (material && material.data) {
-      const { getFilePath } = require('../middleware/upload');
+    // Check if ANY material already exists for this meeting
+    let material = await Materials.findOne({
+      where: { 
+        meetingId: meetingId,
+        flag: 'Y'
+      }
+    });
+
+    console.log('🔍 Material lookup result:', {
+      found: !!material,
+      meetingId,
+      materialId: material?.id,
+      existingPath: material?.path
+    });
+
+    if (material) {
+      // Update existing material with new file info
       const actualPath = getFilePath(meetingId, filename);
+      await material.update({ 
+        path: actualPath,
+        updated_at: new Date()
+      });
       
-      await material.data.update({ path: actualPath });
-      
+      console.log('✅ Updated existing material:', {
+        id: material.id,
+        meetingId: material.meetingId,
+        oldPath: material.path,
+        newPath: actualPath
+      });
+    } else {
+      // Create new material record only if none exists
+      console.log('🆕 No existing material found, creating new one for:', originalname);
+      material = await createMaterial({
+        body: {
+          meetingId: meetingId,
+          originalName: originalname,
+          fileSize: size,
+          mimeType: mimetype
+        }
+      }, res);
+
+      if (material && material.data) {
+        // Update the file path to include the actual uploaded filename
+        const actualPath = getFilePath(meetingId, filename);
+        await material.data.update({ path: actualPath });
+        material = material.data; // Use the created material for response
+        console.log('✅ Created and updated new material:', {
+          id: material.id,
+          meetingId: material.meetingId,
+          path: actualPath
+        });
+      }
+    }
+
+    // Send response
+    if (material) {
+      const actualPath = getFilePath(meetingId, filename);
       res.json({
         success: true,
         message: 'File uploaded successfully',
         data: {
-          id: material.data.id,
-          meetingId: material.data.meetingId,
+          id: material.id,
+          meetingId: material.meetingId,
           path: actualPath,
           originalName: originalname,
           filename: filename,
@@ -342,6 +390,168 @@ const downloadMaterial = async (req, res) => {
   }
 };
 
+// Clean up duplicate materials for a meeting
+const cleanupDuplicateMaterials = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    
+    if (!meetingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Meeting ID is required'
+      });
+    }
+
+    // Find all materials for the meeting
+    const materials = await Materials.findAll({
+      where: { 
+        meetingId: meetingId,
+        flag: 'Y'
+      },
+      order: [['created_at', 'ASC']]
+    });
+
+    console.log(`🔍 Found ${materials.length} materials for meeting ${meetingId}`);
+
+    // Group materials by path to identify duplicates
+    const pathGroups = {};
+    materials.forEach(material => {
+      const path = material.path;
+      if (!pathGroups[path]) {
+        pathGroups[path] = [];
+      }
+      pathGroups[path].push(material);
+    });
+
+    // Find duplicates (materials with same path)
+    const duplicates = [];
+    Object.entries(pathGroups).forEach(([path, materialsList]) => {
+      if (materialsList.length > 1) {
+        // Keep the first one, mark others for deletion
+        const [keep, ...toDelete] = materialsList;
+        duplicates.push({
+          path,
+          keep: keep.id,
+          delete: toDelete.map(m => m.id)
+        });
+      }
+    });
+
+    if (duplicates.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No duplicate materials found',
+        data: { materialsCount: materials.length, duplicatesCount: 0 }
+      });
+    }
+
+    // Soft delete duplicate materials
+    let deletedCount = 0;
+    for (const duplicate of duplicates) {
+      await Materials.update(
+        { flag: 'N' },
+        { 
+          where: { 
+            id: duplicate.delete,
+            meetingId: meetingId 
+          }
+        }
+      );
+      deletedCount += duplicate.delete.length;
+      console.log(`🗑️ Deleted ${duplicate.delete.length} duplicates for path: ${duplicate.path}`);
+    }
+
+    console.log(`✅ Cleaned up ${deletedCount} duplicate materials for meeting ${meetingId}`);
+
+    res.json({
+      success: true,
+      message: 'Duplicate materials cleaned up successfully',
+      data: {
+        materialsCount: materials.length,
+        duplicatesCount: duplicates.length,
+        deletedCount: deletedCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Error cleaning up duplicate materials:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete materials with "undefined" paths
+const deleteUndefinedMaterials = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    
+    if (!meetingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Meeting ID is required'
+      });
+    }
+
+    // Find materials with "undefined" path for this meeting
+    const undefinedMaterials = await Materials.findAll({
+      where: { 
+        meetingId: meetingId,
+        flag: 'Y',
+        path: {
+          [require('sequelize').Op.like]: '%undefined%'
+        }
+      }
+    });
+
+    if (undefinedMaterials.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No undefined materials found',
+        data: { materialsCount: 0, deletedCount: 0 }
+      });
+    }
+
+    console.log(`🔍 Found ${undefinedMaterials.length} undefined materials for meeting ${meetingId}:`, 
+      undefinedMaterials.map(m => ({ id: m.id, path: m.path }))
+    );
+
+    // Soft delete undefined materials
+    const materialIds = undefinedMaterials.map(m => m.id);
+    await Materials.update(
+      { flag: 'N' },
+      { 
+        where: { 
+          id: materialIds,
+          meetingId: meetingId 
+        }
+      }
+    );
+
+    console.log(`✅ Deleted ${undefinedMaterials.length} undefined materials for meeting ${meetingId}`);
+
+    res.json({
+      success: true,
+      message: 'Undefined materials deleted successfully',
+      data: {
+        materialsCount: undefinedMaterials.length,
+        deletedCount: undefinedMaterials.length,
+        deletedIds: materialIds
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting undefined materials:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getMaterialsByMeeting,
   getMaterialById,
@@ -351,5 +561,7 @@ module.exports = {
   deleteMaterial,
   restoreMaterial,
   downloadMaterial,
-  uploadFile
+  uploadFile,
+  cleanupDuplicateMaterials,
+  deleteUndefinedMaterials
 };
