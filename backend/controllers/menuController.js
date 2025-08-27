@@ -1,5 +1,5 @@
-const MenuService = require('../services/menuService');
-const { Menu, UserRole, UserRoleMenu } = require('../models');
+const MenuService = require("../services/menuService");
+const { Menu, UserRole, UserRoleMenu } = require("../models");
 
 class MenuController {
   /**
@@ -7,19 +7,19 @@ class MenuController {
    */
   static async getUserMenus(req, res) {
     try {
+      // Ambil semua data menu dari DB
+      const menus = await Menu.findAll();
+
       res.json({
         success: true,
-        message: 'User menus endpoint working',
-        data: [
-          { id: 1, name: 'Files', slug: 'files' },
-          { id: 2, name: 'Chat', slug: 'chat' },
-          { id: 3, name: 'Agenda', slug: 'agenda' }
-        ]
+        message: "User menus fetched successfully",
+        data: menus,
       });
     } catch (error) {
+      console.error(error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: "Internal server error",
       });
     }
   }
@@ -31,13 +31,13 @@ class MenuController {
     try {
       res.json({
         success: true,
-        message: 'Menu access check working',
-        data: { hasAccess: true }
+        message: "Menu access check working",
+        data: { hasAccess: true },
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: "Internal server error",
       });
     }
   }
@@ -48,20 +48,28 @@ class MenuController {
   static async getAllMenus(req, res) {
     try {
       const menus = await Menu.findAll({
-        where: { flag: 'Y' },
-        attributes: ['menuId', 'displayLabel', 'iconMenu', 'sequenceMenu', 'parentMenu', 'slug', 'flag'],
-        order: [['sequenceMenu', 'ASC']]
+        where: { flag: "Y" },
+        attributes: [
+          "menuId",
+          "displayLabel",
+          "iconMenu",
+          "sequenceMenu",
+          "parentMenu",
+          "slug",
+          "flag",
+        ],
+        order: [["sequenceMenu", "ASC"]],
       });
 
       res.json({
         success: true,
-        menus: menus
+        menus: menus,
       });
     } catch (error) {
-      console.error('Get all menus error:', error);
+      console.error("Get all menus error:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal memuat data menus'
+        message: "Gagal memuat data menus",
       });
     }
   }
@@ -72,20 +80,23 @@ class MenuController {
   static async getRoleMenuAccess(req, res) {
     try {
       const roleMenus = await UserRoleMenu.findAll({
-        where: { flag: 'Y' },
-        attributes: ['userRoleMenuId', 'userRoleId', 'menuId', 'flag'],
-        order: [['userRoleId', 'ASC'], ['menuId', 'ASC']]
+        where: { flag: "Y" },
+        attributes: ["userRoleMenuId", "userRoleId", "menuId", "flag"],
+        order: [
+          ["userRoleId", "ASC"],
+          ["menuId", "ASC"],
+        ],
       });
 
       res.json({
         success: true,
-        roleMenus: roleMenus
+        roleMenus: roleMenus,
       });
     } catch (error) {
-      console.error('Get role menu access error:', error);
+      console.error("Get role menu access error:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal memuat data role menu access'
+        message: "Gagal memuat data role menu access",
       });
     }
   }
@@ -97,81 +108,81 @@ class MenuController {
     try {
       const { userRoleId, menuId, flag } = req.body;
 
-      console.log('Creating role menu access:', { userRoleId, menuId, flag });
+      console.log("Creating role menu access:", { userRoleId, menuId, flag });
 
       // Validate input
       if (!userRoleId || !menuId) {
         return res.status(400).json({
           success: false,
-          message: 'userRoleId dan menuId harus diisi'
+          message: "userRoleId dan menuId harus diisi",
         });
       }
 
       // Check if role exists
       const roleExists = await UserRole.findByPk(userRoleId);
       if (!roleExists) {
-        console.log('Role not found:', userRoleId);
+        console.log("Role not found:", userRoleId);
         return res.status(400).json({
           success: false,
-          message: 'Role tidak ditemukan'
+          message: "Role tidak ditemukan",
         });
       }
 
       // Check if menu exists
       const menuExists = await Menu.findByPk(menuId);
       if (!menuExists) {
-        console.log('Menu not found:', menuId);
+        console.log("Menu not found:", menuId);
         return res.status(400).json({
           success: false,
-          message: 'Menu tidak ditemukan'
+          message: "Menu tidak ditemukan",
         });
       }
 
-      console.log('Role and menu found, checking existing access...');
+      console.log("Role and menu found, checking existing access...");
 
       // Check if relationship already exists
       const existingAccess = await UserRoleMenu.findOne({
-        where: { userRoleId, menuId }
+        where: { userRoleId, menuId },
       });
 
       if (existingAccess) {
-        console.log('Updating existing access:', existingAccess.userRoleMenuId);
+        console.log("Updating existing access:", existingAccess.userRoleMenuId);
         // Update existing relationship
-        await existingAccess.update({ flag: flag || 'Y' });
+        await existingAccess.update({ flag: flag || "Y" });
       } else {
-        console.log('Creating new access relationship');
+        console.log("Creating new access relationship");
         // Create new relationship
         const newAccess = await UserRoleMenu.create({
           userRoleId,
           menuId,
-          flag: flag || 'Y'
+          flag: flag || "Y",
         });
-        console.log('New access created:', newAccess.userRoleMenuId);
+        console.log("New access created:", newAccess.userRoleMenuId);
       }
 
       // Verify the change was saved
       const verifyAccess = await UserRoleMenu.findOne({
-        where: { userRoleId, menuId }
+        where: { userRoleId, menuId },
       });
 
-      console.log('Verification - Access saved:', verifyAccess ? 'YES' : 'NO');
+      console.log("Verification - Access saved:", verifyAccess ? "YES" : "NO");
 
       res.json({
         success: true,
-        message: 'Role menu access berhasil dibuat/diupdate',
+        message: "Role menu access berhasil dibuat/diupdate",
         data: {
           userRoleId,
           menuId,
-          flag: flag || 'Y',
-          saved: !!verifyAccess
-        }
+          flag: flag || "Y",
+          saved: !!verifyAccess,
+        },
       });
     } catch (error) {
-      console.error('Create role menu access error:', error);
+      console.error("Create role menu access error:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal membuat role menu access',
-        error: error.message
+        message: "Gagal membuat role menu access",
+        error: error.message,
       });
     }
   }
@@ -183,68 +194,71 @@ class MenuController {
     try {
       const { userRoleId, menuId } = req.params;
 
-      console.log('Deleting role menu access:', { userRoleId, menuId });
+      console.log("Deleting role menu access:", { userRoleId, menuId });
 
       // Validate input
       if (!userRoleId || !menuId) {
         return res.status(400).json({
           success: false,
-          message: 'userRoleId dan menuId harus diisi'
+          message: "userRoleId dan menuId harus diisi",
         });
       }
 
       // Find the relationship first
       const existingAccess = await UserRoleMenu.findOne({
-        where: { userRoleId, menuId }
+        where: { userRoleId, menuId },
       });
 
       if (!existingAccess) {
-        console.log('Access relationship not found for deletion');
+        console.log("Access relationship not found for deletion");
         return res.status(404).json({
           success: false,
-          message: 'Role menu access tidak ditemukan'
+          message: "Role menu access tidak ditemukan",
         });
       }
 
-      console.log('Found access relationship:', existingAccess.userRoleMenuId);
+      console.log("Found access relationship:", existingAccess.userRoleMenuId);
 
       // Delete the relationship
       const deleted = await UserRoleMenu.destroy({
-        where: { userRoleId, menuId }
+        where: { userRoleId, menuId },
       });
 
-      console.log('Delete operation result:', deleted);
+      console.log("Delete operation result:", deleted);
 
       if (deleted) {
         // Verify deletion
         const verifyDeleted = await UserRoleMenu.findOne({
-          where: { userRoleId, menuId }
+          where: { userRoleId, menuId },
         });
 
-        console.log('Verification - Access deleted:', !verifyDeleted ? 'YES' : 'NO');
+        console.log(
+          "Verification - Access deleted:",
+          !verifyDeleted ? "YES" : "NO"
+        );
 
         res.json({
           success: true,
-          message: 'Role menu access berhasil dihapus',
+          message: "Role menu access berhasil dihapus",
           data: {
             userRoleId,
             menuId,
             deleted: true,
-            verified: !verifyDeleted
-          }
+            verified: !verifyDeleted,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
-          message: 'Gagal menghapus role menu access'
+          message: "Gagal menghapus role menu access",
         });
       }
     } catch (error) {
-      console.error('Delete role menu access error:', error);
+      console.error("Delete role menu access error:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal menghapus role menu access',
-        error: error.message
+        message: "Gagal menghapus role menu access",
+        error: error.message,
       });
     }
   }
@@ -256,20 +270,24 @@ class MenuController {
     try {
       const { userRoleId, menuIds, action } = req.body;
 
-      console.log('Bulk updating role access:', { userRoleId, menuIds, action });
+      console.log("Bulk updating role access:", {
+        userRoleId,
+        menuIds,
+        action,
+      });
 
       // Validate input
       if (!userRoleId || !menuIds || !Array.isArray(menuIds) || !action) {
         return res.status(400).json({
           success: false,
-          message: 'userRoleId, menuIds (array), dan action harus diisi'
+          message: "userRoleId, menuIds (array), dan action harus diisi",
         });
       }
 
-      if (!['grant', 'revoke'].includes(action)) {
+      if (!["grant", "revoke"].includes(action)) {
         return res.status(400).json({
           success: false,
-          message: 'Action harus "grant" atau "revoke"'
+          message: 'Action harus "grant" atau "revoke"',
         });
       }
 
@@ -278,72 +296,84 @@ class MenuController {
       if (!roleExists) {
         return res.status(400).json({
           success: false,
-          message: 'Role tidak ditemukan'
+          message: "Role tidak ditemukan",
         });
       }
 
       // Check if all menus exist
       const menus = await Menu.findAll({
-        where: { menuId: menuIds }
+        where: { menuId: menuIds },
       });
 
       if (menus.length !== menuIds.length) {
         return res.status(400).json({
           success: false,
-          message: 'Beberapa menu tidak ditemukan'
+          message: "Beberapa menu tidak ditemukan",
         });
       }
 
       const results = [];
 
-      if (action === 'grant') {
+      if (action === "grant") {
         // Grant access to all specified menus
         for (const menuId of menuIds) {
           try {
             const existingAccess = await UserRoleMenu.findOne({
-              where: { userRoleId, menuId }
+              where: { userRoleId, menuId },
             });
 
             if (existingAccess) {
-              await existingAccess.update({ flag: 'Y' });
-              results.push({ menuId, action: 'updated', success: true });
+              await existingAccess.update({ flag: "Y" });
+              results.push({ menuId, action: "updated", success: true });
             } else {
               await UserRoleMenu.create({
                 userRoleId,
                 menuId,
-                flag: 'Y'
+                flag: "Y",
               });
-              results.push({ menuId, action: 'created', success: true });
+              results.push({ menuId, action: "created", success: true });
             }
           } catch (error) {
             console.error(`Error granting access to menu ${menuId}:`, error);
-            results.push({ menuId, action: 'failed', success: false, error: error.message });
+            results.push({
+              menuId,
+              action: "failed",
+              success: false,
+              error: error.message,
+            });
           }
         }
-      } else if (action === 'revoke') {
+      } else if (action === "revoke") {
         // Revoke access from all specified menus
         for (const menuId of menuIds) {
           try {
             const deleted = await UserRoleMenu.destroy({
-              where: { userRoleId, menuId }
+              where: { userRoleId, menuId },
             });
-            results.push({ 
-              menuId, 
-              action: 'deleted', 
-              success: true, 
-              deleted: deleted > 0 
+            results.push({
+              menuId,
+              action: "deleted",
+              success: true,
+              deleted: deleted > 0,
             });
           } catch (error) {
             console.error(`Error revoking access from menu ${menuId}:`, error);
-            results.push({ menuId, action: 'failed', success: false, error: error.message });
+            results.push({
+              menuId,
+              action: "failed",
+              success: false,
+              error: error.message,
+            });
           }
         }
       }
 
-      const successCount = results.filter(r => r.success).length;
+      const successCount = results.filter((r) => r.success).length;
       const totalCount = results.length;
 
-      console.log(`Bulk update completed: ${successCount}/${totalCount} successful`);
+      console.log(
+        `Bulk update completed: ${successCount}/${totalCount} successful`
+      );
 
       res.json({
         success: true,
@@ -355,16 +385,16 @@ class MenuController {
           summary: {
             total: totalCount,
             successful: successCount,
-            failed: totalCount - successCount
-          }
-        }
+            failed: totalCount - successCount,
+          },
+        },
       });
     } catch (error) {
-      console.error('Bulk update role access error:', error);
+      console.error("Bulk update role access error:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal melakukan bulk update role access',
-        error: error.message
+        message: "Gagal melakukan bulk update role access",
+        error: error.message,
       });
     }
   }
@@ -376,13 +406,13 @@ class MenuController {
     try {
       res.json({
         success: true,
-        message: 'User roles with menus endpoint working',
-        data: []
+        message: "User roles with menus endpoint working",
+        data: [],
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: "Internal server error",
       });
     }
   }
@@ -394,12 +424,12 @@ class MenuController {
     try {
       res.json({
         success: true,
-        message: 'Role menu access update working'
+        message: "Role menu access update working",
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: "Internal server error",
       });
     }
   }
@@ -411,12 +441,12 @@ class MenuController {
     try {
       res.json({
         success: true,
-        message: 'Menu creation working'
+        message: "Menu creation working",
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: "Internal server error",
       });
     }
   }
@@ -428,12 +458,12 @@ class MenuController {
     try {
       res.json({
         success: true,
-        message: 'Menu update working'
+        message: "Menu update working",
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: "Internal server error",
       });
     }
   }
@@ -445,12 +475,12 @@ class MenuController {
     try {
       res.json({
         success: true,
-        message: 'Menu deletion working'
+        message: "Menu deletion working",
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: "Internal server error",
       });
     }
   }

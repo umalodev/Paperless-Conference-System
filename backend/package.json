@@ -9,7 +9,9 @@
     "start": "node index.js",
     "seed": "node scripts/seedDatabase.js",
     "create-users": "node scripts/createUsers.js",
-    "media": "node mediaServer.js"
+    "media": "node mediaServer.js",
+    "test-api": "node test-meeting-api.js",
+    "test-simple": "node test-simple.js"
   },
   "keywords": [],
   "author": "",
@@ -21,10 +23,12 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "express-session": "^1.18.0",
+    "mediasoup": "^3.13.24",
+    "multer": "^2.0.2",
     "mysql2": "^3.14.3",
+    "node-fetch": "^2.7.0",
     "sequelize": "^6.37.7",
     "sequelize-cli": "^6.6.3",
-    "mediasoup": "^3.13.24",
     "socket.io": "^4.7.4",
     "winston": "^3.11.0"
   }

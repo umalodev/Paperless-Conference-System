@@ -5,12 +5,12 @@ const authMiddleware = {
   async isAuthenticated(req, res, next) {
     try {
       console.log('Auth middleware - Session:', req.session);
-      console.log('Auth middleware - User in session:', req.session?.user);
+      console.log('Auth middleware - Cookies:', req.headers.cookie);
+      console.log('Auth middleware - Authorization header:', req.headers.authorization);
+      console.log('Auth middleware - X-User-Id header:', req.headers['x-user-id']);
       
-      // For now, we'll just check if user data exists in session/request
-      // In a real app, you'd verify JWT tokens or session data
+      // First try session-based authentication
       if (req.session && req.session.user) {
-        // Load user with role information
         const user = await User.findByPk(req.session.user.id, {
           include: [{
             model: UserRole,
@@ -20,8 +20,30 @@ const authMiddleware = {
         
         if (user) {
           req.user = user;
-          console.log('Auth middleware - User authenticated:', user.username);
+          console.log('Auth middleware - User authenticated via session:', user.username);
           return next();
+        }
+      }
+      
+      // Then try token-based authentication (for backward compatibility)
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const userId = req.headers['x-user-id'];
+        
+        if (userId) {
+          const user = await User.findByPk(userId, {
+            include: [{
+              model: UserRole,
+              as: 'UserRole'
+            }]
+          });
+          
+          if (user) {
+            req.user = user;
+            console.log('Auth middleware - User authenticated via token:', user.username);
+            return next();
+          }
         }
       }
       
@@ -103,4 +125,10 @@ const authMiddleware = {
   }
 };
 
-module.exports = authMiddleware;
+// Add authenticateToken function for backward compatibility
+const authenticateToken = authMiddleware.isAuthenticated;
+
+module.exports = {
+  ...authMiddleware,
+  authenticateToken
+};
