@@ -156,9 +156,17 @@ export default function WaitingRoom() {
   };
 
   const leave = () => {
-    // bebas: bersihkan meeting dari localStorage kalau mau
-    // localStorage.removeItem("currentMeeting");
-    navigate("/");
+    // Clear meeting from localStorage
+    localStorage.removeItem("currentMeeting");
+    
+    // Navigate based on user role
+    if (role === "host") {
+      // Host should go back to start page (same as screenshot)
+      navigate("/start");
+    } else {
+      // Participant can go to start page or login
+      navigate("/start");
+    }
   };
 
   const who = displayName || user?.username || user?.name || "You";
@@ -180,8 +188,8 @@ export default function WaitingRoom() {
           <div className="wr-card">
             <div className="wr-error">No meeting information found. Please go back to start page.</div>
             <div className="wr-actions">
-              <button className="wr-btn wr-ghost" onClick={leave}>
-                Go Back
+              <button className="wr-btn wr-ghost" onClick={() => navigate("/start")}>
+                Go Back to Start
               </button>
             </div>
           </div>

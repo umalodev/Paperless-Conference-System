@@ -251,6 +251,26 @@ class MeetingService {
     }
   }
 
+  // Get scheduled meetings by current user
+  async getScheduledMeetings() {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/scheduled`, {
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch scheduled meetings');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching scheduled meetings:', error);
+      throw error;
+    }
+  }
+
   // Get all meetings (admin only)
   async getAllMeetings() {
     try {

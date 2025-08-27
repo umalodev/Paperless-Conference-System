@@ -1,4 +1,5 @@
-const { Meeting, User, UserRole, MeetingParticipant } = require('../models');
+const { Meeting, User, UserRole, MeetingParticipant, Materials } = require('../models');
+const { getFilePath } = require('../middleware/upload');
 
 // Create a new meeting
 const createMeeting = async (req, res) => {
@@ -6,7 +7,7 @@ const createMeeting = async (req, res) => {
     console.log('Create meeting - Request body:', req.body);
     console.log('Create meeting - User:', req.user);
     
-    const { title, description, startTime, endTime } = req.body;
+    const { title, description, startTime, endTime, agendas, materials } = req.body;
     const userId = req.user.id; // From auth middleware
 
     // Validate required fields
@@ -33,7 +34,25 @@ const createMeeting = async (req, res) => {
     // Generate unique meeting ID
     const meetingId = Math.floor(Math.random() * 100000) + 1000; // Generate 4-digit ID
 
+    // Determine meeting status based on whether it's quick start or scheduled
+    // Quick start: if start time is in the past or now (within 5 minutes)
+    const now = new Date();
+    const startDateTime = new Date(startTime);
+    const timeDiff = startDateTime.getTime() - now.getTime();
+    const isQuickStart = timeDiff <= 5 * 60 * 1000; // Within 5 minutes = quick start
+    
+    console.log('Meeting time analysis:', {
+      startTime: startTime,
+      startDateTime: startDateTime,
+      now: now,
+      timeDiff: timeDiff,
+      isQuickStart: isQuickStart
+    });
+    
+    const meetingStatus = isQuickStart ? 'started' : 'scheduled';
+    
     // Create the meeting
+    console.log('Creating meeting with status:', meetingStatus);
     const meeting = await Meeting.create({
       meetingId: meetingId,
       title: title,
@@ -41,16 +60,27 @@ const createMeeting = async (req, res) => {
       startTime: new Date(startTime),
       endTime: new Date(endTime),
       userId: userId,
-      status: 'started'  // Automatically start the meeting when created by host
+      status: meetingStatus  // 'started' for quick start, 'scheduled' for scheduled meetings
+    });
+    
+    console.log('✅ Meeting created successfully:', {
+      meetingId: meeting.meetingId,
+      title: meeting.title,
+      status: meeting.status,
+      startTime: meeting.startTime,
+      endTime: meeting.endTime
     });
 
     // Add creator as first participant
+    const participantStatus = isQuickStart ? 'joined' : 'scheduled';
+    const participantJoinTime = isQuickStart ? new Date() : null;
+    
     const participant = await MeetingParticipant.create({
       meetingId: meeting.meetingId,
       userId,
       role: user.UserRole.nama === 'admin' ? 'admin' : 'host',
-      status: 'joined',
-      joinTime: new Date(),
+      status: participantStatus, // 'joined' for quick start, 'scheduled' for scheduled meetings
+      joinTime: participantJoinTime, // Set join time for quick start, null for scheduled
       isAudioEnabled: true,
       isVideoEnabled: true,
       isScreenSharing: false,
@@ -65,8 +95,59 @@ const createMeeting = async (req, res) => {
       status: participant.status
     });
 
-    // Update participant count
+    // Update participant count (scheduled participants, not joined yet)
     await meeting.update({ currentParticipants: 1 });
+
+    // Create agendas if provided
+    if (agendas && Array.isArray(agendas) && agendas.length > 0) {
+      try {
+        const { Agenda } = require('../models');
+        const agendaData = agendas.map(agenda => ({
+          meetingId: meeting.meetingId,
+          judul: agenda.judul,
+          deskripsi: agenda.deskripsi || null,
+          startTime: agenda.start_time ? new Date(agenda.start_time) : null,
+          endTime: agenda.end_time ? new Date(agenda.end_time) : null,
+          seq: agenda.seq || 1,
+          flag: 'Y'
+        }));
+
+        console.log('Agenda data to create:', agendaData);
+        const createdAgendas = await Agenda.bulkCreate(agendaData);
+        console.log(`✅ Created ${createdAgendas.length} agendas for meeting ${meeting.meetingId}:`, createdAgendas.map(a => ({ id: a.meetingAgendaId, judul: a.judul })));
+      } catch (agendaError) {
+        console.error('❌ Error creating agendas:', agendaError);
+        // Don't fail the meeting creation if agenda creation fails
+      }
+    }
+
+    // Create materials if provided
+    if (materials && Array.isArray(materials) && materials.length > 0) {
+      try {
+        console.log('📁 Processing materials:', materials.length, 'files');
+        
+        const materialData = materials.map(material => {
+          // Generate proper file path for database
+          const filePath = getFilePath(meeting.meetingId, material.name);
+          
+          return {
+            meetingId: meeting.meetingId,
+            path: filePath, // Store relative path in database
+            flag: 'Y'
+          };
+        });
+
+        console.log('📁 Materials data to create:', materialData);
+        const createdMaterials = await Materials.bulkCreate(materialData);
+        console.log(`✅ Created ${createdMaterials.length} materials for meeting ${meeting.meetingId}:`, createdMaterials.map(m => ({ id: m.id, path: m.path })));
+        
+        // Note: Files will be uploaded separately via materials API endpoint
+        // This just creates the database records
+      } catch (materialError) {
+        console.error('❌ Error creating materials:', materialError);
+        // Don't fail the meeting creation if material creation fails
+      }
+    }
 
     // Verify participant was created
     const verifyParticipant = await MeetingParticipant.findOne({
@@ -89,7 +170,7 @@ const createMeeting = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Meeting created and started successfully',
+      message: isQuickStart ? 'Meeting started successfully' : 'Meeting scheduled successfully',
       data: {
         meetingId: meeting.meetingId,
         title: meeting.title,
@@ -98,7 +179,10 @@ const createMeeting = async (req, res) => {
         endTime: meeting.endTime,
         userId: meeting.userId,
         status: meeting.status,
-        currentParticipants: meeting.currentParticipants
+        currentParticipants: meeting.currentParticipants,
+        agendasCount: agendas ? agendas.length : 0,
+        materialsCount: materials ? materials.length : 0,
+        isQuickStart: isQuickStart
       }
     });
 
@@ -147,10 +231,10 @@ const startMeeting = async (req, res) => {
     }
 
     // Check if meeting is in correct state to start
-    if (meeting.status !== 'started') {
+    if (meeting.status !== 'scheduled') {
       return res.status(400).json({
         success: false,
-        message: `Meeting is already in status: ${meeting.status}. No action needed.`
+        message: `Meeting cannot be started. Current status: ${meeting.status}. Only scheduled meetings can be started.`
       });
     }
 
@@ -676,6 +760,414 @@ const checkMeetingStatus = async (req, res) => {
   }
 };
 
+// Get scheduled meetings by current user
+const getScheduledMeetings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('Getting scheduled meetings for user:', userId);
+
+    // Get all meetings with status 'scheduled' for current user
+    const scheduledMeetings = await Meeting.findAll({
+      where: { 
+        userId: userId,
+        status: 'scheduled',
+        flag: 'Y'
+      },
+      include: [
+        {
+          model: MeetingParticipant,
+          as: 'Participants',
+          where: { flag: 'Y' },
+          required: false
+        }
+      ],
+      order: [['startTime', 'ASC']]
+    });
+
+    console.log(`Found ${scheduledMeetings.length} scheduled meetings for user ${userId}`);
+
+    // Format the response
+    const formattedMeetings = scheduledMeetings.map(meeting => ({
+      meetingId: meeting.meetingId,
+      title: meeting.title,
+      description: meeting.description,
+      startTime: meeting.startTime,
+      endTime: meeting.endTime,
+      status: meeting.status,
+      participants: meeting.Participants ? meeting.Participants.length : 0,
+      createdAt: meeting.createdAt,
+      updatedAt: meeting.updatedAt
+    }));
+
+    res.json({
+      success: true,
+      message: 'Scheduled meetings retrieved successfully',
+      data: formattedMeetings
+    });
+
+  } catch (error) {
+    console.error('Error getting scheduled meetings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Check meeting status (for participants to validate before joining)
+const checkMeetingStatusForJoin = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`Meeting status check - Meeting ID: ${meetingId}, User ID: ${userId}`);
+
+    // Check if meeting exists
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      console.log(`Meeting ${meetingId} not found`);
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+
+    // Check if meeting is active and started
+    const isActive = meeting.status === 'started';
+    
+    // Check if meeting has host
+    const hostParticipant = await MeetingParticipant.findOne({
+      where: { 
+        meetingId, 
+        role: 'host', 
+        flag: 'Y' 
+      }
+    });
+
+    const hasHost = !!hostParticipant;
+    const hostOnline = hasHost && hostParticipant.status === 'joined';
+    
+    // Get participant count with detailed logging
+    const allParticipants = await MeetingParticipant.findAll({
+      where: { meetingId, flag: 'Y' },
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'username']
+      }]
+    });
+
+    const participantCount = allParticipants.length;
+    
+    console.log(`Meeting ${meetingId} status:`, {
+      meetingId: meeting.meetingId,
+      userId: meeting.userId,
+      status: meeting.status,
+      requestingUserId: userId,
+      isActive,
+      hasHost,
+      hostOnline,
+      participantCount,
+      participants: allParticipants.map(p => ({
+        userId: p.userId,
+        role: p.userRole,
+        status: p.status,
+        username: p.User?.username
+      }))
+    });
+
+    res.json({
+      success: true,
+      data: {
+        meetingId: meeting.meetingId,
+        title: meeting.title,
+        status: meeting.status,
+        userId: meeting.userId, // Add userId for ownership verification
+        isActive,
+        hasHost,
+        hostOnline,
+        participantCount,
+        startTime: meeting.startTime,
+        endTime: meeting.endTime
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking meeting status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Public meeting status check (no auth required)
+const getPublicMeetingStatus = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+
+    console.log(`Public meeting status check - Meeting ID: ${meetingId}`);
+
+    // Check if meeting exists
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      console.log(`Meeting ${meetingId} not found`);
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+
+    // Check if meeting is active and started
+    const isActive = meeting.status === 'started';
+    
+    // Check if meeting has host
+    const hostParticipant = await MeetingParticipant.findOne({
+      where: { 
+        meetingId, 
+        role: 'host', 
+        flag: 'Y' 
+      }
+    });
+
+    const hasHost = !!hostParticipant;
+    const hostOnline = hasHost && hostParticipant.status === 'joined';
+    
+    // Get participant count
+    const allParticipants = await MeetingParticipant.findAll({
+      where: { meetingId, flag: 'Y' }
+    });
+
+    const participantCount = allParticipants.length;
+    
+    console.log(`Public meeting ${meetingId} status:`, {
+      meetingId: meeting.meetingId,
+      status: meeting.status,
+      isActive,
+      hasHost,
+      hostOnline,
+      participantCount
+    });
+
+    res.json({
+      success: true,
+      data: {
+        meetingId: meeting.meetingId,
+        title: meeting.title,
+        status: meeting.status,
+        isActive,
+        hasHost,
+        hostOnline,
+        participantCount,
+        startTime: meeting.startTime,
+        endTime: meeting.endTime
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking public meeting status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get active meetings for participants to join (no auth required)
+const getPublicActiveMeetings = async (req, res) => {
+  try {
+    console.log('Getting public active meetings');
+
+    // Find meetings that are started and flagged Y (no include to avoid alias issues)
+    const activeMeetings = await Meeting.findAll({
+      where: { 
+        status: 'started',
+        flag: 'Y'
+      },
+      order: [['created_at', 'DESC']],
+      limit: 10,
+      raw: true
+    });
+
+    // For each meeting, verify there is a host participant with flag Y
+    const verifiedMeetings = [];
+    for (const meeting of activeMeetings) {
+      const host = await MeetingParticipant.findOne({
+        where: {
+          meetingId: meeting.meeting_id || meeting.meetingId,
+          role: 'host',
+          flag: 'Y'
+        },
+        raw: true
+      });
+      if (host) {
+        verifiedMeetings.push({
+          meetingId: meeting.meeting_id || meeting.meetingId,
+          title: meeting.title,
+          description: meeting.description,
+          status: meeting.status,
+          startTime: meeting.start_time || meeting.startTime,
+          endTime: meeting.end_time || meeting.endTime,
+          participantCount: meeting.current_participants || meeting.currentParticipants || 0
+        });
+      }
+    }
+
+    console.log(`Found ${verifiedMeetings.length} active meetings with host`);
+
+    res.json({
+      success: true,
+      data: verifiedMeetings
+    });
+
+  } catch (error) {
+    console.error('Error getting public active meetings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting active meetings',
+      error: error.message
+    });
+  }
+};
+
+// Debug meeting participants in detail
+const debugMeeting = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`Debug meeting ${meetingId} - User ID: ${userId}`);
+
+    // Check if meeting exists
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+
+    // Get all participants with detailed info
+    const participants = await MeetingParticipant.findAll({
+      where: { meetingId, flag: 'Y' },
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'username', 'email']
+      }],
+      order: [['joinTime', 'ASC']]
+    });
+
+    // Get meeting info
+    const meetingInfo = {
+      meetingId: meeting.meetingId,
+      title: meeting.title,
+      status: meeting.status,
+      currentParticipants: meeting.currentParticipants,
+      maxParticipants: meeting.maxParticipants,
+      startTime: meeting.startTime,
+      endTime: meeting.endTime,
+      created_at: meeting.created_at,
+      updated_at: meeting.updated_at
+    };
+
+    console.log(`Debug meeting ${meetingId} results:`, {
+      meeting: meetingInfo,
+      participants: participants.map(p => ({
+        id: p.id,
+        userId: p.userId,
+        role: p.role,
+        status: p.status,
+        joinTime: p.joinTime,
+        leaveTime: p.leaveTime,
+        flag: p.flag,
+        username: p.User?.username,
+        email: p.User?.email
+      }))
+    });
+
+    res.json({
+      success: true,
+      data: {
+        meeting: meetingInfo,
+        participants: participants.map(p => ({
+          id: p.id,
+          userId: p.userId,
+          role: p.role,
+          status: p.status,
+          joinTime: p.joinTime,
+          leaveTime: p.leaveTime,
+          flag: p.flag,
+          username: p.User?.username,
+          email: p.User?.email
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Error debugging meeting:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Test WebSocket connection
+const testWebSocket = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`WebSocket test for meeting ${meetingId} - User ID: ${userId}`);
+
+    // Check if meeting exists
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+
+    // Check if user is in the meeting
+    const userParticipant = await MeetingParticipant.findOne({
+      where: { meetingId, userId, flag: 'Y' }
+    });
+
+    if (!userParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not in this meeting'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'WebSocket test endpoint accessible',
+      data: {
+        meetingId: meeting.meetingId,
+        meetingStatus: meeting.status,
+        userRole: userParticipant.role,
+        websocketUrl: `ws://localhost:3000/meeting/${meetingId}`,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error testing WebSocket:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 // Auto-invite all participants to a meeting
 const autoInviteParticipants = async (req, res) => {
   try {
@@ -890,5 +1382,11 @@ module.exports = {
   getActiveMeetings,
   autoInviteParticipants,
   autoJoinMeeting,
-  checkMeetingStatus
+  checkMeetingStatus,
+  getScheduledMeetings,
+  checkMeetingStatusForJoin,
+  getPublicMeetingStatus,
+  getPublicActiveMeetings,
+  debugMeeting,
+  testWebSocket
 };

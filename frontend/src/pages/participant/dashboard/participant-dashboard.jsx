@@ -53,7 +53,7 @@ export default function ParticipantDashboard() {
         console.log('Meeting already ended, immediate exit...');
         localStorage.removeItem("currentMeeting");
         alert('Meeting telah berakhir. Anda akan dikeluarkan dari meeting.');
-        navigate("/");
+        navigate("/start");
         return;
       }
 
@@ -62,7 +62,7 @@ export default function ParticipantDashboard() {
         console.log('Meeting not active, immediate exit...');
         localStorage.removeItem("currentMeeting");
         alert('Meeting tidak aktif. Anda akan dikeluarkan dari meeting.');
-        navigate("/");
+        navigate("/start");
         return;
       }
 
@@ -74,7 +74,7 @@ export default function ParticipantDashboard() {
         console.log('Meeting not found, immediate exit...');
         localStorage.removeItem("currentMeeting");
         alert('Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.');
-        navigate("/");
+        navigate("/start");
         return;
       }
     }
@@ -145,7 +145,7 @@ export default function ParticipantDashboard() {
           
           // Alert dan redirect
           alert('Meeting telah berakhir. Anda akan dikeluarkan dari meeting.');
-          navigate("/");
+          navigate("/start");
           return;
         }
 
@@ -158,7 +158,7 @@ export default function ParticipantDashboard() {
           
           // Alert dan redirect
           alert('Meeting tidak aktif. Anda akan dikeluarkan dari meeting.');
-          navigate("/");
+          navigate("/start");
           return;
         }
 
@@ -176,7 +176,7 @@ export default function ParticipantDashboard() {
           
           // Alert dan redirect
           alert('Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.');
-          navigate("/");
+          navigate("/start");
           return;
         }
 
@@ -229,7 +229,7 @@ export default function ParticipantDashboard() {
         // Clear local storage and redirect
         localStorage.removeItem("currentMeeting");
         alert("Meeting ended successfully!");
-        navigate("/");
+        navigate("/start");
       } catch (error) {
         console.error("Failed to end meeting:", error);
         alert(`Failed to end meeting: ${error.message}`);

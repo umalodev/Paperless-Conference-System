@@ -32,13 +32,13 @@ module.exports = (sequelize) => {
       field: 'role'
     },
     status: {
-      type: DataTypes.ENUM('joined', 'left', 'kicked'),
-      defaultValue: 'joined',
+      type: DataTypes.ENUM('scheduled', 'joined', 'left', 'kicked', 'invited'),
+      defaultValue: 'scheduled',
       field: 'status'
     },
     joinTime: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true, // Allow null for scheduled participants
       field: 'join_time'
     },
     leaveTime: {

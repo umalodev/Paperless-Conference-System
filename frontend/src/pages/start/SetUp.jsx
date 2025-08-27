@@ -30,10 +30,91 @@ export default function SetUp() {
   );
 
   const handleSaveMeeting = async (payload) => {
-    // TODO: sambungkan ke backend kamu
-    // contoh: await meetingService.scheduleMeeting(payload)
-    console.log("payload to save:", payload);
-    setShowWizard(false);
+    try {
+      setCreating(true);
+      setErr("");
+      
+      // Log the payload for debugging
+      console.log("🎯 Schedule Meeting Payload:", {
+        title: payload.title,
+        description: payload.description,
+        startTime: payload.startTime,
+        endTime: payload.endTime,
+        agendasCount: payload.agendas?.length || 0,
+        materialsCount: payload.materials?.length || 0,
+        materials: payload.materials?.map(m => ({ name: m.name, size: m.size, type: m.type }))
+      });
+      
+      // Create meeting with agendas and materials
+      const result = await meetingService.createMeeting(payload);
+      if (!result?.success) {
+        throw new Error(result?.message || "Failed to create meeting");
+      }
+
+      console.log("✅ Meeting created successfully:", result);
+      console.log("📊 Meeting Summary:", {
+        meetingId: result.data.meetingId,
+        agendasCount: result.data.agendasCount,
+        materialsCount: result.data.materialsCount
+      });
+
+      // Upload materials files if any
+      if (payload.materials && payload.materials.length > 0) {
+        try {
+          console.log("📁 Uploading materials files...");
+          await uploadMaterialsFiles(result.data.meetingId, payload.materials);
+          console.log("✅ Materials files uploaded successfully");
+        } catch (uploadError) {
+          console.error("⚠️ Warning: Materials upload failed:", uploadError);
+          // Don't fail the meeting creation if materials upload fails
+        }
+      }
+      
+      setShowWizard(false);
+      
+      // Show success message
+      setErr(""); // Clear any previous errors
+      
+      // Refresh the scheduled meetings list
+      // You can add a refresh function here if needed
+      
+    } catch (error) {
+      console.error("❌ Error creating meeting:", error);
+      setErr(String(error.message || error));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Function to upload materials files
+  const uploadMaterialsFiles = async (meetingId, materials) => {
+    const token = localStorage.getItem('token'); // Get auth token
+    
+    for (const material of materials) {
+      try {
+        const formData = new FormData();
+        formData.append('file', material);
+        
+        const response = await fetch(`/api/materials/upload/${meetingId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Upload failed for ${material.name}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log(`✅ File uploaded: ${material.name} -> ${result.data.path}`);
+        
+      } catch (error) {
+        console.error(`❌ Failed to upload ${material.name}:`, error);
+        throw error;
+      }
+    }
   };
 
   useEffect(() => {
@@ -68,7 +149,7 @@ export default function SetUp() {
             startTime: m.startTime || m.start_time || m.scheduledAt || null,
             participants: m.participants || 0,
           }))
-          .filter((m) => m.status === "scheduled")
+          .filter((m) => m.status === "scheduled" || m.status === "waiting")
           .sort((a, b) => {
             const da = a.startTime ? new Date(a.startTime).getTime() : Infinity;
             const db = b.startTime ? new Date(b.startTime).getTime() : Infinity;
@@ -124,14 +205,39 @@ export default function SetUp() {
       if (!result?.success)
         throw new Error(result?.message || "Failed to create meeting");
 
-      const info = {
-        id: result.data.meetingId,
-        code: result.data.meetingId,
-        title: result.data.title || body.title,
-        status: result.data.status || "waiting",
-      };
-      localStorage.setItem("currentMeeting", JSON.stringify(info));
-      navigate("/waiting");
+      console.log("Quick meeting created:", result);
+      
+      // For Quick Start, meeting should already be started
+      if (result.data.isQuickStart) {
+        const info = {
+          id: result.data.meetingId,
+          code: result.data.meetingId,
+          title: result.data.title || body.title,
+          status: "started",
+        };
+        localStorage.setItem("currentMeeting", JSON.stringify(info));
+        navigate("/waiting");
+      } else {
+        // Fallback: manually start the meeting
+        try {
+          if (meetingService.startMeeting) {
+            const startRes = await meetingService.startMeeting(result.data.meetingId);
+            if (startRes?.success) {
+              const info = {
+                id: result.data.meetingId,
+                code: result.data.meetingId,
+                title: result.data.title || body.title,
+                status: "started",
+              };
+              localStorage.setItem("currentMeeting", JSON.stringify(info));
+              navigate("/waiting");
+            }
+          }
+        } catch (startError) {
+          console.error("Warning: Failed to start quick meeting:", startError);
+          setErr("Meeting created but failed to start. Please try starting manually.");
+        }
+      }
     } catch (e) {
       setErr(String(e.message || e));
     } finally {
@@ -143,11 +249,16 @@ export default function SetUp() {
   const handleStartMeeting = async (m) => {
     setErr("");
     try {
+      // Update meeting status to started
       if (meetingService.startMeeting) {
         const res = await meetingService.startMeeting(m.meetingId);
         if (!res?.success)
           throw new Error(res?.message || "Failed to start meeting");
       }
+      
+      // Update local state to reflect the change
+      setScheduled(prev => prev.filter(meeting => meeting.meetingId !== m.meetingId));
+      
       localStorage.setItem(
         "currentMeeting",
         JSON.stringify({
