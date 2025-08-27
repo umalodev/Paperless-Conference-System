@@ -21,75 +21,67 @@ async function seedDatabase() {
     console.log('\nCreating menus...');
     const menus = await Menu.bulkCreate([
       { 
-        displayLabel: 'Files', 
-        iconMenu: null, 
+        displayLabel: 'Participant', 
+        iconMenu: '/img/participant.png', 
         sequenceMenu: 1, 
         parentMenu: null, 
-        slug: 'files', 
-        flag: 'Y' 
-      },
-      { 
-        displayLabel: 'Chat/Messaging', 
-        iconMenu: null, 
-        sequenceMenu: 2, 
-        parentMenu: null, 
-        slug: 'chat', 
-        flag: 'Y' 
-      },
-      { 
-        displayLabel: 'Annotate', 
-        iconMenu: null, 
-        sequenceMenu: 3, 
-        parentMenu: null, 
-        slug: 'annotate', 
-        flag: 'Y' 
-      },
-      { 
-        displayLabel: 'Share Screen', 
-        iconMenu: null, 
-        sequenceMenu: 4, 
-        parentMenu: null, 
-        slug: 'share-screen', 
-        flag: 'Y' 
-      },
-      { 
-        displayLabel: 'Recording', 
-        iconMenu: null, 
-        sequenceMenu: 5, 
-        parentMenu: null, 
-        slug: 'recording', 
+        slug: 'participant', 
         flag: 'Y' 
       },
       { 
         displayLabel: 'Agenda', 
-        iconMenu: null, 
-        sequenceMenu: 6, 
+        iconMenu: '/img/agenda.png', 
+        sequenceMenu: 2, 
         parentMenu: null, 
         slug: 'agenda', 
         flag: 'Y' 
       },
       { 
         displayLabel: 'Materials', 
-        iconMenu: null, 
-        sequenceMenu: 7, 
+        iconMenu: '/img/materials.png', 
+        sequenceMenu: 3, 
         parentMenu: null, 
         slug: 'materials', 
         flag: 'Y' 
       },
       { 
         displayLabel: 'Survey', 
-        iconMenu: null, 
-        sequenceMenu: 8, 
+        iconMenu: '/img/survey.png', 
+        sequenceMenu: 4, 
         parentMenu: null, 
         slug: 'survey', 
         flag: 'Y' 
       },
       { 
-        displayLabel: 'Service', 
-        iconMenu: null, 
-        sequenceMenu: 9, 
+        displayLabel: 'Files', 
+        iconMenu: '/img/files.png', 
+        sequenceMenu: 5, 
         parentMenu: null, 
-        slug: 'service', 
+        slug: 'files', 
+        flag: 'Y' 
+      },
+      { 
+        displayLabel: 'Chating', 
+        iconMenu: '/img/chating.png', 
+        sequenceMenu: 6, 
+        parentMenu: null, 
+        slug: 'chating', 
+        flag: 'Y' 
+      },
+      { 
+        displayLabel: 'Notes', 
+        iconMenu: '/img/notes.png', 
+        sequenceMenu: 7, 
+        parentMenu: null, 
+        slug: 'notes', 
+        flag: 'Y' 
+      },
+      { 
+        displayLabel: 'Services', 
+        iconMenu: '/img/services.png', 
+        sequenceMenu: 8, 
+        parentMenu: null, 
+        slug: 'services', 
         flag: 'Y' 
       }
     ], { ignoreDuplicates: true });
@@ -101,33 +93,34 @@ async function seedDatabase() {
     console.log('\nCreating role-menu relationships...');
     const roleMenuRelations = [
       // Participant can access basic features
-      { userRoleId: 1, menuId: 1, flag: 'Y' }, // Files
-      { userRoleId: 1, menuId: 2, flag: 'Y' }, // Chat/Messaging
-      { userRoleId: 1, menuId: 6, flag: 'Y' }, // Agenda
-      { userRoleId: 1, menuId: 7, flag: 'Y' }, // Materials
-      { userRoleId: 1, menuId: 8, flag: 'Y' }, // Survey
+      { userRoleId: 1, menuId: 1, flag: 'Y' }, // Participant
+      { userRoleId: 1, menuId: 2, flag: 'Y' }, // Agenda
+      { userRoleId: 1, menuId: 3, flag: 'Y' }, // Materials
+      { userRoleId: 1, menuId: 4, flag: 'Y' }, // Survey
+      { userRoleId: 1, menuId: 5, flag: 'Y' }, // Files
+      { userRoleId: 1, menuId: 6, flag: 'Y' }, // Chating
+      { userRoleId: 1, menuId: 7, flag: 'Y' }, // Notes
+      { userRoleId: 1, menuId: 8, flag: 'Y' }, // Services
       
       // Host can access most features
-      { userRoleId: 2, menuId: 1, flag: 'Y' }, // Files
-      { userRoleId: 2, menuId: 2, flag: 'Y' }, // Chat/Messaging
-      { userRoleId: 2, menuId: 3, flag: 'Y' }, // Annotate
-      { userRoleId: 2, menuId: 4, flag: 'Y' }, // Share Screen
-      { userRoleId: 2, menuId: 5, flag: 'Y' }, // Recording
-      { userRoleId: 2, menuId: 6, flag: 'Y' }, // Agenda
-      { userRoleId: 2, menuId: 7, flag: 'Y' }, // Materials
-      { userRoleId: 2, menuId: 8, flag: 'Y' }, // Survey
-      { userRoleId: 2, menuId: 9, flag: 'Y' }, // Service
+      { userRoleId: 2, menuId: 1, flag: 'Y' }, // Participant
+      { userRoleId: 2, menuId: 2, flag: 'Y' }, // Agenda
+      { userRoleId: 2, menuId: 3, flag: 'Y' }, // Materials
+      { userRoleId: 2, menuId: 4, flag: 'Y' }, // Survey
+      { userRoleId: 2, menuId: 5, flag: 'Y' }, // Files
+      { userRoleId: 2, menuId: 6, flag: 'Y' }, // Chating
+      { userRoleId: 2, menuId: 7, flag: 'Y' }, // Notes
+      { userRoleId: 2, menuId: 8, flag: 'Y' }, // Services
       
       // Admin can access everything
-      { userRoleId: 3, menuId: 1, flag: 'Y' }, // Files
-      { userRoleId: 3, menuId: 2, flag: 'Y' }, // Chat/Messaging
-      { userRoleId: 3, menuId: 3, flag: 'Y' }, // Annotate
-      { userRoleId: 3, menuId: 4, flag: 'Y' }, // Share Screen
-      { userRoleId: 3, menuId: 5, flag: 'Y' }, // Recording
-      { userRoleId: 3, menuId: 6, flag: 'Y' }, // Agenda
-      { userRoleId: 3, menuId: 7, flag: 'Y' }, // Materials
-      { userRoleId: 3, menuId: 8, flag: 'Y' }, // Survey
-      { userRoleId: 3, menuId: 9, flag: 'Y' }  // Service
+      { userRoleId: 3, menuId: 1, flag: 'Y' }, // Participant
+      { userRoleId: 3, menuId: 2, flag: 'Y' }, // Agenda
+      { userRoleId: 3, menuId: 3, flag: 'Y' }, // Materials
+      { userRoleId: 3, menuId: 4, flag: 'Y' }, // Survey
+      { userRoleId: 3, menuId: 5, flag: 'Y' }, // Files
+      { userRoleId: 3, menuId: 6, flag: 'Y' }, // Chating
+      { userRoleId: 3, menuId: 7, flag: 'Y' }, // Notes
+      { userRoleId: 3, menuId: 8, flag: 'Y' }  // Services
     ];
 
     await UserRoleMenu.bulkCreate(roleMenuRelations, { ignoreDuplicates: true });
@@ -212,15 +205,15 @@ async function seedDatabase() {
 
     console.log('\n--- Database Tables Created ---');
     console.log('✅ m_user_role - Contains 3 roles (participant, host, admin)');
-    console.log('✅ m_menu - Contains 9 menus (Files, Chat, Annotate, etc.)');
+    console.log('✅ m_menu - Contains 8 menus (Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services)');
     console.log('✅ m_user_role_menu - Contains role-menu access rules');
     console.log('✅ users - Contains 3 users with different roles');
     console.log('✅ Foreign key relationships established');
 
     console.log('\n--- Menu Access by Role ---');
-    console.log('👤 Participant: Files, Chat, Agenda, Materials, Survey');
-    console.log('🎯 Host: Files, Chat, Annotate, Share Screen, Recording, Agenda, Materials, Survey, Service');
-    console.log('👑 Admin: All 9 menus');
+    console.log('👤 Participant: Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services');
+    console.log('🎯 Host: Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services');
+    console.log('👑 Admin: All 8 menus (Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services)');
 
     console.log('\n--- Next Steps ---');
     console.log('1. Test login with these credentials');

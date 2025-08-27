@@ -3,6 +3,7 @@ import "./participant-dashboard.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
 import Icon from "../../../components/Icon.jsx";
+import meetingService from "../../../services/meetingService.js";
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
@@ -25,12 +26,59 @@ export default function ParticipantDashboard() {
     const meetingRaw = localStorage.getItem("currentMeeting");
     if (meetingRaw) {
       try {
-        setCurrentMeeting(JSON.parse(meetingRaw));
+        const meeting = JSON.parse(meetingRaw);
+        setCurrentMeeting(meeting);
+        
+        // Immediately check meeting status when component mounts
+        if (meeting?.meetingId || meeting?.id) {
+          const meetingId = meeting?.meetingId || meeting?.id;
+          checkMeetingStatusImmediately(meetingId);
+        }
       } catch (e) {
         console.error("Failed to parse meeting info:", e);
       }
     }
   }, []);
+
+  // Immediate check meeting status when component mounts
+  const checkMeetingStatusImmediately = async (meetingId) => {
+    try {
+      console.log(`Immediate check meeting status for meeting ${meetingId}...`);
+      const result = await meetingService.checkMeetingStatus(meetingId);
+      
+      console.log('Immediate meeting status check result:', result);
+
+      // Jika meeting sudah ended, langsung exit
+      if (result?.data?.status === 'ended') {
+        console.log('Meeting already ended, immediate exit...');
+        localStorage.removeItem("currentMeeting");
+        alert('Meeting telah berakhir. Anda akan dikeluarkan dari meeting.');
+        navigate("/");
+        return;
+      }
+
+      // Jika meeting tidak aktif, juga exit
+      if (!result?.data?.isActive) {
+        console.log('Meeting not active, immediate exit...');
+        localStorage.removeItem("currentMeeting");
+        alert('Meeting tidak aktif. Anda akan dikeluarkan dari meeting.');
+        navigate("/");
+        return;
+      }
+
+    } catch (error) {
+      console.error('Error in immediate meeting status check:', error);
+      
+      // Jika error 404, meeting mungkin sudah dihapus
+      if (error.message.includes('404') || error.message.includes('not found')) {
+        console.log('Meeting not found, immediate exit...');
+        localStorage.removeItem("currentMeeting");
+        alert('Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.');
+        navigate("/");
+        return;
+      }
+    }
+  };
 
   useEffect(() => {
     let cancel = false;
@@ -69,6 +117,88 @@ export default function ParticipantDashboard() {
     };
   }, [API_URL]);
 
+  // Polling untuk check meeting status (auto-exit ketika meeting ended)
+  useEffect(() => {
+    if (!currentMeeting?.meetingId && !currentMeeting?.id) return;
+
+    const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
+    let cancel = false;
+    let intervalId;
+
+    const checkStatus = async () => {
+      try {
+        if (cancel) return;
+        
+        console.log(`Checking meeting status for meeting ${meetingId}...`);
+        const result = await meetingService.checkMeetingStatus(meetingId);
+        
+        if (cancel) return;
+
+        console.log('Meeting status result:', result);
+
+        // Jika meeting sudah ended, auto-exit
+        if (result?.data?.status === 'ended') {
+          console.log('Meeting ended, auto-exiting participant...');
+          
+          // Clear local storage
+          localStorage.removeItem("currentMeeting");
+          
+          // Alert dan redirect
+          alert('Meeting telah berakhir. Anda akan dikeluarkan dari meeting.');
+          navigate("/");
+          return;
+        }
+
+        // Jika meeting tidak aktif, juga exit
+        if (!result?.data?.isActive) {
+          console.log('Meeting not active, auto-exiting participant...');
+          
+          // Clear local storage
+          localStorage.removeItem("currentMeeting");
+          
+          // Alert dan redirect
+          alert('Meeting tidak aktif. Anda akan dikeluarkan dari meeting.');
+          navigate("/");
+          return;
+        }
+
+      } catch (error) {
+        console.error('Error checking meeting status:', error);
+        
+        if (cancel) return;
+
+        // Jika error 404 (meeting tidak ditemukan), meeting mungkin sudah dihapus
+        if (error.message.includes('404') || error.message.includes('not found')) {
+          console.log('Meeting not found, auto-exiting participant...');
+          
+          // Clear local storage
+          localStorage.removeItem("currentMeeting");
+          
+          // Alert dan redirect
+          alert('Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.');
+          navigate("/");
+          return;
+        }
+
+        // Untuk error lain, log saja tapi jangan exit
+        console.warn('Meeting status check failed, but continuing:', error.message);
+      }
+    };
+
+    // Check status setiap 5 detik (lebih responsif)
+    intervalId = setInterval(checkStatus, 5000);
+    
+    // Check status pertama kali
+    checkStatus();
+
+    return () => {
+      cancel = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [currentMeeting, navigate]);
+
   const visibleMenus = useMemo(
     () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
     [menus]
@@ -82,10 +212,28 @@ export default function ParticipantDashboard() {
     window.location.href = "/";
   };
 
-  const handleEndMeeting = () => {
+  const handleEndMeeting = async () => {
     if (window.confirm("Are you sure you want to end this meeting?")) {
-      localStorage.removeItem("currentMeeting");
-      navigate("/");
+      try {
+        // Get the actual meeting ID from currentMeeting
+        const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
+        
+        if (!meetingId) {
+          alert("Meeting ID not found. Cannot end meeting.");
+          return;
+        }
+
+        // Call the API to end the meeting
+        await meetingService.endMeeting(meetingId);
+        
+        // Clear local storage and redirect
+        localStorage.removeItem("currentMeeting");
+        alert("Meeting ended successfully!");
+        navigate("/");
+      } catch (error) {
+        console.error("Failed to end meeting:", error);
+        alert(`Failed to end meeting: ${error.message}`);
+      }
     }
   };
 

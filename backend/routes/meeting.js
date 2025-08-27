@@ -11,7 +11,8 @@ const {
   endMeeting,
   getActiveMeetings,
   autoInviteParticipants,
-  autoJoinMeeting
+  autoJoinMeeting,
+  checkMeetingStatus
 } = require('../controllers/meetingController');
 const { authenticateToken } = require('../middleware/auth');
 const models = require('../models');
@@ -449,6 +450,9 @@ router.post('/leave', authenticateToken, leaveMeeting);
 
 // End meeting (host/admin only)
 router.post('/end', authenticateToken, endMeeting);
+
+// Check meeting status for participant (for polling/auto-exit)
+router.get('/:meetingId/status', authenticateToken, checkMeetingStatus);
 
 // Auto-invite all participants to a meeting (host/admin only)
 router.post('/auto-invite', authenticateToken, autoInviteParticipants);

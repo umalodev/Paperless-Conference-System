@@ -271,6 +271,66 @@ class MeetingService {
     }
   }
 
+  // End meeting (host/admin only)
+  async endMeeting(meetingId) {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/end`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({ meetingId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to end meeting' };
+        }
+        
+        throw new Error(errorData.message || 'Failed to end meeting');
+      }
+
+      const result = await response.json();
+      console.log('Meeting ended successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error ending meeting:', error);
+      throw error;
+    }
+  }
+
+  // Check meeting status for participant (for auto-exit)
+  async checkMeetingStatus(meetingId) {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/${meetingId}/status`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to check meeting status' };
+        }
+        
+        throw new Error(errorData.message || 'Failed to check meeting status');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error checking meeting status:', error);
+      throw error;
+    }
+  }
+
   // Update token when it changes
   updateToken(newToken) {
     this.token = newToken;

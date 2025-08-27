@@ -614,6 +614,68 @@ const getActiveMeetings = async (req, res) => {
   }
 };
 
+// Check meeting status for participant (for polling/auto-exit)
+const checkMeetingStatus = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`Checking meeting status for meeting ${meetingId}, user ${userId}`);
+
+    // Check if meeting exists
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      console.log(`Meeting ${meetingId} not found`);
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+
+    // Check if user is participant in this meeting
+    const participant = await MeetingParticipant.findOne({
+      where: { 
+        meetingId, 
+        userId, 
+        flag: 'Y' 
+      }
+    });
+
+    if (!participant) {
+      console.log(`User ${userId} is not a participant in meeting ${meetingId}`);
+      return res.status(403).json({
+        success: false,
+        message: 'User is not a participant in this meeting'
+      });
+    }
+
+    console.log(`Meeting ${meetingId} status: ${meeting.status}, User role: ${participant.role}`);
+
+    // Return meeting status
+    res.json({
+      success: true,
+      message: 'Meeting status retrieved successfully',
+      data: {
+        meetingId: meeting.meetingId,
+        title: meeting.title,
+        status: meeting.status,
+        isActive: meeting.status === 'started',
+        participantRole: participant.role,
+        participantStatus: participant.status,
+        endTime: meeting.endTime
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking meeting status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 // Auto-invite all participants to a meeting
 const autoInviteParticipants = async (req, res) => {
   try {
@@ -827,5 +889,6 @@ module.exports = {
   endMeeting,
   getActiveMeetings,
   autoInviteParticipants,
-  autoJoinMeeting
+  autoJoinMeeting,
+  checkMeetingStatus
 };
