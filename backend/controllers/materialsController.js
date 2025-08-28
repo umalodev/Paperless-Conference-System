@@ -52,6 +52,18 @@ const uploadFile = async (req, res) => {
       size
     });
 
+    // Check if meeting exists
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+
+    // Generate the correct file path for database storage
+    const dbFilePath = getFilePath(meetingId, filename);
+    
     // Check if ANY material already exists for this meeting
     let material = await Materials.findOne({
       where: { 
@@ -69,9 +81,8 @@ const uploadFile = async (req, res) => {
 
     if (material) {
       // Update existing material with new file info
-      const actualPath = getFilePath(meetingId, filename);
       await material.update({ 
-        path: actualPath,
+        path: dbFilePath,
         updated_at: new Date()
       });
       
@@ -79,50 +90,38 @@ const uploadFile = async (req, res) => {
         id: material.id,
         meetingId: material.meetingId,
         oldPath: material.path,
-        newPath: actualPath
+        newPath: dbFilePath
       });
     } else {
-      // Create new material record only if none exists
-      console.log('🆕 No existing material found, creating new one for:', originalname);
-      material = await createMaterial({
-        body: {
-          meetingId: meetingId,
-          originalName: originalname,
-          fileSize: size,
-          mimeType: mimetype
-        }
-      }, res);
+      // Create new material record
+      console.log('🆕 Creating new material for:', originalname);
+      material = await Materials.create({
+        meetingId: meetingId,
+        path: dbFilePath,
+        flag: 'Y'
+      });
 
-      if (material && material.data) {
-        // Update the file path to include the actual uploaded filename
-        const actualPath = getFilePath(meetingId, filename);
-        await material.data.update({ path: actualPath });
-        material = material.data; // Use the created material for response
-        console.log('✅ Created and updated new material:', {
-          id: material.id,
-          meetingId: material.meetingId,
-          path: actualPath
-        });
-      }
+      console.log('✅ Created new material:', {
+        id: material.id,
+        meetingId: material.meetingId,
+        path: dbFilePath
+      });
     }
 
     // Send response
-    if (material) {
-      const actualPath = getFilePath(meetingId, filename);
-      res.json({
-        success: true,
-        message: 'File uploaded successfully',
-        data: {
-          id: material.id,
-          meetingId: material.meetingId,
-          path: actualPath,
-          originalName: originalname,
-          filename: filename,
-          size: size,
-          mimeType: mimetype
-        }
-      });
-    }
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      data: {
+        id: material.id,
+        meetingId: material.meetingId,
+        path: dbFilePath,
+        originalName: originalname,
+        filename: filename,
+        size: size,
+        mimeType: mimetype
+      }
+    });
 
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -369,17 +368,40 @@ const downloadMaterial = async (req, res) => {
       });
     }
 
-    const fullPath = getFullFilePath(material.meetingId, path.basename(material.path));
+    // Extract filename from the stored path
+    const filename = path.basename(material.path);
+    const meetingId = material.meetingId;
+    
+    // Get the full file path
+    const fullPath = getFullFilePath(meetingId, filename);
+    
+    console.log('📥 Download request:', {
+      materialId,
+      meetingId,
+      storedPath: material.path,
+      filename,
+      fullPath,
+      exists: fs.existsSync(fullPath)
+    });
     
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({
         success: false,
-        message: 'File not found on disk'
+        message: 'File not found on disk',
+        details: {
+          storedPath: material.path,
+          fullPath: fullPath,
+          filename: filename
+        }
       });
     }
 
+    // Set appropriate headers for download
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    
     // Send file for download
-    res.download(fullPath);
+    res.download(fullPath, filename);
   } catch (error) {
     console.error('Error downloading material:', error);
     res.status(500).json({
@@ -552,6 +574,101 @@ const deleteUndefinedMaterials = async (req, res) => {
   }
 };
 
+// Synchronize file paths for existing materials
+const synchronizeFilePaths = async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    
+    if (!meetingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Meeting ID is required'
+      });
+    }
+
+    // Find all materials for the meeting
+    const materials = await Materials.findAll({
+      where: { 
+        meetingId: meetingId,
+        flag: 'Y'
+      }
+    });
+
+    if (materials.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No materials found for this meeting',
+        data: { materialsCount: 0, updatedCount: 0 }
+      });
+    }
+
+    console.log(`🔍 Found ${materials.length} materials for meeting ${meetingId}`);
+
+    let updatedCount = 0;
+    const results = [];
+
+    for (const material of materials) {
+      try {
+        // Check if the stored path is correct
+        const currentPath = material.path;
+        const filename = path.basename(currentPath);
+        
+        // Generate the correct path
+        const correctPath = getFilePath(meetingId, filename);
+        
+        if (currentPath !== correctPath) {
+          // Update the material with correct path
+          await material.update({ path: correctPath });
+          updatedCount++;
+          
+          results.push({
+            id: material.id,
+            oldPath: currentPath,
+            newPath: correctPath,
+            status: 'updated'
+          });
+          
+          console.log(`✅ Updated material ${material.id}: ${currentPath} → ${correctPath}`);
+        } else {
+          results.push({
+            id: material.id,
+            path: currentPath,
+            status: 'already_correct'
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Error processing material ${material.id}:`, error);
+        results.push({
+          id: material.id,
+          path: material.path,
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+
+    console.log(`✅ Synchronized ${updatedCount} out of ${materials.length} materials for meeting ${meetingId}`);
+
+    res.json({
+      success: true,
+      message: 'File paths synchronized successfully',
+      data: {
+        materialsCount: materials.length,
+        updatedCount: updatedCount,
+        results: results
+      }
+    });
+
+  } catch (error) {
+    console.error('Error synchronizing file paths:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getMaterialsByMeeting,
   getMaterialById,
@@ -563,5 +680,6 @@ module.exports = {
   downloadMaterial,
   uploadFile,
   cleanupDuplicateMaterials,
-  deleteUndefinedMaterials
+  deleteUndefinedMaterials,
+  synchronizeFilePaths
 };

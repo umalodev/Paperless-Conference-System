@@ -7,6 +7,9 @@ const { upload } = require('../middleware/upload');
 // Get materials by meeting ID
 router.get('/meeting/:meetingId', authenticateToken, MaterialsController.getMaterialsByMeeting);
 
+// Download material file - HARUS DI ATAS /:materialId
+router.get('/:materialId/download', authenticateToken, MaterialsController.downloadMaterial);
+
 // Get single material by ID
 router.get('/:materialId', authenticateToken, MaterialsController.getMaterialById);
 
@@ -28,13 +31,13 @@ router.delete('/:materialId', authenticateToken, MaterialsController.deleteMater
 // Restore soft-deleted material
 router.patch('/:materialId/restore', authenticateToken, MaterialsController.restoreMaterial);
 
-// Download material file
-router.get('/:materialId/download', authenticateToken, MaterialsController.downloadMaterial);
-
 // Clean up duplicate materials for a meeting
 router.post('/cleanup/:meetingId', authenticateToken, MaterialsController.cleanupDuplicateMaterials);
 
 // Delete materials with "undefined" paths
 router.post('/delete-undefined/:meetingId', authenticateToken, MaterialsController.deleteUndefinedMaterials);
+
+// Synchronize file paths for existing materials
+router.post('/synchronize-paths/:meetingId', authenticateToken, MaterialsController.synchronizeFilePaths);
 
 module.exports = router;

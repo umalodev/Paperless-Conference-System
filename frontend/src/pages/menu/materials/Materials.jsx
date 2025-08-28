@@ -46,7 +46,22 @@ export default function Materials() {
   const authHeaders = useMemo(() => {
     const token =
       localStorage.getItem("token") || localStorage.getItem("accessToken");
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const user = localStorage.getItem("user");
+    let headers = {};
+    
+    if (token && user) {
+      try {
+        const userData = JSON.parse(user);
+        headers = { 
+          Authorization: `Bearer ${token}`,
+          'x-user-id': userData.id
+        };
+      } catch (e) {
+        console.error('Error parsing user data:', e);
+      }
+    }
+    
+    return headers;
   }, []);
 
   // ===== NAV menus =====
