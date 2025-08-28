@@ -6,6 +6,7 @@ import "../participant/participant.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
+import MeetingFooter from "../../../components/MeetingFooter.jsx";
 
 export default function ParticipantsPage() {
   const [user, setUser] = useState(null);
@@ -325,6 +326,11 @@ export default function ParticipantsPage() {
           onSelect={handleSelectNav}
         />
       )}
+
+      <MeetingFooter
+        showEndButton={true}
+        onMenuClick={() => console.log("open menu")}
+      />
     </div>
   );
 }

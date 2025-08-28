@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import BottomNav from "../../../components/BottomNav.jsx";
-import "../../menu/agenda/Agenda.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
 import Icon from "../../../components/Icon.jsx";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
+import "./Agenda.css";
+import MeetingFooter from "../../../components/MeetingFooter.jsx";
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
@@ -361,6 +362,11 @@ export default function Agenda() {
           onSelect={handleSelect}
         />
       )}
+
+      <MeetingFooter
+        showEndButton={true}
+        onMenuClick={() => console.log("open menu")}
+      />
     </div>
   );
 }
