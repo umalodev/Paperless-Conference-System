@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "../../../components/Icon.jsx";
 import meetingService from "../../../services/meetingService.js";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
+import MeetingFooter from "../../../components/MeetingFooter.jsx";
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
@@ -234,28 +235,17 @@ export default function ParticipantDashboard() {
         </section>
       </main>
 
-      <footer className="pd-bottombar">
-        <div className="pd-controls-left">
-          <button className="pd-ctrl" title="Mic">
-            <Icon slug="mic" />
-          </button>
-          <button className="pd-ctrl" title="Camera">
-            <Icon slug="camera" />
-          </button>
-          <button className="pd-ctrl" title="Settings">
-            <Icon slug="settings" />
-          </button>
-        </div>
-        <div className="pd-controls-right">
-          <button className="pd-ghost">Menu</button>
-          <button className="pd-danger" onClick={handleEndMeeting}>
-            End Meeting
-          </button>
-          <button className="pd-fab" title="Help">
-            ?
-          </button>
-        </div>
-      </footer>
+      <MeetingFooter
+        showEndButton={true}
+        onEndMeeting={handleEndMeeting}
+        // contoh toggle kalau nanti ada state mic/cam:
+        // micOn={micOn}
+        // camOn={camOn}
+        // onToggleMic={() => setMicOn(v => !v)}
+        // onToggleCam={() => setCamOn(v => !v)}
+        onMenuClick={() => console.log("open menu")}
+        onHelpClick={() => alert("Contact support")}
+      />
     </div>
   );
 }

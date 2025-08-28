@@ -6,6 +6,7 @@ import Icon from "../../../components/Icon.jsx";
 import { API_URL } from "../../../config.js";
 import "./Chating.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
+import MeetingFooter from "../../../components/MeetingFooter.jsx";
 
 export default function Chat() {
   const [user, setUser] = useState(null);
@@ -259,7 +260,7 @@ export default function Chat() {
                 onClick={() => window.location.reload()}
                 title="Refresh"
               >
-                <RefreshIcon />
+                <Icon slug="refresh" />
                 <span>Refresh</span>
               </button>
             </div>
@@ -313,7 +314,7 @@ export default function Chat() {
                   disabled={sending || !text.trim()}
                   title="Kirim"
                 >
-                  <SendIcon />
+                  <Icon slug="send" />
                 </button>
               </div>
             </>
@@ -329,6 +330,11 @@ export default function Chat() {
           onSelect={handleSelectNav}
         />
       )}
+
+      <MeetingFooter
+        showEndButton={true}
+        onMenuClick={() => console.log("open menu")}
+      />
     </div>
   );
 }
@@ -364,41 +370,4 @@ function formatTime(ts) {
   } catch {
     return "";
   }
-}
-
-/* ikon kecil */
-function SendIcon() {
-  return (
-    <svg
-      className="pd-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M22 2L11 13" />
-      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-    </svg>
-  );
-}
-function RefreshIcon() {
-  return (
-    <svg
-      className="pd-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9" />
-      <path d="M3 12l3-3 3 3" />
-      <path d="M21 12l-3 3-3-3" />
-    </svg>
-  );
 }

@@ -6,6 +6,7 @@ import Icon from "../../../components/Icon.jsx";
 import { API_URL } from "../../../config.js";
 import "./Notes.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
+import MeetingFooter from "../../../components/MeetingFooter.jsx";
 
 export default function Notes() {
   const [user, setUser] = useState(null);
@@ -398,6 +399,11 @@ export default function Notes() {
           onSelect={handleSelectNav}
         />
       )}
+
+      <MeetingFooter
+        showEndButton={true}
+        onMenuClick={() => console.log("open menu")}
+      />
     </div>
   );
 }
