@@ -5,6 +5,8 @@ import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
 import { API_URL } from "../../../config.js";
 import "./Survey.css";
+import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
+import MeetingFooter from "../../../components/MeetingFooter.jsx";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
@@ -183,6 +185,8 @@ export default function Survey() {
     }
   };
 
+  useMeetingGuard({ pollingMs: 5000, showAlert: true });
+
   return (
     <div className="pd-app">
       {/* Top bar */}
@@ -291,6 +295,11 @@ export default function Survey() {
           onSelect={handleSelectNav}
         />
       )}
+
+      <MeetingFooter
+        showEndButton={true}
+        onMenuClick={() => console.log("open menu")}
+      />
     </div>
   );
 }

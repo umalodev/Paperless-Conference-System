@@ -11,8 +11,8 @@ if (!fs.existsSync(uploadsDir)) {
 // Configure storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Create meeting-specific folder
-    const meetingId = req.body.meetingId || 'temp';
+    // Create meeting-specific folder - get meetingId from params since route is /upload/:meetingId
+    const meetingId = req.params.meetingId || req.body.meetingId || 'temp';
     const meetingDir = path.join(uploadsDir, meetingId.toString());
     
     if (!fs.existsSync(meetingDir)) {
@@ -81,12 +81,12 @@ const upload = multer({
   }
 });
 
-// Helper function to get file path for database
+// Helper function to get file path for database (relative path)
 const getFilePath = (meetingId, filename) => {
   return `uploads/materials/${meetingId}/${filename}`;
 };
 
-// Helper function to get full file path
+// Helper function to get full file path (absolute path)
 const getFullFilePath = (meetingId, filename) => {
   return path.join(__dirname, '../uploads/materials', meetingId.toString(), filename);
 };
@@ -105,9 +105,19 @@ const deleteFile = (filePath) => {
   }
 };
 
+// Helper function to ensure meeting directory exists
+const ensureMeetingDir = (meetingId) => {
+  const meetingDir = path.join(uploadsDir, meetingId.toString());
+  if (!fs.existsSync(meetingDir)) {
+    fs.mkdirSync(meetingDir, { recursive: true });
+  }
+  return meetingDir;
+};
+
 module.exports = {
   upload,
   getFilePath,
   getFullFilePath,
-  deleteFile
+  deleteFile,
+  ensureMeetingDir
 };

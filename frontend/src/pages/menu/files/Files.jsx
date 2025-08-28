@@ -5,6 +5,8 @@ import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
 import { API_URL } from "../../../config.js";
 import "./Files.css";
+import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
+import MeetingFooter from "../../../components/MeetingFooter.jsx";
 
 export default function Files() {
   const [user, setUser] = useState(null);
@@ -142,6 +144,8 @@ export default function Files() {
 
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
 
+  useMeetingGuard({ pollingMs: 5000, showAlert: true });
+
   return (
     <div className="pd-app">
       {/* Top bar */}
@@ -196,7 +200,7 @@ export default function Files() {
                 onClick={() => window.location.reload()}
                 title="Refresh"
               >
-                <RefreshIcon />
+                <Icon slug="refresh" size={18} />
                 <span>Refresh</span>
               </button>
             </div>
@@ -231,6 +235,11 @@ export default function Files() {
           onSelect={handleSelectNav}
         />
       )}
+
+      <MeetingFooter
+        showEndButton={true}
+        onMenuClick={() => console.log("open menu")}
+      />
     </div>
   );
 }
@@ -271,7 +280,7 @@ function FileCard({ file }) {
           <span>Buka</span>
         </button>
         <button className="files-btn" onClick={onDownload} title="Unduh">
-          <DownloadIcon />
+          <Icon slug="download" size={18} />
           <span>Unduh</span>
         </button>
       </div>
@@ -353,41 +362,6 @@ function OpenIcon() {
       <path d="M14 3h7v7" />
       <path d="M21 3l-9 9" />
       <path d="M10 7H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
-    </svg>
-  );
-}
-function DownloadIcon() {
-  return (
-    <svg
-      className="pd-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <path d="M7 10l5 5 5-5" />
-      <path d="M12 15V3" />
-    </svg>
-  );
-}
-function RefreshIcon() {
-  return (
-    <svg
-      className="pd-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 12A9 9 0 1 1 6.7 4.3" />
-      <path d="M21 3v9h-9" />
     </svg>
   );
 }
