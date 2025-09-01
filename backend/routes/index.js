@@ -11,6 +11,9 @@ const meetingRoutes = require("./meeting");
 const notesRoutes = require("./notes");
 
 const materialsRoutes = require("./materials");
+const participantRoutes = require("./participants");
+const debugRoutes = require("./debug");
+const testRoutes = require("./test");
 
 // Use route modules
 router.use("/auth", authRoutes);
@@ -22,6 +25,9 @@ router.use("/meeting", meetingRoutes);
 router.use("/notes", notesRoutes);
 
 router.use("/materials", materialsRoutes);
+router.use("/participants", participantRoutes);
+router.use("/debug", debugRoutes);
+router.use("/test", testRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {
