@@ -15,6 +15,9 @@ const UPLOAD_DIR = path.resolve(__dirname, "../uploads");
 // WebSocket server for meeting rooms
 const wss = new WebSocket.Server({ server });
 
+// Export WebSocket server for use in controllers
+module.exports.getWebSocketServer = () => wss;
+
 // Function to validate meeting status
 const validateMeetingStatus = async (meetingId) => {
   try {
@@ -177,6 +180,48 @@ wss.on("connection", (ws, req) => {
                   meetingId: meetingId,
                 })
               );
+            }
+          });
+        }
+
+        // Handle chat messages
+        if (data.type === 'chat_message') {
+          console.log(`Chat message from ${data.userId} in meeting ${meetingId}:`, data.message);
+          
+          // Broadcast chat message to all OTHER clients in the same meeting (not to sender)
+          wss.clients.forEach((client) => {
+            if (client !== ws && 
+                client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: 'chat_message',
+                messageId: data.messageId,
+                userId: data.userId,
+                username: data.username,
+                message: data.message,
+                messageType: data.messageType,
+                timestamp: data.timestamp,
+                meetingId: meetingId
+              }));
+            }
+          });
+        }
+
+        // Handle typing indicators
+        if (data.type === 'typing_start' || data.type === 'typing_stop') {
+          console.log(`Typing ${data.type} from ${data.userId} in meeting ${meetingId}`);
+          
+          // Broadcast typing indicator to all other clients in the same meeting
+          wss.clients.forEach((client) => {
+            if (client !== ws && 
+                client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: data.type,
+                userId: data.userId,
+                username: data.username,
+                meetingId: meetingId
+              }));
             }
           });
         }
