@@ -20,6 +20,15 @@ export default function ParticipantsPage() {
   const [errList, setErrList] = useState("");
 
   const navigate = useNavigate();
+  const meetingId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      return cm?.id || cm?.meetingId || cm?.code || null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -62,33 +71,30 @@ export default function ParticipantsPage() {
   // Ambil data participant dari database
   useEffect(() => {
     let cancel = false;
-    
+
     const loadParticipants = async () => {
       try {
         setLoadingList(true);
         setErrList("");
-        
-        // Get token from localStorage
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
 
+        const qs = meetingId
+          ? `?meetingId=${encodeURIComponent(meetingId)}`
+          : "";
         // Try to get participants with status "joined" from database first
-        let res = await fetch(`${API_URL}/api/participants/joined`, {
+        let res = await fetch(`${API_URL}/api/participants/joined${qs}`, {
+          credentials: "include",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+            headers: { "Content-Type": "application/json" },
+          },
         });
 
         // If joined endpoint fails, fallback to test-data endpoint
         if (!res.ok) {
-          console.log('Joined endpoint failed, trying test-data endpoint...');
+          console.log("Joined endpoint failed, trying test-data endpoint...");
           res = await fetch(`${API_URL}/api/participants/test-data`, {
             headers: {
-              'Content-Type': 'application/json'
-            }
+              "Content-Type": "application/json",
+            },
           });
         }
 
@@ -97,17 +103,17 @@ export default function ParticipantsPage() {
         }
 
         const json = await res.json();
-        
+
         if (!cancel) {
           if (json.success) {
             setParticipants(json.data || []);
           } else {
-            setErrList(json.message || 'Failed to load participants');
+            setErrList(json.message || "Failed to load participants");
           }
         }
       } catch (e) {
         if (!cancel) {
-          console.error('Error loading participants:', e);
+          console.error("Error loading participants:", e);
           setErrList(String(e.message || e));
         }
       } finally {
@@ -156,42 +162,46 @@ export default function ParticipantsPage() {
   // Function to update participant status
   const updateParticipantStatus = async (participantId, updates) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        throw new Error('No authentication token found');
+        throw new Error("No authentication token found");
       }
 
       // Map frontend properties to database fields
       const dbUpdates = {};
       if (updates.mic !== undefined) dbUpdates.isAudioEnabled = updates.mic;
       if (updates.cam !== undefined) dbUpdates.isVideoEnabled = updates.cam;
-      if (updates.isScreenSharing !== undefined) dbUpdates.isScreenSharing = updates.isScreenSharing;
+      if (updates.isScreenSharing !== undefined)
+        dbUpdates.isScreenSharing = updates.isScreenSharing;
 
-      const res = await fetch(`${API_URL}/api/participants/${participantId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(dbUpdates)
-      });
+      const res = await fetch(
+        `${API_URL}/api/participants/${participantId}/status`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dbUpdates),
+        }
+      );
 
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
       const json = await res.json();
-      
+
       if (json.success) {
         // Update local state
-        setParticipants(prev => prev.map(p => 
-          p.id === participantId ? { ...p, ...updates } : p
-        ));
+        setParticipants((prev) =>
+          prev.map((p) => (p.id === participantId ? { ...p, ...updates } : p))
+        );
       } else {
-        console.error('Failed to update participant status:', json.message);
+        console.error("Failed to update participant status:", json.message);
       }
     } catch (error) {
-      console.error('Error updating participant status:', error);
+      console.error("Error updating participant status:", error);
     }
   };
 
@@ -336,14 +346,22 @@ export default function ParticipantsPage() {
                   <div className="prt-status">
                     <button
                       className={`prt-pill ${p.mic ? "on" : "off"}`}
-                      title={p.mic ? "Mic On - Click to turn off" : "Mic Off - Click to turn on"}
+                      title={
+                        p.mic
+                          ? "Mic On - Click to turn off"
+                          : "Mic Off - Click to turn on"
+                      }
                       onClick={() => handleMicToggle(p.id, p.mic)}
                     >
                       <Icon slug="mic" />
                     </button>
                     <button
                       className={`prt-pill ${p.cam ? "on" : "off"}`}
-                      title={p.cam ? "Camera On - Click to turn off" : "Camera Off - Click to turn on"}
+                      title={
+                        p.cam
+                          ? "Camera On - Click to turn off"
+                          : "Camera Off - Click to turn on"
+                      }
                       onClick={() => handleCameraToggle(p.id, p.cam)}
                     >
                       <Icon slug="camera" />
@@ -367,7 +385,8 @@ export default function ParticipantsPage() {
 
               {filtered.length === 0 && participants.length === 0 && (
                 <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
-                  Tidak ada peserta yang sedang bergabung dalam meeting saat ini.
+                  Tidak ada peserta yang sedang bergabung dalam meeting saat
+                  ini.
                 </div>
               )}
 
