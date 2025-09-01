@@ -7,24 +7,45 @@ import { API_URL } from "../../../config.js";
 import "./Survey.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import SurveyViewer from "./components/SurveyViewer.jsx";
+import SurveyEditor from "./components/SurveyEditor.jsx";
+import {
+  getSurveysByMeeting,
+  createSurvey,
+  updateSurvey,
+  deleteSurvey,
+  toggleVisibility,
+} from "../../../services/surveyService.js";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
 
-  // bottom nav (menus) dari API
+  // bottom nav (menus)
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
 
-  // survey questions
-  const [questions, setQuestions] = useState([]);
-  const [loadingQ, setLoadingQ] = useState(true);
-  const [errQ, setErrQ] = useState("");
+  // meeting
+  const meetingId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      return cm?.id || cm?.meetingId || null;
+    } catch {
+      return null;
+    }
+  }, []);
 
-  // jawaban
-  const [answers, setAnswers] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitMsg, setSubmitMsg] = useState("");
+  // survey data
+  const [surveys, setSurveys] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  // host mode
+  const isHost = /^(host|admin)$/i.test(user?.role || "");
+  const [manageMode, setManageMode] = useState(false);
+  const [editing, setEditing] = useState(null); // survey object being edited
+  const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
 
@@ -33,6 +54,7 @@ export default function Survey() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
+  // load menus
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -66,50 +88,27 @@ export default function Survey() {
     };
   }, []);
 
+  // load surveys by meeting
+  const reload = async () => {
+    if (!meetingId) {
+      setErr("Meeting belum aktif.");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setErr("");
+    try {
+      const list = await getSurveysByMeeting(meetingId);
+      setSurveys(list);
+    } catch (e) {
+      setErr(String(e.message || e));
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setLoadingQ(true);
-        setErrQ("");
-        // TODO: ganti ke endpoint kamu, mis: `${API_URL}/api/survey/questions?meetingId=...`
-        // const res = await fetch(`${API_URL}/api/survey/questions`, { credentials: "include" });
-        // const json = await res.json();
-        // const qs = json.data || [];
-        const qs = [
-          {
-            id: "q1",
-            type: "single",
-            text: "Seberapa puas Anda dengan sesi ini?",
-            options: ["Sangat puas", "Puas", "Cukup", "Kurang"],
-            required: true,
-          },
-          {
-            id: "q2",
-            type: "multi",
-            text: "Topik mana yang paling bermanfaat? (boleh lebih dari satu)",
-            options: ["Pembukaan", "Materi inti", "Demo", "Tanya jawab"],
-          },
-          {
-            id: "q3",
-            type: "rating",
-            text: "Nilai keseluruhan acara (1-5)",
-            scale: 5,
-            required: true,
-          },
-          { id: "q4", type: "text", text: "Saran/masukan untuk panitia" },
-        ];
-        if (!cancel) setQuestions(qs);
-      } catch (e) {
-        if (!cancel) setErrQ(String(e.message || e));
-      } finally {
-        if (!cancel) setLoadingQ(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
+    reload();
+  }, [meetingId]);
 
   const visibleMenus = useMemo(
     () =>
@@ -118,70 +117,57 @@ export default function Survey() {
         .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
     [menus]
   );
-
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
 
-  // Handlers jawaban
-  const setSingle = (id, val) => setAnswers((s) => ({ ...s, [id]: val }));
-  const setMulti = (id, val, checked) =>
-    setAnswers((s) => {
-      const curr = Array.isArray(s[id]) ? s[id] : [];
-      const next = checked
-        ? [...new Set([...curr, val])]
-        : curr.filter((x) => x !== val);
-      return { ...s, [id]: next };
-    });
-  const setRating = (id, val) =>
-    setAnswers((s) => ({ ...s, [id]: Number(val) || 0 }));
-  const setText = (id, val) => setAnswers((s) => ({ ...s, [id]: val }));
+  const activeSurvey = useMemo(
+    () => surveys.find((s) => (s.isShow || "N") === "Y") || null,
+    [surveys]
+  );
 
-  const validate = () => {
-    for (const q of questions) {
-      if (!q.required) continue;
-      const ans = answers[q.id];
-      if (q.type === "single" && !ans) return `Harap jawab: ${q.text}`;
-      if (q.type === "rating" && (!ans || ans < 1))
-        return `Harap isi rating untuk: ${q.text}`;
+  // host actions
+  const startCreate = () => setEditing({}); // new survey
+  const startEdit = (s) => setEditing(s); // existing survey
+  const cancelEdit = () => setEditing(null);
+
+  const saveSurvey = async (payload) => {
+    try {
+      setSaving(true);
+      if (editing?.surveyId) {
+        await updateSurvey(editing.surveyId, {
+          title: payload.title,
+          description: payload.description,
+          isShow: payload.isShow,
+          questions: payload.questions,
+        });
+      } else {
+        await createSurvey(payload); // payload termasuk meetingId
+      }
+      setEditing(null);
+      await reload();
+    } catch (e) {
+      alert(`Gagal menyimpan: ${e.message || e}`);
+    } finally {
+      setSaving(false);
     }
-    return "";
   };
 
-  const handleSubmit = async () => {
-    setSubmitMsg("");
-    const v = validate();
-    if (v) {
-      setSubmitMsg(v);
-      return;
-    }
-
+  const removeSurvey = async (s) => {
+    if (!s?.surveyId) return;
+    if (!confirm(`Hapus survey "${s.title || s.surveyId}"?`)) return;
     try {
-      setSubmitting(true);
-      // bentuk payload
-      const payload = {
-        meetingId: "MTG-001", // ganti sesuai konteks
-        answers: Object.entries(answers).map(([qid, value]) => ({
-          questionId: qid,
-          value,
-        })),
-      };
-
-      // TODO: ganti endpoint submit
-      // const res = await fetch(`${API_URL}/api/survey/submit`, {
-      //   method: "POST",
-      //   credentials: "include",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(payload),
-      // });
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // const json = await res.json();
-
-      // simulasi sukses
-      await new Promise((r) => setTimeout(r, 500));
-      setSubmitMsg("Terima kasih! Jawaban Anda tersimpan.");
+      await deleteSurvey(s.surveyId);
+      await reload();
     } catch (e) {
-      setSubmitMsg(`Gagal submit: ${e.message || e}`);
-    } finally {
-      setSubmitting(false);
+      alert(`Gagal menghapus: ${e.message || e}`);
+    }
+  };
+
+  const setActive = async (s, flag) => {
+    try {
+      await toggleVisibility(s.surveyId, flag ? "Y" : "N");
+      await reload();
+    } catch (e) {
+      alert(`Gagal mengubah visibilitas: ${e.message || e}`);
     }
   };
 
@@ -189,13 +175,13 @@ export default function Survey() {
 
   return (
     <div className="pd-app">
-      {/* Top bar */}
+      {/* topbar */}
       <header className="pd-topbar">
         <div className="pd-left">
           <span className="pd-live" aria-hidden />
           <div>
             <h1 className="pd-title">Survey</h1>
-            <div className="pd-sub">Mohon berikan umpan balik Anda</div>
+            <div className="pd-sub">Umpan balik peserta</div>
           </div>
         </div>
         <div className="pd-right">
@@ -213,13 +199,13 @@ export default function Survey() {
               <div className="pd-user-name">
                 {user?.username || "Participant"}
               </div>
-              <div className="pd-user-role">Participant</div>
+              <div className="pd-user-role">{user?.role || "Participant"}</div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Content */}
+      {/* content */}
       <main className="pd-main">
         <section className="svr-wrap">
           <div className="svr-header">
@@ -228,10 +214,19 @@ export default function Survey() {
               <span>Form Survey</span>
             </div>
             <div className="svr-header-actions">
+              {isHost && !editing && (
+                <button
+                  className="svr-btn"
+                  onClick={() => setManageMode((v) => !v)}
+                >
+                  <Icon slug="settings" />{" "}
+                  <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
+                </button>
+              )}
               <button
                 className="svr-btn ghost"
-                onClick={() => window.location.reload()}
-                disabled={loadingQ}
+                onClick={reload}
+                disabled={loading}
                 title="Refresh"
               >
                 <RefreshIcon />
@@ -240,54 +235,101 @@ export default function Survey() {
             </div>
           </div>
 
-          {loadingQ && <div className="pd-empty">Memuat pertanyaan…</div>}
-          {errQ && !loadingQ && (
-            <div className="pd-error">Gagal memuat survey: {errQ}</div>
-          )}
+          {loading && <div className="pd-empty">Memuat survey…</div>}
+          {err && !loading && <div className="pd-error">{err}</div>}
 
-          {!loadingQ && !errQ && (
+          {!loading && !err && (
             <>
-              <div className="svr-list">
-                {questions.map((q) => (
-                  <QuestionCard
-                    key={q.id}
-                    q={q}
-                    value={answers[q.id]}
-                    onSingle={setSingle}
-                    onMulti={setMulti}
-                    onRating={setRating}
-                    onText={setText}
-                  />
-                ))}
-              </div>
+              {/* Mode Host: daftar & editor */}
+              {isHost && manageMode && !editing && (
+                <div className="svr-item">
+                  <div className="svr-qtext" style={{ marginBottom: 8 }}>
+                    Daftar Survey di Meeting Ini
+                  </div>
+                  {surveys.length === 0 ? (
+                    <div className="pd-empty" style={{ marginBottom: 8 }}>
+                      Belum ada survey.
+                    </div>
+                  ) : (
+                    <div className="svr-list">
+                      {surveys.map((s) => (
+                        <div className="svr-item" key={s.surveyId}>
+                          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                            {s.title || "(tanpa judul)"}{" "}
+                            {s.isShow === "Y" ? (
+                              <span style={{ color: "#059669" }}>• aktif</span>
+                            ) : (
+                              <span style={{ color: "#6b7280" }}>• draft</span>
+                            )}
+                          </div>
+                          {s.description && (
+                            <div style={{ marginBottom: 8 }}>
+                              {s.description}
+                            </div>
+                          )}
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <button
+                              className="svr-btn"
+                              onClick={() => startEdit(s)}
+                            >
+                              <Icon slug="edit" name="edit" /> <span>Edit</span>
+                            </button>
+                            <button
+                              className="svr-btn"
+                              onClick={() => setActive(s, s.isShow !== "Y")}
+                            >
+                              <Icon slug="eye" />{" "}
+                              <span>
+                                {s.isShow === "Y" ? "Sembunyikan" : "Tampilkan"}
+                              </span>
+                            </button>
+                            <button
+                              className="svr-btn"
+                              onClick={() => removeSurvey(s)}
+                            >
+                              <Icon slug="trash" name="trash" />{" "}
+                              <span>Hapus</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-              {submitMsg && (
-                <div
-                  className={`svr-msg ${
-                    submitMsg.startsWith("Terima kasih") ? "ok" : "err"
-                  }`}
-                  role="status"
-                >
-                  {submitMsg}
+                  <div style={{ marginTop: 10 }}>
+                    <button className="svr-submit" onClick={startCreate}>
+                      <Icon slug="plus" /> <span>Buat Survey</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
-              <div className="svr-actions">
-                <button
-                  className="svr-submit"
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                >
-                  <SendIcon />
-                  <span>{submitting ? "Mengirim…" : "Kirim Jawaban"}</span>
-                </button>
-              </div>
+              {isHost && editing && (
+                <SurveyEditor
+                  initialSurvey={editing.surveyId ? editing : null}
+                  meetingId={meetingId}
+                  onCancel={cancelEdit}
+                  onSave={saveSurvey}
+                  saving={saving}
+                />
+              )}
+
+              {/* Mode Viewer (semua role) */}
+              {!manageMode && !editing && (
+                <SurveyViewer survey={activeSurvey} meetingId={meetingId} />
+              )}
             </>
           )}
         </section>
       </main>
 
-      {/* Bottom nav dari DB */}
+      {/* bottom nav */}
       {!loadingMenus && !errMenus && (
         <BottomNav
           items={visibleMenus}
@@ -304,93 +346,6 @@ export default function Survey() {
   );
 }
 
-function QuestionCard({ q, value, onSingle, onMulti, onRating, onText }) {
-  return (
-    <div className="svr-item">
-      <div className="svr-qtext">
-        {q.text} {q.required && <span className="svr-required">*</span>}
-      </div>
-
-      {q.type === "single" && (
-        <div className="svr-options">
-          {q.options.map((op, idx) => (
-            <label key={idx} className="svr-opt">
-              <input
-                type="radio"
-                name={q.id}
-                checked={value === op}
-                onChange={() => onSingle(q.id, op)}
-              />
-              <span>{op}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {q.type === "multi" && (
-        <div className="svr-options">
-          {q.options.map((op, idx) => {
-            const checked = Array.isArray(value) && value.includes(op);
-            return (
-              <label key={idx} className="svr-opt">
-                <input
-                  type="checkbox"
-                  checked={!!checked}
-                  onChange={(e) => onMulti(q.id, op, e.target.checked)}
-                />
-                <span>{op}</span>
-              </label>
-            );
-          })}
-        </div>
-      )}
-
-      {q.type === "rating" && (
-        <div className="svr-rating">
-          {Array.from({ length: q.scale || 5 }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`svr-star ${value >= n ? "is-on" : ""}`}
-              onClick={() => onRating(q.id, n)}
-              aria-label={`Rating ${n}`}
-            >
-              ★
-            </button>
-          ))}
-        </div>
-      )}
-
-      {q.type === "text" && (
-        <textarea
-          className="svr-text"
-          placeholder="Tulis jawaban Anda…"
-          value={value || ""}
-          onChange={(e) => onText(q.id, e.target.value)}
-          rows={3}
-        />
-      )}
-    </div>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg
-      className="pd-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M22 2L11 13" />
-      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-    </svg>
-  );
-}
 function RefreshIcon() {
   return (
     <svg

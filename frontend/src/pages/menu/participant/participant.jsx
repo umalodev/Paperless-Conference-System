@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
-import "../participant/participant.css";
+import "./participant.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
@@ -20,6 +20,15 @@ export default function ParticipantsPage() {
   const [errList, setErrList] = useState("");
 
   const navigate = useNavigate();
+  const meetingId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      return cm?.id || cm?.meetingId || cm?.code || null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -59,73 +68,68 @@ export default function ParticipantsPage() {
     };
   }, []);
 
-  // TODO: ganti ke API real daftar peserta kalau endpoint sudah ada.
-  // Untuk sekarang, dummy data agar layout terlihat.
+  // Ambil data participant dari database
   useEffect(() => {
     let cancel = false;
-    (async () => {
+
+    const loadParticipants = async () => {
       try {
         setLoadingList(true);
         setErrList("");
-        // Contoh: panggil API kamu di sini, mis: `${API_URL}/api/meeting/participants`
-        // const res = await fetch(`${API_URL}/api/meeting/participants?...`)
-        // const json = await res.json();
-        const dummy = [
-          {
-            id: 1,
-            name: "David Li",
-            role: "Host",
-            seat: "A-01",
-            mic: true,
-            cam: true,
-            hand: false,
+
+        const qs = meetingId
+          ? `?meetingId=${encodeURIComponent(meetingId)}`
+          : "";
+        // Try to get participants with status "joined" from database first
+        let res = await fetch(`${API_URL}/api/participants/joined${qs}`, {
+          credentials: "include",
+          headers: {
+            headers: { "Content-Type": "application/json" },
           },
-          {
-            id: 2,
-            name: "Ayu Lestari",
-            role: "Participant",
-            seat: "B-14",
-            mic: false,
-            cam: true,
-            hand: true,
-          },
-          {
-            id: 3,
-            name: "Hendra Simatupang",
-            role: "Participant",
-            seat: "B-08",
-            mic: true,
-            cam: false,
-            hand: false,
-          },
-          {
-            id: 4,
-            name: "Nadia Putri",
-            role: "Participant",
-            seat: "C-02",
-            mic: false,
-            cam: false,
-            hand: false,
-          },
-          {
-            id: 5,
-            name: "Rahmat",
-            role: "Participant",
-            seat: "C-03",
-            mic: true,
-            cam: true,
-            hand: false,
-          },
-        ];
-        if (!cancel) setParticipants(dummy);
+        });
+
+        // If joined endpoint fails, fallback to test-data endpoint
+        if (!res.ok) {
+          console.log("Joined endpoint failed, trying test-data endpoint...");
+          res = await fetch(`${API_URL}/api/participants/test-data`, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const json = await res.json();
+
+        if (!cancel) {
+          if (json.success) {
+            setParticipants(json.data || []);
+          } else {
+            setErrList(json.message || "Failed to load participants");
+          }
+        }
       } catch (e) {
-        if (!cancel) setErrList(String(e.message || e));
+        if (!cancel) {
+          console.error("Error loading participants:", e);
+          setErrList(String(e.message || e));
+        }
       } finally {
         if (!cancel) setLoadingList(false);
       }
-    })();
+    };
+
+    // Load participants immediately
+    loadParticipants();
+
+    // Set up polling every 5 seconds to refresh participant data
+    const interval = setInterval(loadParticipants, 5000);
+
     return () => {
       cancel = true;
+      clearInterval(interval);
     };
   }, []);
 
@@ -154,6 +158,62 @@ export default function ParticipantsPage() {
   }, [participants]);
 
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
+
+  // Function to update participant status
+  const updateParticipantStatus = async (participantId, updates) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      // Map frontend properties to database fields
+      const dbUpdates = {};
+      if (updates.mic !== undefined) dbUpdates.isAudioEnabled = updates.mic;
+      if (updates.cam !== undefined) dbUpdates.isVideoEnabled = updates.cam;
+      if (updates.isScreenSharing !== undefined)
+        dbUpdates.isScreenSharing = updates.isScreenSharing;
+
+      const res = await fetch(
+        `${API_URL}/api/participants/${participantId}/status`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dbUpdates),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const json = await res.json();
+
+      if (json.success) {
+        // Update local state
+        setParticipants((prev) =>
+          prev.map((p) => (p.id === participantId ? { ...p, ...updates } : p))
+        );
+      } else {
+        console.error("Failed to update participant status:", json.message);
+      }
+    } catch (error) {
+      console.error("Error updating participant status:", error);
+    }
+  };
+
+  // Function to handle mic toggle
+  const handleMicToggle = (participantId, currentStatus) => {
+    updateParticipantStatus(participantId, { mic: !currentStatus });
+  };
+
+  // Function to handle camera toggle
+  const handleCameraToggle = (participantId, currentStatus) => {
+    updateParticipantStatus(participantId, { cam: !currentStatus });
+  };
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
@@ -277,20 +337,35 @@ export default function ParticipantsPage() {
                         <span className="prt-seat">Seat {p.seat}</span>
                       )}
                     </div>
+                    {p.joinTime && (
+                      <div className="prt-join-time">
+                        Joined: {new Date(p.joinTime).toLocaleTimeString()}
+                      </div>
+                    )}
                   </div>
                   <div className="prt-status">
-                    <span
+                    <button
                       className={`prt-pill ${p.mic ? "on" : "off"}`}
-                      title={p.mic ? "Mic On" : "Mic Off"}
+                      title={
+                        p.mic
+                          ? "Mic On - Click to turn off"
+                          : "Mic Off - Click to turn on"
+                      }
+                      onClick={() => handleMicToggle(p.id, p.mic)}
                     >
                       <Icon slug="mic" />
-                    </span>
-                    <span
+                    </button>
+                    <button
                       className={`prt-pill ${p.cam ? "on" : "off"}`}
-                      title={p.cam ? "Camera On" : "Camera Off"}
+                      title={
+                        p.cam
+                          ? "Camera On - Click to turn off"
+                          : "Camera Off - Click to turn on"
+                      }
+                      onClick={() => handleCameraToggle(p.id, p.cam)}
                     >
                       <Icon slug="camera" />
-                    </span>
+                    </button>
                     {p.hand && (
                       <span className="prt-pill on" title="Hand raised">
                         <Icon slug="hand" />
@@ -308,7 +383,14 @@ export default function ParticipantsPage() {
                 </div>
               ))}
 
-              {filtered.length === 0 && (
+              {filtered.length === 0 && participants.length === 0 && (
+                <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
+                  Tidak ada peserta yang sedang bergabung dalam meeting saat
+                  ini.
+                </div>
+              )}
+
+              {filtered.length === 0 && participants.length > 0 && (
                 <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
                   Tidak ada peserta yang cocok dengan pencarian.
                 </div>

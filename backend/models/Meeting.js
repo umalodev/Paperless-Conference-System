@@ -80,6 +80,11 @@ module.exports = (sequelize) => {
       foreignKey: 'meetingId',
       as: 'Materials'
     });
+
+    Meeting.hasMany(models.MeetingChat, {
+      foreignKey: 'meetingId',
+      as: 'ChatMessages'
+    });
   };
 
   return Meeting;
