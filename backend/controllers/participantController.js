@@ -302,7 +302,7 @@ const getMeetingParticipants = async (req, res) => {
       ],
       order: [
         ['role', 'ASC'], // Host first, then participants
-        ['createdAt', 'ASC']
+        ['created_at', 'ASC']
       ]
     });
 
@@ -404,7 +404,7 @@ const getMyMeetingParticipants = async (req, res) => {
       ],
       order: [
         ['role', 'ASC'],
-        ['createdAt', 'ASC']
+        ['created_at', 'ASC']
       ]
     });
 

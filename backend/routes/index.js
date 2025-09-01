@@ -12,6 +12,7 @@ const notesRoutes = require("./notes");
 
 const materialsRoutes = require("./materials");
 const participantRoutes = require("./participants");
+const chatRoutes = require("./chat");
 const debugRoutes = require("./debug");
 const testRoutes = require("./test");
 
@@ -26,6 +27,7 @@ router.use("/notes", notesRoutes);
 
 router.use("/materials", materialsRoutes);
 router.use("/participants", participantRoutes);
+router.use("/chat", chatRoutes);
 router.use("/debug", debugRoutes);
 router.use("/test", testRoutes);
 
