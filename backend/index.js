@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const PORT = 3000;
 
-const UPLOAD_DIR = path.resolve(__dirname, "../uploads");
+const UPLOAD_DIR = path.resolve(__dirname, "uploads");
 
 // WebSocket server for meeting rooms
 const wss = new WebSocket.Server({ server });
