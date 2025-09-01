@@ -7,6 +7,19 @@ import { API_URL } from "../../../config.js";
 import "./Files.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import {
+  listFiles,
+  uploadFile,
+  deleteFile,
+} from "../../../services/filesService.js";
+
+const absolutize = (u) => {
+  if (!u) return "";
+  if (/^https?:\/\//i.test(u)) return u; // sudah absolut
+  const base = String(API_URL || "").replace(/\/+$/, "");
+  const path = `/${String(u).replace(/^\/+/, "")}`;
+  return `${base}${path}`;
+};
 
 export default function Files() {
   const [user, setUser] = useState(null);
@@ -15,13 +28,17 @@ export default function Files() {
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
 
-  // files/materials
   const [files, setFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [errFiles, setErrFiles] = useState("");
 
-  // ui state
   const [q, setQ] = useState("");
+
+  // upload UI
+  const [pick, setPick] = useState(null);
+  const [desc, setDesc] = useState("");
+  const [uploading, setUploading] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,7 +46,18 @@ export default function Files() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Fetch menus untuk bottom nav (pakai iconUrl dari DB)
+  // meetingId dari localStorage
+  const meetingId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      return cm?.id || cm?.meetingId || cm?.code || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // bottom nav (ikon dari DB)
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -47,7 +75,7 @@ export default function Files() {
               slug: m.slug,
               label: m.displayLabel,
               flag: m.flag ?? "Y",
-              iconUrl: m.iconMenu || null, // path public/ atau CDN dari DB
+              iconUrl: m.iconMenu || null,
               seq: m.sequenceMenu,
             }))
           : [];
@@ -63,60 +91,20 @@ export default function Files() {
     };
   }, []);
 
-  // Fetch files (ganti endpoint sesuai backend kamu)
+  // load files dari API
   useEffect(() => {
     let cancel = false;
     (async () => {
       try {
+        if (!meetingId) {
+          setFiles([]);
+          setLoadingFiles(false);
+          return;
+        }
         setLoadingFiles(true);
         setErrFiles("");
-        // TODO: ganti ke endpointmu sendiri (mis: /api/materials atau /api/files)
-        // const res = await fetch(`${API_URL}/api/files`, { credentials: "include" });
-        // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        // const json = await res.json();
-        // const data = Array.isArray(json?.data) ? json.data : [];
-        // if (!cancel) setFiles(data);
-
-        // ---- fallback data demo ----
-        const demo = [
-          {
-            id: "f1",
-            name: "Panduan Rapat.pdf",
-            url: "/files/sample/panduan-rapat.pdf",
-            size: 256734, // bytes
-            updatedAt: "2025-08-10T14:00:00Z",
-          },
-          {
-            id: "f2",
-            name: "Slide Sesi 1.pptx",
-            url: "/files/sample/sesi-1.pptx",
-            size: 1572864,
-            updatedAt: "2025-08-12T09:30:00Z",
-          },
-          {
-            id: "f3",
-            name: "Daftar Hadir.xlsx",
-            url: "/files/sample/daftar-hadir.xlsx",
-            size: 83422,
-            updatedAt: "2025-08-11T07:12:00Z",
-          },
-          {
-            id: "f4",
-            name: "Poster.jpg",
-            url: "/files/sample/poster.jpg",
-            size: 312045,
-            updatedAt: "2025-08-14T02:20:00Z",
-          },
-          {
-            id: "f5",
-            name: "Rekaman.mp4",
-            url: "/files/sample/rekaman.mp4",
-            size: 6_213_004,
-            updatedAt: "2025-08-14T10:00:00Z",
-          },
-        ];
-        if (!cancel) setFiles(demo);
-        // ----------------------------
+        const data = await listFiles(meetingId);
+        if (!cancel) setFiles(data);
       } catch (e) {
         if (!cancel) setErrFiles(String(e.message || e));
       } finally {
@@ -126,7 +114,7 @@ export default function Files() {
     return () => {
       cancel = true;
     };
-  }, []);
+  }, [meetingId]);
 
   const visibleMenus = useMemo(
     () =>
@@ -139,10 +127,45 @@ export default function Files() {
   const filtered = useMemo(() => {
     const term = (q || "").trim().toLowerCase();
     if (!term) return files;
-    return files.filter((f) => (f.name || "").toLowerCase().includes(term));
+    return files.filter(
+      (f) =>
+        (f.name || "").toLowerCase().includes(term) ||
+        (f.uploaderName || "").toLowerCase().includes(term)
+    );
   }, [files, q]);
 
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
+
+  const doUpload = async (e) => {
+    e.preventDefault();
+    if (!pick || !meetingId) return;
+    try {
+      setUploading(true);
+      const created = await uploadFile({
+        meetingId,
+        file: pick,
+        description: desc || "",
+      });
+      setFiles((prev) => [created, ...prev]);
+      setPick(null);
+      setDesc("");
+      (document.getElementById("file-input") || {}).value = "";
+    } catch (e) {
+      alert(`Gagal upload: ${e.message || e}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (fileId) => {
+    if (!confirm("Hapus file ini?")) return;
+    try {
+      await deleteFile(fileId);
+      setFiles((prev) => prev.filter((x) => x.fileId !== fileId));
+    } catch (e) {
+      alert(`Gagal menghapus: ${e.message || e}`);
+    }
+  };
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
@@ -154,7 +177,7 @@ export default function Files() {
           <span className="pd-live" aria-hidden />
           <div>
             <h1 className="pd-title">Files</h1>
-            <div className="pd-sub">Materi & Dokumen</div>
+            <div className="pd-sub">Berbagi file selama meeting</div>
           </div>
         </div>
         <div className="pd-right">
@@ -190,7 +213,7 @@ export default function Files() {
               <div className="files-search">
                 <input
                   type="text"
-                  placeholder="Cari file…"
+                  placeholder="Cari file atau uploader…"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                 />
@@ -206,6 +229,29 @@ export default function Files() {
             </div>
           </div>
 
+          {/* Upload form */}
+          <form
+            className="file-uploader"
+            onSubmit={doUpload}
+            style={{ marginBottom: 12 }}
+          >
+            <input
+              id="file-input"
+              type="file"
+              onChange={(e) => setPick(e.target.files?.[0] || null)}
+              style={{ marginRight: 8 }}
+            />
+
+            <button
+              className="files-btn"
+              type="submit"
+              disabled={!pick || uploading || !meetingId}
+            >
+              <Icon slug="upload" size={18} />
+              <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
+            </button>
+          </form>
+
           {loadingFiles && <div className="pd-empty">Memuat file…</div>}
           {errFiles && !loadingFiles && (
             <div className="pd-error">Gagal memuat file: {errFiles}</div>
@@ -214,11 +260,16 @@ export default function Files() {
           {!loadingFiles && !errFiles && (
             <>
               {filtered.length === 0 ? (
-                <div className="pd-empty">Tidak ada file.</div>
+                <div className="pd-empty">Belum ada file.</div>
               ) : (
                 <div className="files-grid">
                   {filtered.map((f) => (
-                    <FileCard key={f.id || f.url} file={f} />
+                    <FileCard
+                      key={f.fileId || f.url}
+                      file={f}
+                      me={user}
+                      onDelete={handleDelete}
+                    />
                   ))}
                 </div>
               )}
@@ -244,19 +295,32 @@ export default function Files() {
   );
 }
 
-function FileCard({ file }) {
-  const { name = "Untitled", url = "#", size = 0, updatedAt } = file || {};
+function FileCard({ file, me, onDelete }) {
+  const {
+    fileId,
+    name = "Untitled",
+    url = "#",
+    size = 0,
+    createdAt,
+    uploaderName,
+    uploaderId,
+    mimeType,
+  } = file || {};
   const ext = getExt(name);
-  const iconUrl = file.iconUrl || mapExtToIcon(ext); // boleh override dari API
-
-  const onOpen = () => window.open(url, "_blank");
+  const iconUrl = file.iconUrl || mapExtToIcon(ext);
+  const absUrl = absolutize(url);
+  const onOpen = () => window.open(absUrl, "_blank");
   const onDownload = () => {
     const a = document.createElement("a");
-    a.href = url;
+    a.href = absUrl;
     a.download = name;
     a.rel = "noopener";
     a.click();
   };
+  const canDelete =
+    me &&
+    (Number(me.id) === Number(uploaderId) ||
+      ["admin", "host"].includes(me?.role));
 
   return (
     <div className="fcard">
@@ -269,8 +333,9 @@ function FileCard({ file }) {
             {name}
           </div>
           <div className="fcard-sub">
-            {formatSize(size)}
-            {updatedAt ? ` · ${formatDate(updatedAt)}` : ""}
+            {uploaderName ? `oleh ${uploaderName}` : "—"}
+            {size ? ` · ${formatSize(size)}` : ""}
+            {createdAt ? ` · ${formatDate(createdAt)}` : ""}
           </div>
         </div>
       </div>
@@ -283,6 +348,16 @@ function FileCard({ file }) {
           <Icon slug="download" size={18} />
           <span>Unduh</span>
         </button>
+        {canDelete && (
+          <button
+            className="files-btn danger"
+            onClick={() => onDelete(fileId)}
+            title="Hapus"
+          >
+            <Icon slug="trash" size={18} />
+            <span>Hapus</span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -294,7 +369,6 @@ function getExt(name = "") {
   return m ? m[1] : "";
 }
 function mapExtToIcon(ext = "") {
-  // siapkan ikon-ikon filetype di public/img/filetypes/
   const base = "/img/filetypes";
   const map = {
     pdf: `${base}/pdf.svg`,

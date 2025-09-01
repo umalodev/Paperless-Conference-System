@@ -10,6 +10,7 @@ const meetingRoutes = require("./meeting");
 const notesRoutes = require("./notes");
 const materialsRoutes = require("./materials");
 const SurveyRoutes = require("./survey");
+const filesRoutes = require("./files");
 
 // Use route modules
 router.use("/auth", authRoutes);
@@ -20,6 +21,7 @@ router.use("/meeting", meetingRoutes);
 router.use("/surveys", SurveyRoutes);
 router.use("/notes", notesRoutes);
 router.use("/materials", materialsRoutes);
+router.use("/files", filesRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {
