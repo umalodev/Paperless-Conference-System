@@ -164,7 +164,6 @@ export default function ParticipantDashboard() {
   };
 
   const meetingId = currentMeeting?.id || "MTG-001";
-  const meetingCode = currentMeeting?.code || "MTG-001";
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 

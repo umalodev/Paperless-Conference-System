@@ -17,9 +17,9 @@ export default function SetUp() {
   useEffect(() => {
     const raw = localStorage.getItem("user");
     if (raw) {
-      try {
+      
         setUser(JSON.parse(raw));
-      } catch {}
+     
     }
     setDisplayName(localStorage.getItem("pconf.displayName") || "");
   }, []);
