@@ -8,6 +8,8 @@
   --color-primary-bg: #e5f5e6;
   --color-text: #333;
   --color-subtext: #666;
-  --color-bg: #f7f7f7;
   --color-white: #ffffff;
+  --color-bg: #F0FFF4;
+  --color-card-outline: #BBF7D0;        
+  --color-card-glow: rgba(12, 104, 12, .42); 
 }
