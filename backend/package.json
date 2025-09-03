@@ -8,10 +8,7 @@
     "migrate": "node migration/migrate.js",
     "start": "node index.js",
     "seed": "node scripts/seedDatabase.js",
-    "create-users": "node scripts/createUsers.js",
-    "media": "node mediaServer.js",
-    "test-api": "node test-meeting-api.js",
-    "test-simple": "node test-simple.js"
+    "create-users": "node scripts/createUsers.js"
   },
   "keywords": [],
   "author": "",

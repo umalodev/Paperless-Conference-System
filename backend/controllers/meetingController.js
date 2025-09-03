@@ -622,6 +622,21 @@ const endMeeting = async (req, res) => {
 
     console.log('Meeting ended successfully');
 
+    // Send WebSocket notification to all participants
+    if (global.wss) {
+      const { wss } = global;
+      wss.clients.forEach((client) => {
+        if (client.readyState === 1 && client.meetingId === meetingId) {
+          client.send(JSON.stringify({
+            type: 'meeting-ended',
+            meetingId: meetingId,
+            endedBy: userId,
+            timestamp: new Date().toISOString()
+          }));
+        }
+      });
+    }
+
     res.json({
       success: true,
       message: 'Meeting ended successfully'

@@ -7,6 +7,9 @@ import { API_URL } from "../../../config.js";
 import "./Chating.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
+import simpleScreenShare from "../../../services/simpleScreenShare.js";
 
 export default function Chat() {
   const [user, setUser] = useState(null);
@@ -24,6 +27,12 @@ export default function Chat() {
   // input
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+
+  // screen share - initialize from service if already sharing
+  const [screenShareOn, setScreenShareOn] = useState(() => {
+    // Check if screen sharing is already active from service
+    return simpleScreenShare.isSharing || false;
+  });
 
   // chat mode
   const [chatMode, setChatMode] = useState('global'); // 'global' or 'private'
@@ -340,6 +349,36 @@ export default function Chat() {
                return [...prev, newMessage];
              });
            }
+           
+           // Handle screen sharing events
+           else if (data.type === 'screen-share-started') {
+             console.log('Screen share started by:', data.userId);
+             // Dispatch event for screen share components
+             window.dispatchEvent(new CustomEvent('screen-share-started', {
+               detail: data
+             }));
+           }
+           else if (data.type === 'screen-share-stopped') {
+             console.log('Screen share stopped by:', data.userId);
+             // Dispatch event for screen share components
+             window.dispatchEvent(new CustomEvent('screen-share-stopped', {
+               detail: data
+             }));
+           }
+           else if (data.type === 'screen-share-producer-created') {
+             console.log('Screen share producer created:', data);
+             // Dispatch event for screen share components
+             window.dispatchEvent(new CustomEvent('screen-share-producer-created', {
+               detail: data
+             }));
+           }
+           else if (data.type === 'screen-share-producer-closed') {
+             console.log('Screen share producer closed:', data);
+             // Dispatch event for screen share components
+             window.dispatchEvent(new CustomEvent('screen-share-producer-closed', {
+               detail: data
+             }));
+           }
          } catch (error) {
            console.error('Error parsing WebSocket message:', error);
          }
@@ -549,220 +588,267 @@ export default function Chat() {
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
+  // Sync screen share state with service on mount
+  useEffect(() => {
+    if (getMeetingId() && user?.id) {
+      // Sync state with service to maintain state across page navigation
+      setScreenShareOn(simpleScreenShare.isSharing || false);
+    }
+  }, [user?.id]);
+
+  // Screen share handlers
+  const handleToggleScreenShare = async () => {
+    if (screenShareOn) {
+      // Stop screen sharing
+      setScreenShareOn(false);
+    } else {
+      // Start screen sharing directly
+      try {
+        const success = await simpleScreenShare.startScreenShare();
+        if (success) {
+          setScreenShareOn(true);
+        }
+      } catch (error) {
+        console.error('Failed to start screen sharing:', error);
+      }
+    }
+  };
+
   return (
-    <div className="pd-app">
-      {/* Top bar */}
-      <header className="pd-topbar">
-        <div className="pd-left">
-          <span className="pd-live" aria-hidden />
-          <div>
-            <h1 className="pd-title">Chat</h1>
-            <div className="pd-sub">Diskusi selama meeting</div>
-          </div>
-        </div>
-        <div className="pd-right">
-          <div className="pd-clock" aria-live="polite">
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(user?.username || "US").slice(0, 2).toUpperCase()}
-            </div>
+    <MeetingLayout
+      meetingId={getMeetingId()}
+      userId={user?.id}
+      userRole={user?.role || 'participant'}
+      socket={wsRef.current}
+      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+    >
+      <div className="pd-app">
+        {/* Top bar */}
+        <header className="pd-topbar">
+          <div className="pd-left">
+            <span className="pd-live" aria-hidden />
             <div>
-              <div className="pd-user-name">
-                {user?.username || "Participant"}
+              <h1 className="pd-title">Chat</h1>
+              <div className="pd-sub">Diskusi selama meeting</div>
+            </div>
+          </div>
+          <div className="pd-right">
+            <div className="pd-clock" aria-live="polite">
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
-              <div className="pd-user-role">Participant</div>
+              <div>
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
+                </div>
+                <div className="pd-user-role">Participant</div>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Chat content */}
-      <main className="pd-main">
-        <section className="chat-wrap">
-          <div className="chat-header">
-            <div className="chat-title">
-              <Icon slug="chat" iconUrl="/img/chat.svg" size={22} />
-                             <span>
-                 {chatMode === 'global' ? 'Ruang Chat' : `Chat dengan ${selectedParticipant?.name || 'Participant'}`}
-               </span>
-            </div>
-            <div className="chat-mode-buttons">
-              <button
-                className={`chat-mode-btn ${chatMode === 'private' ? 'active' : ''}`}
-                onClick={() => {
-                  console.log('=== PRIVATE CHAT BUTTON CLICKED ===');
-                  setChatMode('private');
-                  setSelectedParticipant(null);
-                  // Load participants when switching to private mode
-                  if (user?.id) {
-                    console.log('User available, loading participants');
-                    loadParticipants();
-                  } else {
-                    console.log('User not available for loading participants');
-                  }
-                }}
-                title="Chat Pribadi"
-              >
-                <Icon slug="users" iconUrl="/img/participant.png" size={20} />
-              </button>
-              <button
-                className={`chat-mode-btn ${chatMode === 'global' ? 'active' : ''}`}
-                onClick={() => {
-                  setChatMode('global');
-                  setSelectedParticipant(null);
-                }}
-                title="Chat Global"
-              >
-                <Icon slug="chat" iconUrl="/img/chat.svg" size={20} />
-              </button>
-            </div>
-          </div>
-
-                     {/* Participant selector for private chat */}
-           {chatMode === 'private' && !selectedParticipant && (
-             <div className="participant-selector">
-               <h3>Pilih Participant untuk Chat Pribadi:</h3>
-               {loadingParticipants ? (
-                 <div className="pd-empty">Memuat participants...</div>
-               ) : participants.length > 0 ? (
-                 <div className="participant-list">
-                   {participants.map((participant) => (
-                     <button
-                       key={participant.id}
-                       className="participant-item"
-                       onClick={() => {
-                         console.log('=== PARTICIPANT CLICKED ===');
-                         console.log('Selected participant:', participant);
-                         setSelectedParticipant(participant);
-                         // Load messages for private chat with this participant
-                         loadMessages('private', participant.userId);
-                       }}
-                     >
-                       <div className="participant-avatar">
-                         {(participant.name || "U").slice(0, 2).toUpperCase()}
-                       </div>
-                       <div className="participant-info">
-                         <div className="participant-name">{participant.name}</div>
-                         <div className="participant-role">{participant.role}</div>
-                         <div className="participant-seat">{participant.seat}</div>
-                         <div className="participant-status">
-                           <span className={`status-dot ${participant.status}`}></span>
-                           {participant.status}
-                         </div>
-                       </div>
-                       <div className="participant-controls">
-                         <div className={`control-icon mic ${participant.mic ? 'active' : 'inactive'}`}>
-                           🎤
-                         </div>
-                         <div className={`control-icon cam ${participant.cam ? 'active' : 'inactive'}`}>
-                           📹
-                         </div>
-                       </div>
-                     </button>
-                   ))}
-                 </div>
-               ) : (
-                 <div className="pd-empty">Tidak ada participant lain</div>
-               )}
-             </div>
-           )}
-
-                       {/* Back button when in private chat */}
-            {chatMode === 'private' && selectedParticipant && (
-              <div className="chat-back-button">
-                <button 
-                  className="back-btn"
+        {/* Chat content */}
+        <main className="pd-main">
+          {/* Simple Screen Share */}
+          <SimpleScreenShare 
+            meetingId={getMeetingId()} 
+            userId={user?.id}
+            isSharing={screenShareOn}
+            onSharingChange={setScreenShareOn}
+            onError={(error) => console.error('Screen share error:', error)}
+          />
+          
+          <section className="chat-wrap">
+            <div className="chat-header">
+              <div className="chat-title">
+                <Icon slug="chat" iconUrl="/img/chat.svg" size={22} />
+                               <span>
+                   {chatMode === 'global' ? 'Ruang Chat' : `Chat dengan ${selectedParticipant?.name || 'Participant'}`}
+                 </span>
+              </div>
+              <div className="chat-mode-buttons">
+                <button
+                  className={`chat-mode-btn ${chatMode === 'private' ? 'active' : ''}`}
                   onClick={() => {
+                    console.log('=== PRIVATE CHAT BUTTON CLICKED ===');
+                    setChatMode('private');
                     setSelectedParticipant(null);
-                    setMessages([]);
+                    // Load participants when switching to private mode
+                    if (user?.id) {
+                      console.log('User available, loading participants');
+                      loadParticipants();
+                    } else {
+                      console.log('User not available for loading participants');
+                    }
                   }}
+                  title="Chat Pribadi"
                 >
-                  ← Kembali ke Daftar Participant
+                  <Icon slug="users" iconUrl="/img/participant.png" size={20} />
+                </button>
+                <button
+                  className={`chat-mode-btn ${chatMode === 'global' ? 'active' : ''}`}
+                  onClick={() => {
+                    setChatMode('global');
+                    setSelectedParticipant(null);
+                  }}
+                  title="Chat Global"
+                >
+                  <Icon slug="chat" iconUrl="/img/chat.svg" size={20} />
                 </button>
               </div>
-            )}
+            </div>
 
-          {loadingMsg && <div className="pd-empty">Memuat pesan…</div>}
-          {errMsg && !loadingMsg && (
-            <div className="pd-error">Gagal memuat chat: {errMsg}</div>
-          )}
+                       {/* Participant selector for private chat */}
+             {chatMode === 'private' && !selectedParticipant && (
+               <div className="participant-selector">
+                 <h3>Pilih Participant untuk Chat Pribadi:</h3>
+                 {loadingParticipants ? (
+                   <div className="pd-empty">Memuat participants...</div>
+                 ) : participants.length > 0 ? (
+                   <div className="participant-list">
+                     {participants.map((participant) => (
+                       <button
+                         key={participant.id}
+                         className="participant-item"
+                         onClick={() => {
+                           console.log('=== PARTICIPANT CLICKED ===');
+                           console.log('Selected participant:', participant);
+                           setSelectedParticipant(participant);
+                           // Load messages for private chat with this participant
+                           loadMessages('private', participant.userId);
+                         }}
+                       >
+                         <div className="participant-avatar">
+                           {(participant.name || "U").slice(0, 2).toUpperCase()}
+                         </div>
+                         <div className="participant-info">
+                           <div className="participant-name">{participant.name}</div>
+                           <div className="participant-role">{participant.role}</div>
+                           <div className="participant-seat">{participant.seat}</div>
+                           <div className="participant-status">
+                             <span className={`status-dot ${participant.status}`}></span>
+                             {participant.status}
+                           </div>
+                         </div>
+                         <div className="participant-controls">
+                           <div className={`control-icon mic ${participant.mic ? 'active' : 'inactive'}`}>
+                             🎤
+                           </div>
+                           <div className={`control-icon cam ${participant.cam ? 'active' : 'inactive'}`}>
+                             📹
+                           </div>
+                         </div>
+                       </button>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="pd-empty">Tidak ada participant lain</div>
+                 )}
+               </div>
+             )}
 
-          {!loadingMsg && !errMsg && (chatMode === 'global' || selectedParticipant) && (
-            <>
-              <div className="chat-list" ref={listRef}>
-                {messages.map((m, index) => (
-                  <MessageItem
-                    key={`${m.id}-${m.userId}-${m.ts}-${index}`}
-                    msg={m}
-                    isMine={(user?.id || user?.username) === m.userId}
-                  />
-                ))}
-              </div>
-
-              <div className="chat-composer">
-                <div className="composer-left">
-                  <label className="chat-iconbtn" title="Lampirkan File">
-                    <Icon
-                      slug="attach"
-                      iconUrl="/img/icons/attach.svg"
-                      size={20}
-                    />
-                    <input
-                      type="file"
-                      style={{ display: 'none' }}
-                      onChange={handleFileUpload}
-                      accept="*/*"
-                    />
-                  </label>
-                  <button className="chat-iconbtn" title="Emoji">
-                    <Icon
-                      slug="emoji"
-                      iconUrl="/img/icons/emoji.svg"
-                      size={20}
-                    />
+                         {/* Back button when in private chat */}
+              {chatMode === 'private' && selectedParticipant && (
+                <div className="chat-back-button">
+                  <button 
+                    className="back-btn"
+                    onClick={() => {
+                      setSelectedParticipant(null);
+                      setMessages([]);
+                    }}
+                  >
+                    ← Kembali ke Daftar Participant
                   </button>
                 </div>
-                <textarea
-                  className="chat-input"
-                  placeholder="Tulis pesan…"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  rows={1}
-                />
-                <button
-                  className="chat-send"
-                  onClick={handleSend}
-                  disabled={sending || !text.trim()}
-                  title="Kirim"
-                >
-                  <Icon slug="send" />
-                </button>
-              </div>
-            </>
-          )}
-        </section>
-      </main>
+              )}
 
-      {/* Bottom nav (ikon dari database) */}
-      {!loadingMenus && !errMenus && (
-        <BottomNav
-          items={visibleMenus}
-          active={activeSlug}
-          onSelect={handleSelectNav}
+            {loadingMsg && <div className="pd-empty">Memuat pesan…</div>}
+            {errMsg && !loadingMsg && (
+              <div className="pd-error">Gagal memuat chat: {errMsg}</div>
+            )}
+
+            {!loadingMsg && !errMsg && (chatMode === 'global' || selectedParticipant) && (
+              <>
+                <div className="chat-list" ref={listRef}>
+                  {messages.map((m, index) => (
+                    <MessageItem
+                      key={`${m.id}-${m.userId}-${m.ts}-${index}`}
+                      msg={m}
+                      isMine={(user?.id || user?.username) === m.userId}
+                    />
+                  ))}
+                </div>
+
+                <div className="chat-composer">
+                  <div className="composer-left">
+                    <label className="chat-iconbtn" title="Lampirkan File">
+                      <Icon
+                        slug="attach"
+                        iconUrl="/img/icons/attach.svg"
+                        size={20}
+                      />
+                      <input
+                        type="file"
+                        style={{ display: 'none' }}
+                        onChange={handleFileUpload}
+                        accept="*/*"
+                      />
+                    </label>
+                    <button className="chat-iconbtn" title="Emoji">
+                      <Icon
+                        slug="emoji"
+                        iconUrl="/img/icons/emoji.svg"
+                        size={20}
+                      />
+                    </button>
+                  </div>
+                  <textarea
+                    className="chat-input"
+                    placeholder="Tulis pesan…"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={onKeyDown}
+                    rows={1}
+                  />
+                  <button
+                    className="chat-send"
+                    onClick={handleSend}
+                    disabled={sending || !text.trim()}
+                    title="Kirim"
+                  >
+                    <Icon slug="send" />
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        </main>
+
+        {/* Bottom nav (ikon dari database) */}
+        {!loadingMenus && !errMenus && (
+          <BottomNav
+            items={visibleMenus}
+            active={activeSlug}
+            onSelect={handleSelectNav}
+          />
+        )}
+
+        <MeetingFooter
+          showEndButton={true}
+          onMenuClick={() => console.log("open menu")}
+          screenShareOn={screenShareOn}
+          onToggleScreenShare={handleToggleScreenShare}
         />
-      )}
 
-      <MeetingFooter
-        showEndButton={true}
-        onMenuClick={() => console.log("open menu")}
-      />
-    </div>
+
+      </div>
+    </MeetingLayout>
   );
 }
 

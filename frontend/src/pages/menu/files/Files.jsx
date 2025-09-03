@@ -7,6 +7,9 @@ import { API_URL } from "../../../config.js";
 import "./Files.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
+import simpleScreenShare from "../../../services/simpleScreenShare.js";
 import {
   listFiles,
   uploadFile,
@@ -39,12 +42,13 @@ export default function Files() {
   const [desc, setDesc] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const navigate = useNavigate();
+  // Screen share state - initialize from service if already sharing
+  const [screenShareOn, setScreenShareOn] = useState(() => {
+    // Check if screen sharing is already active from service
+    return simpleScreenShare.isSharing || false;
+  });
 
-  useEffect(() => {
-    const u = localStorage.getItem("user");
-    if (u) setUser(JSON.parse(u));
-  }, []);
+  const navigate = useNavigate();
 
   // meetingId dari localStorage
   const meetingId = useMemo(() => {
@@ -56,6 +60,36 @@ export default function Files() {
       return null;
     }
   }, []);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (u) setUser(JSON.parse(u));
+  }, []);
+
+  // Sync screen share state with service on mount
+  useEffect(() => {
+    if (meetingId && user?.id) {
+      // Sync state with service to maintain state across page navigation
+      setScreenShareOn(simpleScreenShare.isSharing || false);
+    }
+  }, [meetingId, user?.id]);
+
+  // Screen share handlers
+  const handleToggleScreenShare = async () => {
+    if (screenShareOn) {
+      simpleScreenShare.stopScreenShare();
+      setScreenShareOn(false);
+    } else {
+      try {
+        const success = await simpleScreenShare.startScreenShare();
+        if (success) {
+          setScreenShareOn(true);
+        }
+      } catch (error) {
+        console.error('Failed to start screen sharing:', error);
+      }
+    }
+  };
 
   // bottom nav (ikon dari DB)
   useEffect(() => {
@@ -170,39 +204,55 @@ export default function Files() {
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
   return (
-    <div className="pd-app">
-      {/* Top bar */}
-      <header className="pd-topbar">
-        <div className="pd-left">
-          <span className="pd-live" aria-hidden />
-          <div>
-            <h1 className="pd-title">Files</h1>
-            <div className="pd-sub">Berbagi file selama meeting</div>
-          </div>
-        </div>
-        <div className="pd-right">
-          <div className="pd-clock" aria-live="polite">
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(user?.username || "US").slice(0, 2).toUpperCase()}
-            </div>
+    <MeetingLayout
+      meetingId={meetingId}
+      userId={user?.id}
+      userRole={user?.role || 'participant'}
+      socket={null} // Will be set when socket is integrated
+      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+    >
+      <div className="pd-app">
+        {/* Top bar */}
+        <header className="pd-topbar">
+          <div className="pd-left">
+            <span className="pd-live" aria-hidden />
             <div>
-              <div className="pd-user-name">
-                {user?.username || "Participant"}
-              </div>
-              <div className="pd-user-role">Participant</div>
+              <h1 className="pd-title">Files</h1>
+              <div className="pd-sub">Berbagi file selama meeting</div>
             </div>
           </div>
-        </div>
-      </header>
+          <div className="pd-right">
+            <div className="pd-clock" aria-live="polite">
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(user?.username || "US").slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
+                </div>
+                <div className="pd-user-role">Participant</div>
+              </div>
+            </div>
+          </div>
+        </header>
 
       {/* Content */}
       <main className="pd-main">
+        {/* Simple Screen Share */}
+        <SimpleScreenShare 
+          meetingId={meetingId} 
+          userId={user?.id}
+          isSharing={screenShareOn}
+          onSharingChange={setScreenShareOn}
+          onError={(error) => console.error('Screen share error:', error)}
+        />
+        
         <section className="files-wrap">
           <div className="files-header">
             <div className="files-title">
@@ -287,11 +337,16 @@ export default function Files() {
         />
       )}
 
-      <MeetingFooter
-        showEndButton={true}
-        onMenuClick={() => console.log("open menu")}
-      />
-    </div>
+        <MeetingFooter
+          showEndButton={true}
+          onMenuClick={() => console.log("open menu")}
+          screenShareOn={screenShareOn}
+          onToggleScreenShare={handleToggleScreenShare}
+        />
+
+
+      </div>
+    </MeetingLayout>
   );
 }
 

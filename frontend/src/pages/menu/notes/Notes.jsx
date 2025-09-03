@@ -7,6 +7,9 @@ import { API_URL } from "../../../config.js";
 import "./Notes.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
+import simpleScreenShare from "../../../services/simpleScreenShare.js";
 
 export default function Notes() {
   const [user, setUser] = useState(null);
@@ -30,13 +33,14 @@ export default function Notes() {
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
 
+  // Screen share state - initialize from service if already sharing
+  const [screenShareOn, setScreenShareOn] = useState(() => {
+    // Check if screen sharing is already active from service
+    return simpleScreenShare.isSharing || false;
+  });
+
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const u = localStorage.getItem("user");
-    if (u) setUser(JSON.parse(u));
-  }, []);
 
   const meetingId = useMemo(() => {
     try {
@@ -46,6 +50,48 @@ export default function Notes() {
     } catch {
       return null;
     }
+  }, []);
+
+  // Sync screen share state with service on mount
+  useEffect(() => {
+    if (meetingId && user?.id) {
+      // Sync state with service to maintain state across page navigation
+      setScreenShareOn(simpleScreenShare.isSharing || false);
+    }
+  }, [meetingId, user?.id]);
+
+  // Screen share handlers
+  const handleToggleScreenShare = async () => {
+    if (screenShareOn) {
+      setScreenShareOn(false);
+    } else {
+      try {
+        const success = await simpleScreenShare.startScreenShare();
+        if (success) {
+          setScreenShareOn(true);
+        }
+      } catch (error) {
+        console.error('Failed to start screen sharing:', error);
+      }
+    }
+  };
+
+  // Handle screen share close from preview component
+  const handleScreenShareClose = () => {
+    setScreenShareOn(false);
+  };
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (u) setUser(JSON.parse(u));
+  }, []);
+
+  // Set up global close handler for screen share
+  useEffect(() => {
+    window.screenShareCloseHandler = handleScreenShareClose;
+    return () => {
+      window.screenShareCloseHandler = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -213,23 +259,30 @@ export default function Notes() {
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
   return (
-    <div className="pd-app">
-      {/* Top bar */}
-      <header className="pd-topbar">
-        <div className="pd-left">
-          <span className="pd-live" aria-hidden />
-          <div>
-            <h1 className="pd-title">Notes</h1>
-            <div className="pd-sub">Tulis & simpan catatan sesi</div>
+    <MeetingLayout
+      meetingId={meetingId}
+      userId={user?.id}
+      userRole={user?.role || 'participant'}
+      socket={null} // Will be set when socket is integrated
+      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+    >
+      <div className="pd-app">
+        {/* Top bar */}
+        <header className="pd-topbar">
+          <div className="pd-left">
+            <span className="pd-live" aria-hidden />
+            <div>
+              <h1 className="pd-title">Notes</h1>
+              <div className="pd-sub">Tulis & simpan catatan sesi</div>
+            </div>
           </div>
-        </div>
-        <div className="pd-right">
-          <div className="pd-clock" aria-live="polite">
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
+          <div className="pd-right">
+            <div className="pd-clock" aria-live="polite">
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
           <div className="pd-user">
             <div className="pd-avatar">
               {(user?.username || "US").slice(0, 2).toUpperCase()}
@@ -246,6 +299,15 @@ export default function Notes() {
 
       {/* Content */}
       <main className="pd-main">
+        {/* Simple Screen Share */}
+        <SimpleScreenShare 
+          meetingId={meetingId} 
+          userId={user?.id}
+          isSharing={screenShareOn}
+          onSharingChange={setScreenShareOn}
+          onError={(error) => console.error('Screen share error:', error)}
+        />
+        
         <section className="notes-wrap">
           <div className="notes-header">
             <div className="notes-title">
@@ -400,11 +462,16 @@ export default function Notes() {
         />
       )}
 
-      <MeetingFooter
-        showEndButton={true}
-        onMenuClick={() => console.log("open menu")}
-      />
-    </div>
+        <MeetingFooter
+          showEndButton={true}
+          onMenuClick={() => console.log("open menu")}
+          screenShareOn={screenShareOn}
+          onToggleScreenShare={handleToggleScreenShare}
+        />
+
+
+      </div>
+    </MeetingLayout>
   );
 }
 

@@ -248,6 +248,12 @@ const ICONS = {
       <path d="M9 9h.01M15 9h.01" />
     </>
   ),
+  "screen-share": () => (
+    <>
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <path d="M8 21l4-7 4 7" />
+    </>
+  ),
 
   default: () => <rect x="4" y="4" width="16" height="16" rx="4" />,
 };
