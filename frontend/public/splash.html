@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Splash</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      body {
+        background: url("./splash_bg.png") no-repeat center center;
+        background-size: cover;
+        font-family: "Inter", sans-serif;
+        color: #fff;
+        text-align: center;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 20px;
+      }
+      .logo {
+        width: 80px;
+        height: 80px;
+        background: url("./splash_logo.png") no-repeat center center;
+        background-size: contain;
+      }
+      .title {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 1px;
+      }
+      .subtitle {
+        font-size: 16px;
+        font-weight: 400;
+        opacity: 0.9;
+        max-width: 380px;
+      }
+      .tagline {
+        font-size: 13px;
+        margin-top: 6px;
+        opacity: 0.8;
+      }
+      .progress {
+        margin-top: 20px;
+        width: 240px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.25);
+        overflow: hidden;
+      }
+      .bar {
+        height: 100%;
+        width: 35%;
+        border-radius: 999px;
+        background: #fff;
+        animation: load 1.6s ease-in-out infinite;
+      }
+      @keyframes load {
+        0% {
+          transform: translateX(-80%);
+        }
+        50% {
+          transform: translateX(20%);
+        }
+        100% {
+          transform: translateX(120%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo"></div>
+      <div class="title">UP - CONNECT</div>
+      <div class="subtitle">Umalo Paperless Conference & Networking System</div>
+      <div class="tagline">
+        Simplify Your Conference, Empower Your Connection
+      </div>
+      <div class="progress"><div class="bar"></div></div>
+    </div>
+  </body>
+</html>
