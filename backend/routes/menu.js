@@ -18,7 +18,7 @@ const adminOnly = (req, res, next) => {
 // router.get('/public/menus', MenuController.getPublicMenus);
 
 // Protected routes - require authentication
-router.use(simpleAuth);
+router.use(auth.isAuthenticated);
 
 // Get menus for current user
 router.get('/user/menus', MenuController.getUserMenus);

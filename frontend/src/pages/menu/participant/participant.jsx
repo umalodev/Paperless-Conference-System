@@ -84,7 +84,7 @@ export default function ParticipantsPage() {
         let res = await fetch(`${API_URL}/api/participants/joined${qs}`, {
           credentials: "include",
           headers: {
-            headers: { "Content-Type": "application/json" },
+            "Content-Type": "application/json",
           },
         });
 

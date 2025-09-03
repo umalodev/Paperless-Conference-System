@@ -7,19 +7,69 @@ class MenuController {
    */
   static async getUserMenus(req, res) {
     try {
-      // Ambil semua data menu dari DB
-      const menus = await Menu.findAll();
+      // Get user info from session or token
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      // Get user with role information
+      const { User } = require("../models");
+      const user = await User.findByPk(userId, {
+        include: [
+          {
+            model: UserRole,
+            as: "UserRole",
+            include: [
+              {
+                model: Menu,
+                as: "menus",
+                through: {
+                  where: { flag: "Y" },
+                  attributes: []
+                },
+                where: { flag: "Y" },
+                required: true,
+                attributes: [
+                  "menuId",
+                  "displayLabel", 
+                  "iconMenu",
+                  "sequenceMenu",
+                  "parentMenu",
+                  "slug",
+                  "flag"
+                ]
+              }
+            ]
+          }
+        ]
+      });
+
+      if (!user || !user.UserRole) {
+        return res.status(404).json({
+          success: false,
+          message: "User or role not found",
+        });
+      }
+
+      // Extract accessible menus
+      const accessibleMenus = user.UserRole.menus || [];
 
       res.json({
         success: true,
         message: "User menus fetched successfully",
-        data: menus,
+        data: accessibleMenus,
       });
     } catch (error) {
-      console.error(error);
+      console.error("Get user menus error:", error);
       res.status(500).json({
         success: false,
         message: "Internal server error",
+        error: error.message,
       });
     }
   }

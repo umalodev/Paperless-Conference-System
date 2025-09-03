@@ -4,7 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 // Import role-specific dashboards
 import AdminDashboard from "./pages/admin/dashboard/admin-dashboard.jsx";
-import HostDashboard from "./pages/host/dashboard/host-dashboard.jsx";
+
 import ParticipantDashboard from "./pages/participant/dashboard/participant-dashboard.jsx";
 
 import Agenda from "./pages/menu/agenda/Agenda.jsx";
@@ -32,14 +32,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/host/dashboard"
-          element={
-            <ProtectedRoute requiredRole="host">
-              <HostDashboard />
-            </ProtectedRoute>
-          }
-        />
+
         <Route
           path="/participant/dashboard"
           element={
