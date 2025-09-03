@@ -26,6 +26,7 @@ function findPreload() {
   return found;
 }
 let win = null;
+let splashWin = null;
 function createWindow() {
   const preloadPath = findPreload();
   console.log(
@@ -34,7 +35,23 @@ function createWindow() {
     "exists?",
     fs.existsSync(preloadPath)
   );
+  splashWin = new BrowserWindow({
+    width: 460,
+    height: 300,
+    frame: false,
+    resizable: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    show: false
+  });
+  splashWin.loadFile(path.join(process.env.VITE_PUBLIC, "splash.html")).catch(console.error);
+  splashWin.once("ready-to-show", () => splashWin == null ? void 0 : splashWin.show());
   win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    show: false,
+    backgroundColor: "#111111",
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
       preload: preloadPath,
@@ -67,6 +84,22 @@ function createWindow() {
   });
   if (VITE_DEV_SERVER_URL) win.loadURL(VITE_DEV_SERVER_URL);
   else win.loadFile(path.join(RENDERER_DIST, "index.html"));
+  win.webContents.once("did-finish-load", () => {
+    setTimeout(() => {
+      if (splashWin && !splashWin.isDestroyed()) splashWin.close();
+      splashWin = null;
+      if (!(win == null ? void 0 : win.isDestroyed())) {
+        win.show();
+        win.focus();
+      }
+    }, 400);
+  });
+  win.webContents.on("did-fail-load", (_e, _c, _d, _l, errDesc) => {
+    console.error("[main] did-fail-load:", errDesc);
+    if (splashWin && !splashWin.isDestroyed()) splashWin.close();
+    splashWin = null;
+    win == null ? void 0 : win.show();
+  });
 }
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
