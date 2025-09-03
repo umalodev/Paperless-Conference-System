@@ -16,6 +16,8 @@ import "./meeting-footer.css";
  * - camOn?: boolean
  * - onToggleMic?: () => void
  * - onToggleCam?: () => void
+ * - screenShareOn?: boolean
+ * - onToggleScreenShare?: () => void
  */
 export default function MeetingFooter({
   showEndButton = false,
@@ -26,6 +28,8 @@ export default function MeetingFooter({
   camOn,
   onToggleMic,
   onToggleCam,
+  screenShareOn,
+  onToggleScreenShare,
 }) {
   const navigate = useNavigate();
 
@@ -39,6 +43,16 @@ export default function MeetingFooter({
       if (!meetingId) {
         alert("Meeting ID not found. Cannot end meeting.");
         return;
+      }
+
+      // Stop screen sharing if active
+      if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
+        window.simpleScreenShare.stopScreenShare();
+      }
+
+      // Close WebSocket connections
+      if (window.meetingWebSocket) {
+        window.meetingWebSocket.close();
       }
 
       await meetingService.endMeeting(meetingId);
@@ -78,6 +92,13 @@ export default function MeetingFooter({
       </div>
 
       <div className="pd-controls-right">
+        <button
+          className={`pd-ctrl ${screenShareOn ? "is-active" : ""}`}
+          title={screenShareOn ? "Stop Screen Share" : "Share Screen"}
+          onClick={onToggleScreenShare}
+        >
+          <Icon slug="screen-share" />
+        </button>
         <button className="pd-ghost" onClick={handleMenu}>
           Menu
         </button>

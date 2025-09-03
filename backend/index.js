@@ -15,6 +15,9 @@ const UPLOAD_DIR = path.resolve(__dirname, "uploads");
 // WebSocket server for meeting rooms
 const wss = new WebSocket.Server({ server });
 
+// Store WebSocket server globally for use in controllers
+global.wss = wss;
+
 // Export WebSocket server for use in controllers
 module.exports.getWebSocketServer = () => wss;
 
@@ -221,6 +224,121 @@ wss.on("connection", (ws, req) => {
                 userId: data.userId,
                 username: data.username,
                 meetingId: meetingId
+              }));
+            }
+          });
+        }
+
+        // Handle screen sharing events
+        if (data.type === 'screen-share-start') {
+          console.log(`Screen share started by ${data.userId} in meeting ${meetingId}`);
+          
+          // Broadcast screen share start to all other clients in the same meeting
+          wss.clients.forEach((client) => {
+            if (client !== ws && 
+                client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: 'screen-share-start',
+                userId: data.userId,
+                username: data.username,
+                meetingId: meetingId,
+                timestamp: data.timestamp
+              }));
+            }
+          });
+        }
+        
+        // Handle screen share stream data
+        if (data.type === 'screen-share-stream') {
+          console.log(`Screen share stream from ${data.userId} in meeting ${meetingId}`);
+          
+          // Broadcast screen share stream to all other clients in the same meeting
+          wss.clients.forEach((client) => {
+            if (client !== ws && 
+                client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: 'screen-share-stream',
+                userId: data.userId,
+                meetingId: meetingId,
+                imageData: data.imageData,
+                timestamp: data.timestamp
+              }));
+            }
+          });
+        }
+
+        if (data.type === 'screen-share-stop') {
+          console.log(`Screen share stopped by ${data.userId} in meeting ${meetingId}`);
+          
+          // Broadcast screen share stop to all other clients in the same meeting
+          wss.clients.forEach((client) => {
+            if (client !== ws && 
+                client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: 'screen-share-stopped',
+                userId: data.userId,
+                username: data.username,
+                meetingId: meetingId,
+                timestamp: data.timestamp
+              }));
+            }
+          });
+        }
+
+        if (data.type === 'screen-share-producer-created') {
+          console.log(`Screen share producer created by ${data.userId} in meeting ${meetingId}`);
+          
+          // Broadcast producer creation to all other clients in the same meeting
+          wss.clients.forEach((client) => {
+            if (client !== ws && 
+                client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: 'screen-share-producer-created',
+                userId: data.userId,
+                producerId: data.producerId,
+                kind: data.kind,
+                meetingId: meetingId
+              }));
+            }
+          });
+        }
+
+        if (data.type === 'screen-share-producer-closed') {
+          console.log(`Screen share producer closed by ${data.userId} in meeting ${meetingId}`);
+          
+          // Broadcast producer closure to all other clients in the same meeting
+          wss.clients.forEach((client) => {
+            if (client !== ws && 
+                client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: 'screen-share-producer-closed',
+                userId: data.userId,
+                producerId: data.producerId,
+                meetingId: meetingId
+              }));
+            }
+          });
+        }
+
+        // Handle meeting end
+        if (data.type === 'meeting-end') {
+          console.log(`Meeting ended by ${data.userId} in meeting ${meetingId}`);
+          
+          // Broadcast meeting end to all clients in the same meeting
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN && 
+                client.meetingId === meetingId) {
+              client.send(JSON.stringify({
+                type: 'meeting-ended',
+                userId: data.userId,
+                username: data.username,
+                meetingId: meetingId,
+                timestamp: new Date().toISOString()
               }));
             }
           });

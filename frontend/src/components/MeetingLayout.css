@@ -1,0 +1,92 @@
+/* Meeting Layout Component Styles */
+.meeting-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
+/* Menu Section - Always full width */
+.menu-section {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  overflow: hidden;
+  flex: 1;
+  width: 100%;
+}
+
+/* Embedded Screen Share - Positioned within menu content */
+.embedded-screen-share {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  max-width: 800px;
+  height: 50%;
+  max-height: 500px;
+  z-index: 1000;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  background: #000;
+}
+
+/* Menu Content - Full width with potential overlay */
+.menu-content {
+  flex: 1;
+  width: 100%;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Overlay when screen share is active */
+.menu-content.with-screen-share {
+  background: rgba(248, 249, 250, 0.95);
+  backdrop-filter: blur(2px);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .embedded-screen-share {
+    width: 70%;
+    height: 45%;
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .embedded-screen-share {
+    width: 85%;
+    height: 40%;
+    max-height: 350px;
+  }
+}
+
+@media (max-width: 480px) {
+  .embedded-screen-share {
+    width: 95%;
+    height: 35%;
+    max-height: 300px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .menu-section {
+    background: #1a1a1a;
+    color: #ffffff;
+  }
+  
+  .menu-section.with-preview {
+    border-left-color: #404040;
+  }
+  
+  .menu-section.full-width {
+    border-top-color: #404040;
+  }
+}

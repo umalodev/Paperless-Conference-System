@@ -1,0 +1,154 @@
+/* Simple Screen Share Component Styles */
+.simple-screen-share {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin: 20px;
+}
+
+.screen-share-header {
+  background: #f8f9fa;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.screen-share-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.screen-share-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+.screen-share-content {
+  padding: 20px;
+  min-height: 300px;
+}
+
+.received-screen-share {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.share-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #e8f5e8;
+  border-radius: 6px;
+  border-left: 4px solid #28a745;
+}
+
+.live-indicator {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.video-container {
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.screen-share-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.no-screen-share {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+}
+
+.empty-state {
+  text-align: center;
+  color: #666;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.empty-state small {
+  color: #999;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .simple-screen-share {
+    margin: 10px;
+  }
+  
+  .screen-share-header {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .screen-share-controls {
+    justify-content: center;
+  }
+  
+  .screen-share-content {
+    padding: 16px;
+  }
+}

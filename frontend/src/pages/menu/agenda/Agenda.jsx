@@ -6,6 +6,9 @@ import Icon from "../../../components/Icon.jsx";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import "./Agenda.css";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
+import simpleScreenShare from "../../../services/simpleScreenShare.js";
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
@@ -29,16 +32,15 @@ export default function Agenda() {
     end: "", // HH:MM
   });
 
+  // Screen share state - initialize from service if already sharing
+  const [screenShareOn, setScreenShareOn] = useState(() => {
+    // Check if screen sharing is already active from service
+    return simpleScreenShare.isSharing || false;
+  });
+
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const u = localStorage.getItem("user");
-    if (u) setUser(JSON.parse(u));
-    const dn = localStorage.getItem("pconf.displayName") || "";
-    setDisplayName(dn);
-  }, []);
-
-  // Ambil meetingId dari localStorage (dibuat di Start saat create/join)
+  // meetingId dari localStorage (dibuat di Start saat create/join)
   const meetingId = useMemo(() => {
     try {
       const raw = localStorage.getItem("currentMeeting");
@@ -48,6 +50,116 @@ export default function Agenda() {
       return null;
     }
   }, []);
+
+  // Screen share handlers - menggunakan simpleScreenShare yang berhasil
+  const handleToggleScreenShare = async () => {
+    try {
+      console.log('Toggle screen share clicked, current state:', screenShareOn);
+      console.log('Meeting ID:', meetingId, 'User ID:', user?.id);
+      
+      if (screenShareOn) {
+        // Stop screen sharing
+        console.log('Attempting to stop screen sharing...');
+        simpleScreenShare.stopScreenShare();
+        setScreenShareOn(false);
+        console.log('Screen sharing stopped successfully');
+      } else {
+        // Start screen sharing
+        console.log('Attempting to start screen sharing...');
+        const success = await simpleScreenShare.startScreenShare();
+        
+        if (success) {
+          setScreenShareOn(true);
+          console.log('Screen sharing started successfully');
+        } else {
+          console.error('Failed to start screen sharing');
+        }
+      }
+    } catch (error) {
+      console.error('Screen sharing error:', error);
+    }
+  };
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (u) setUser(JSON.parse(u));
+    const dn = localStorage.getItem("pconf.displayName") || "";
+    setDisplayName(dn);
+  }, []);
+
+  // Handle meeting end event
+  useEffect(() => {
+    const handleMeetingEnd = (event) => {
+      console.log('Meeting ended, redirecting to start page');
+      localStorage.removeItem("currentMeeting");
+      navigate("/start");
+    };
+
+    window.addEventListener('meeting-ended', handleMeetingEnd);
+    
+    return () => {
+      window.removeEventListener('meeting-ended', handleMeetingEnd);
+    };
+  }, [navigate]);
+
+  // Initialize screen sharing service - menggunakan simpleScreenShare
+  useEffect(() => {
+    console.log('Screen sharing initialization effect triggered');
+    console.log('Meeting ID:', meetingId, 'User ID:', user?.id);
+    
+    if (meetingId && user?.id) {
+      // Sync state with service on mount to maintain state across page navigation
+      setScreenShareOn(simpleScreenShare.isSharing || false);
+      
+      // SimpleScreenShare component will handle initialization
+      // We just need to set up event listeners for footer button state
+      const setupFooterListeners = () => {
+        console.log('Setting up footer event listeners...');
+        
+        // Store original handlers to avoid overriding
+        const originalOnStart = simpleScreenShare.onScreenShareStart;
+        const originalOnStop = simpleScreenShare.onScreenShareStop;
+        const originalOnReceived = simpleScreenShare.onScreenShareReceived;
+        
+        // Set up event listeners for footer button state
+        simpleScreenShare.onScreenShareStart = (data) => {
+          console.log('Footer: Screen share started by:', data.userId);
+          if (data.userId === user.id) {
+            setScreenShareOn(true);
+          }
+          // Call original handler if exists
+          if (originalOnStart) {
+            originalOnStart(data);
+          }
+        };
+
+        simpleScreenShare.onScreenShareStop = (data) => {
+          console.log('Footer: Screen share stopped by:', data.userId);
+          if (data.userId === user.id) {
+            setScreenShareOn(false);
+          }
+          // Call original handler if exists
+          if (originalOnStop) {
+            originalOnStop(data);
+          }
+        };
+
+        simpleScreenShare.onScreenShareReceived = (data) => {
+          console.log('Footer: Screen share received from:', data.userId);
+          // Call original handler if exists
+          if (originalOnReceived) {
+            originalOnReceived(data);
+          }
+        };
+        
+        console.log('Footer event listeners set up');
+      };
+
+      setupFooterListeners();
+    } else {
+      console.log('Screen sharing initialization skipped - missing meetingId or userId');
+    }
+  }, [meetingId, user?.id]);
 
   // ----- MENUS -----
   useEffect(() => {
@@ -202,40 +314,56 @@ export default function Agenda() {
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
   return (
-    <div className="pd-app">
-      {/* Top bar */}
-      <header className="pd-topbar">
-        <div className="pd-left">
-          <span className="pd-live" aria-hidden />
-          <div>
-            <h1 className="pd-title">Test Meeting</h1>
-          </div>
-        </div>
-        <div className="pd-right">
-          <div className="pd-clock" aria-live="polite">
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(displayName || user?.username || "DL")
-                .slice(0, 2)
-                .toUpperCase()}
-            </div>
+    <MeetingLayout
+      meetingId={meetingId}
+      userId={user?.id}
+      userRole={user?.role || 'participant'}
+      socket={null} // Will be set when socket is integrated
+      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+    >
+      <div className="pd-app">
+        {/* Top bar */}
+        <header className="pd-topbar">
+          <div className="pd-left">
+            <span className="pd-live" aria-hidden />
             <div>
-              <div className="pd-user-name">
-                {displayName || user?.username || "David Li"}
-              </div>
-              <div className="pd-user-role">#FC114</div>
+              <h1 className="pd-title">Test Meeting</h1>
             </div>
           </div>
-        </div>
-      </header>
+          <div className="pd-right">
+            <div className="pd-clock" aria-live="polite">
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(displayName || user?.username || "DL")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+              <div>
+                <div className="pd-user-name">
+                  {displayName || user?.username || "David Li"}
+                </div>
+                <div className="pd-user-role">#FC114</div>
+              </div>
+            </div>
+          </div>
+        </header>
 
       {/* Konten utama */}
       <main className="pd-main">
+        {/* Simple Screen Share */}
+        <SimpleScreenShare 
+          meetingId={meetingId} 
+          userId={user?.id}
+          isSharing={screenShareOn}
+          onSharingChange={setScreenShareOn}
+          onError={(error) => console.error('Screen share error:', error)}
+        />
+        
         <section className="agenda-wrap">
           <div className="agenda-header">
             <span className="agenda-title">Agenda</span>
@@ -363,11 +491,16 @@ export default function Agenda() {
         />
       )}
 
-      <MeetingFooter
-        showEndButton={true}
-        onMenuClick={() => console.log("open menu")}
-      />
-    </div>
+        <MeetingFooter
+          showEndButton={true}
+          onMenuClick={() => console.log("open menu")}
+          screenShareOn={screenShareOn}
+          onToggleScreenShare={handleToggleScreenShare}
+        />
+
+
+      </div>
+    </MeetingLayout>
   );
 }
 
