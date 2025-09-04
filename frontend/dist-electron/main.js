@@ -62,25 +62,44 @@ function createWindow() {
       webSecurity: false,
       // dev only
       allowRunningInsecureContent: true,
-      experimentalFeatures: true
+      experimentalFeatures: true,
+      // Enable screen capture APIs
+      enableRemoteModule: false,
+      webSecurity: false,
+      // Additional permissions for screen sharing
+      additionalArguments: ["--enable-features=VaapiVideoDecoder"]
     }
   });
   win.webContents.on("preload-error", (_e, p, err) => {
     console.error("[main] PRELOAD ERROR at", p, err);
   });
   win.webContents.on("dom-ready", () => {
+    console.log("[main] DOM ready, checking preload status");
     win.webContents.executeJavaScript(
       `
         console.log("[renderer] has screenAPI?", !!window.screenAPI);
         console.log("[renderer] screenAPI contents:", window.screenAPI);
         console.log("[renderer] has __PRELOAD_OK__?", !!window.__PRELOAD_OK__);
-      `
+        console.log("[renderer] screenAPI.isElectron:", window.screenAPI?.isElectron);
+        console.log("[renderer] screenAPI.getScreenSources:", typeof window.screenAPI?.getScreenSources);
+        `
     ).catch((err) => console.error("[main] executeJavaScript error:", err));
   });
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
-    if (permission === "media" || permission === "display-capture")
+    console.log(`[main] Permission requested: ${permission}`);
+    if (permission === "media" || permission === "display-capture" || permission === "camera" || permission === "microphone") {
+      console.log(`[main] Granting permission: ${permission}`);
       return cb(true);
+    }
+    console.log(`[main] Granting permission: ${permission}`);
     cb(true);
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, _details) => {
+    console.log(`[main] Permission check: ${permission}`);
+    if (permission === "media" || permission === "display-capture" || permission === "camera" || permission === "microphone") {
+      return true;
+    }
+    return true;
   });
   if (VITE_DEV_SERVER_URL) win.loadURL(VITE_DEV_SERVER_URL);
   else win.loadFile(path.join(RENDERER_DIST, "index.html"));
@@ -107,6 +126,10 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+app.commandLine.appendSwitch("--enable-usermedia-screen-capture");
+app.commandLine.appendSwitch("--disable-features", "VizDisplayCompositor");
+app.commandLine.appendSwitch("--enable-features", "VaapiVideoDecoder");
+app.commandLine.appendSwitch("--autoplay-policy", "no-user-gesture-required");
 app.whenReady().then(createWindow);
 export {
   MAIN_DIST,

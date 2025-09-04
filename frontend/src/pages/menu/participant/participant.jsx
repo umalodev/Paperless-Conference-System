@@ -40,15 +40,6 @@ export default function ParticipantsPage() {
   }, []);
 
   // meetingId dari localStorage
-  const meetingId = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("currentMeeting");
-      const cm = raw ? JSON.parse(raw) : null;
-      return cm?.id || cm?.meetingId || null;
-    } catch {
-      return null;
-    }
-  }, []);
 
   // Sync screen share state with service on mount
   useEffect(() => {
@@ -69,7 +60,7 @@ export default function ParticipantsPage() {
           setScreenShareOn(true);
         }
       } catch (error) {
-        console.error('Failed to start screen sharing:', error);
+        console.error("Failed to start screen sharing:", error);
       }
     }
   };
@@ -265,7 +256,7 @@ export default function ParticipantsPage() {
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
-      userRole={user?.role || 'participant'}
+      userRole={user?.role || "participant"}
       socket={null} // Will be set when socket is integrated
       mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
     >
@@ -286,188 +277,190 @@ export default function ParticipantsPage() {
                 minute: "2-digit",
               })}
             </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(user?.username || "US").slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <div className="pd-user-name">
-                {user?.username || "Participant"}
-              </div>
-              <div className="pd-user-role">Participant</div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <main className="pd-main">
-        {/* Simple Screen Share */}
-        <SimpleScreenShare 
-          meetingId={meetingId} 
-          userId={user?.id}
-          isSharing={screenShareOn}
-          onSharingChange={setScreenShareOn}
-          onError={(error) => console.error('Screen share error:', error)}
-        />
-        
-        <section className="prt-wrap">
-          <div className="prt-header">
-            <div className="prt-search">
-              <span className="prt-search-icon">
-                <Icon slug="search" />
-              </span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name, role, or seat…"
-                aria-label="Search participants"
-              />
-            </div>
-            <div className="prt-actions">
-              <button className="prt-btn" title="Invite">
-                <Icon slug="invite" />
-                <span>Invite</span>
-              </button>
-              <button className="prt-btn ghost" title="Sort">
-                <Icon slug="sort" />
-                <span>Sort</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="prt-summary">
-            <div className="prt-card">
-              <div className="prt-card-icon">
-                <Icon slug="users" />
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
               <div>
-                <div className="prt-card-title">{totals.total}</div>
-                <div className="prt-card-sub">Total</div>
-              </div>
-            </div>
-            <div className="prt-card">
-              <div className="prt-card-icon">
-                <Icon slug="mic" />
-              </div>
-              <div>
-                <div className="prt-card-title">{totals.micOn}</div>
-                <div className="prt-card-sub">Mic On</div>
-              </div>
-            </div>
-            <div className="prt-card">
-              <div className="prt-card-icon">
-                <Icon slug="camera" />
-              </div>
-              <div>
-                <div className="prt-card-title">{totals.camOn}</div>
-                <div className="prt-card-sub">Cam On</div>
-              </div>
-            </div>
-            <div className="prt-card">
-              <div className="prt-card-icon">
-                <Icon slug="hand" />
-              </div>
-              <div>
-                <div className="prt-card-title">{totals.hands}</div>
-                <div className="prt-card-sub">Raised</div>
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
+                </div>
+                <div className="pd-user-role">Participant</div>
               </div>
             </div>
           </div>
+        </header>
 
-          {/* List peserta */}
-          {loadingList && <div className="pd-empty">Loading participants…</div>}
-          {errList && !loadingList && (
-            <div className="pd-error">Gagal memuat peserta: {errList}</div>
-          )}
+        {/* Content */}
+        <main className="pd-main">
+          {/* Simple Screen Share */}
+          <SimpleScreenShare
+            meetingId={meetingId}
+            userId={user?.id}
+            isSharing={screenShareOn}
+            onSharingChange={setScreenShareOn}
+            onError={(error) => console.error("Screen share error:", error)}
+          />
 
-          {!loadingList && !errList && (
-            <div className="prt-grid">
-              {filtered.map((p) => (
-                <div key={p.id} className="prt-item">
-                  <div className="prt-avatar">
-                    {(p.name || "?").slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="prt-info">
-                    <div className="prt-name">{p.name}</div>
-                    <div className="prt-meta">
-                      <span className="prt-role">{p.role}</span>
-                      {p.seat && <span className="prt-sep">•</span>}
-                      {p.seat && (
-                        <span className="prt-seat">Seat {p.seat}</span>
+          <section className="prt-wrap">
+            <div className="prt-header">
+              <div className="prt-search">
+                <span className="prt-search-icon">
+                  <Icon slug="search" />
+                </span>
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search name, role, or seat…"
+                  aria-label="Search participants"
+                />
+              </div>
+              <div className="prt-actions">
+                <button className="prt-btn" title="Invite">
+                  <Icon slug="invite" />
+                  <span>Invite</span>
+                </button>
+                <button className="prt-btn ghost" title="Sort">
+                  <Icon slug="sort" />
+                  <span>Sort</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="prt-summary">
+              <div className="prt-card">
+                <div className="prt-card-icon">
+                  <Icon slug="users" />
+                </div>
+                <div>
+                  <div className="prt-card-title">{totals.total}</div>
+                  <div className="prt-card-sub">Total</div>
+                </div>
+              </div>
+              <div className="prt-card">
+                <div className="prt-card-icon">
+                  <Icon slug="mic" />
+                </div>
+                <div>
+                  <div className="prt-card-title">{totals.micOn}</div>
+                  <div className="prt-card-sub">Mic On</div>
+                </div>
+              </div>
+              <div className="prt-card">
+                <div className="prt-card-icon">
+                  <Icon slug="camera" />
+                </div>
+                <div>
+                  <div className="prt-card-title">{totals.camOn}</div>
+                  <div className="prt-card-sub">Cam On</div>
+                </div>
+              </div>
+              <div className="prt-card">
+                <div className="prt-card-icon">
+                  <Icon slug="hand" />
+                </div>
+                <div>
+                  <div className="prt-card-title">{totals.hands}</div>
+                  <div className="prt-card-sub">Raised</div>
+                </div>
+              </div>
+            </div>
+
+            {/* List peserta */}
+            {loadingList && (
+              <div className="pd-empty">Loading participants…</div>
+            )}
+            {errList && !loadingList && (
+              <div className="pd-error">Gagal memuat peserta: {errList}</div>
+            )}
+
+            {!loadingList && !errList && (
+              <div className="prt-grid">
+                {filtered.map((p) => (
+                  <div key={p.id} className="prt-item">
+                    <div className="prt-avatar">
+                      {(p.name || "?").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="prt-info">
+                      <div className="prt-name">{p.name}</div>
+                      <div className="prt-meta">
+                        <span className="prt-role">{p.role}</span>
+                        {p.seat && <span className="prt-sep">•</span>}
+                        {p.seat && (
+                          <span className="prt-seat">Seat {p.seat}</span>
+                        )}
+                      </div>
+                      {p.joinTime && (
+                        <div className="prt-join-time">
+                          Joined: {new Date(p.joinTime).toLocaleTimeString()}
+                        </div>
                       )}
                     </div>
-                    {p.joinTime && (
-                      <div className="prt-join-time">
-                        Joined: {new Date(p.joinTime).toLocaleTimeString()}
-                      </div>
-                    )}
+                    <div className="prt-status">
+                      <button
+                        className={`prt-pill ${p.mic ? "on" : "off"}`}
+                        title={
+                          p.mic
+                            ? "Mic On - Click to turn off"
+                            : "Mic Off - Click to turn on"
+                        }
+                        onClick={() => handleMicToggle(p.id, p.mic)}
+                      >
+                        <Icon slug="mic" />
+                      </button>
+                      <button
+                        className={`prt-pill ${p.cam ? "on" : "off"}`}
+                        title={
+                          p.cam
+                            ? "Camera On - Click to turn off"
+                            : "Camera Off - Click to turn on"
+                        }
+                        onClick={() => handleCameraToggle(p.id, p.cam)}
+                      >
+                        <Icon slug="camera" />
+                      </button>
+                      {p.hand && (
+                        <span className="prt-pill on" title="Hand raised">
+                          <Icon slug="hand" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="prt-actions-right">
+                      <button className="prt-act" title="Pin">
+                        <Icon slug="pin" />
+                      </button>
+                      <button className="prt-act" title="More">
+                        <Icon slug="dots" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="prt-status">
-                    <button
-                      className={`prt-pill ${p.mic ? "on" : "off"}`}
-                      title={
-                        p.mic
-                          ? "Mic On - Click to turn off"
-                          : "Mic Off - Click to turn on"
-                      }
-                      onClick={() => handleMicToggle(p.id, p.mic)}
-                    >
-                      <Icon slug="mic" />
-                    </button>
-                    <button
-                      className={`prt-pill ${p.cam ? "on" : "off"}`}
-                      title={
-                        p.cam
-                          ? "Camera On - Click to turn off"
-                          : "Camera Off - Click to turn on"
-                      }
-                      onClick={() => handleCameraToggle(p.id, p.cam)}
-                    >
-                      <Icon slug="camera" />
-                    </button>
-                    {p.hand && (
-                      <span className="prt-pill on" title="Hand raised">
-                        <Icon slug="hand" />
-                      </span>
-                    )}
+                ))}
+
+                {filtered.length === 0 && participants.length === 0 && (
+                  <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
+                    Tidak ada peserta yang sedang bergabung dalam meeting saat
+                    ini.
                   </div>
-                  <div className="prt-actions-right">
-                    <button className="prt-act" title="Pin">
-                      <Icon slug="pin" />
-                    </button>
-                    <button className="prt-act" title="More">
-                      <Icon slug="dots" />
-                    </button>
+                )}
+
+                {filtered.length === 0 && participants.length > 0 && (
+                  <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
+                    Tidak ada peserta yang cocok dengan pencarian.
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
+            )}
+          </section>
+        </main>
 
-              {filtered.length === 0 && participants.length === 0 && (
-                <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
-                  Tidak ada peserta yang sedang bergabung dalam meeting saat
-                  ini.
-                </div>
-              )}
-
-              {filtered.length === 0 && participants.length > 0 && (
-                <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
-                  Tidak ada peserta yang cocok dengan pencarian.
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      </main>
-
-      {/* Bottom nav dari DB */}
-      {!loadingMenus && !errMenus && (
-        <BottomNav
-          items={visibleMenus}
-          active="participants"
-          onSelect={handleSelectNav}
-        />
-      )}
+        {/* Bottom nav dari DB */}
+        {!loadingMenus && !errMenus && (
+          <BottomNav
+            items={visibleMenus}
+            active="participants"
+            onSelect={handleSelectNav}
+          />
+        )}
 
         <MeetingFooter
           showEndButton={true}
@@ -475,8 +468,6 @@ export default function ParticipantsPage() {
           screenShareOn={screenShareOn}
           onToggleScreenShare={handleToggleScreenShare}
         />
-
-
       </div>
     </MeetingLayout>
   );

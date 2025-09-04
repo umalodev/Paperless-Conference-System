@@ -126,12 +126,62 @@ class SimpleScreenShare {
   async startScreenShare() {
     try {
       console.log('Starting simple screen share...');
+      console.log('window.screenAPI available:', !!window.screenAPI);
+      console.log('window.screenAPI.isElectron:', window.screenAPI?.isElectron);
+      console.log('navigator.mediaDevices available:', !!navigator.mediaDevices);
+      console.log('navigator.mediaDevices.getDisplayMedia available:', !!navigator.mediaDevices?.getDisplayMedia);
       
-      // Get screen stream
-      this.currentStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false
-      });
+      // Test preload if available
+      if (window.screenAPI && window.screenAPI.testPreload) {
+        try {
+          const testResult = window.screenAPI.testPreload();
+          console.log('Preload test result:', testResult);
+        } catch (error) {
+          console.error('Preload test failed:', error);
+        }
+      }
+      
+      // Check if we're in Electron and have the screenAPI
+      if (window.screenAPI && window.screenAPI.isElectron) {
+        console.log('Using Electron screen capture API');
+        return await this.startElectronScreenShare();
+      } else {
+        console.log('Using web screen capture API');
+        return await this.startWebScreenShare();
+      }
+      
+    } catch (error) {
+      console.error('Failed to start screen share:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Start screen sharing using Electron's desktopCapturer
+   */
+  async startElectronScreenShare() {
+    try {
+      console.log('Starting Electron screen share...');
+      
+      // Check if screenAPI is available
+      if (!window.screenAPI || !window.screenAPI.getScreenSources) {
+        throw new Error('screenAPI not available or getScreenSources method missing');
+      }
+      
+      // Get available screen sources
+      const sources = await window.screenAPI.getScreenSources();
+      console.log('Available screen sources:', sources);
+      
+      if (sources.length === 0) {
+        throw new Error('No screen sources available');
+      }
+      
+      // Use the first screen source
+      const source = sources[0];
+      console.log('Using screen source:', source);
+      
+      // Create screen stream using Electron's desktopCapturer
+      this.currentStream = await window.screenAPI.createScreenStream(source.id);
       
       this.isSharing = true;
       
@@ -146,11 +196,93 @@ class SimpleScreenShare {
       // Start sending video frames
       this.startSendingFrames();
       
-      console.log('Simple screen share started');
+      console.log('Electron screen share started');
       return true;
       
     } catch (error) {
-      console.error('Failed to start screen share:', error);
+      console.error('Failed to start Electron screen share:', error);
+      // Fallback to web API if Electron method fails
+      console.log('Falling back to web screen capture API');
+      return await this.startWebScreenShare();
+    }
+  }
+
+  /**
+   * Start screen sharing using web getDisplayMedia API
+   */
+  async startWebScreenShare() {
+    try {
+      console.log('Starting web screen share...');
+      
+      // Check if getDisplayMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        throw new Error('getDisplayMedia API not supported in this environment');
+      }
+      
+      // Try different approaches for Electron
+      let stream;
+      
+      // First try: Standard getDisplayMedia
+      try {
+        console.log('Trying standard getDisplayMedia...');
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: false
+        });
+      } catch (firstError) {
+        console.log('Standard getDisplayMedia failed:', firstError.message);
+        
+        // Second try: getUserMedia with Electron-specific constraints
+        try {
+          console.log('Trying getUserMedia with Electron constraints...');
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              // @ts-ignore - Electron specific constraint
+              mandatory: {
+                chromeMediaSource: 'desktop',
+                chromeMediaSourceId: 'screen:0:0', // Default screen
+                minWidth: 1280,
+                maxWidth: 1920,
+                minHeight: 720,
+                maxHeight: 1080
+              }
+            }
+          });
+        } catch (secondError) {
+          console.log('Electron getUserMedia failed:', secondError.message);
+          throw firstError; // Throw the original error
+        }
+      }
+      
+      this.currentStream = stream;
+      this.isSharing = true;
+      
+      // Send start event
+      this.sendMessage({
+        type: 'screen-share-start',
+        userId: this.userId,
+        meetingId: this.meetingId,
+        timestamp: Date.now()
+      });
+      
+      // Start sending video frames
+      this.startSendingFrames();
+      
+      console.log('Web screen share started');
+      return true;
+      
+    } catch (error) {
+      console.error('Failed to start web screen share:', error);
+      
+      // Provide more specific error messages
+      if (error.name === 'NotSupportedError' || error.message.includes('Not supported')) {
+        console.error('Screen sharing is not supported in this environment. This might be due to:');
+        console.error('1. Running in Electron without proper permissions');
+        console.error('2. Browser security restrictions');
+        console.error('3. Missing HTTPS in production');
+      }
+      
       return false;
     }
   }
