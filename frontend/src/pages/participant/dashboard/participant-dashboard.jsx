@@ -205,7 +205,7 @@ export default function ParticipantDashboard() {
       </header>
 
       <main className="pd-main">
-        <section className="pd-panel">
+        <section className="pd-panel pd-dock">
           {loading && <div className="pd-empty">Loading menus…</div>}
           {err && !loading && (
             <div className="pd-error">Gagal memuat menu: {err}</div>

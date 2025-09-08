@@ -810,7 +810,6 @@ export default function Chat() {
                   </div>
                   <textarea
                     className="chat-input"
-                    placeholder="Tulis pesan…"
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={onKeyDown}

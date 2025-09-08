@@ -1,13 +1,14 @@
 @import "../../../themes/variables.css";
 
 .pd-app {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-main);
   font-size: var(--font-size-base);
+  overflow: hidden;
 }
 
 /* Topbar */
@@ -84,11 +85,13 @@
 
 /* Main */
 .pd-main {
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 120px);
   padding: 22px;
+  overflow: auto;
+  min-height: 0;
 }
 .pd-panel {
   background: var(--color-primary-bg);
