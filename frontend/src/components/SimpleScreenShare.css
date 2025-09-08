@@ -1,10 +1,10 @@
 /* Simple Screen Share Component Styles */
 .simple-screen-share {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: #fff;
 }
 
 .screen-share-header {
@@ -61,14 +61,18 @@
 }
 
 .screen-share-content {
-  padding: 20px;
-  min-height: 300px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  display: flex;
 }
 
 .received-screen-share {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
 }
 
 .share-info {
@@ -88,12 +92,13 @@
 
 .video-container {
   background: #000;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .screen-share-image {
@@ -106,7 +111,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 300px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .empty-state {

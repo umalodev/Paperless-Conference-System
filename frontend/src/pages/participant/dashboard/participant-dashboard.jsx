@@ -242,7 +242,7 @@ export default function ParticipantDashboard() {
         // camOn={camOn}
         // onToggleMic={() => setMicOn(v => !v)}
         // onToggleCam={() => setCamOn(v => !v)}
-        onMenuClick={() => console.log("open menu")}
+        
         onHelpClick={() => alert("Contact support")}
       />
     </div>

@@ -8,8 +8,7 @@ import "./Notes.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
-import simpleScreenShare from "../../../services/simpleScreenShare.js";
+// Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Notes() {
   const [user, setUser] = useState(null);
@@ -33,11 +32,7 @@ export default function Notes() {
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
 
-  // Screen share state - initialize from service if already sharing
-  const [screenShareOn, setScreenShareOn] = useState(() => {
-    // Check if screen sharing is already active from service
-    return simpleScreenShare.isSharing || false;
-  });
+  // Screen sharing UI moved to dedicated page
 
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
@@ -52,47 +47,14 @@ export default function Notes() {
     }
   }, []);
 
-  // Sync screen share state with service on mount
-  useEffect(() => {
-    if (meetingId && user?.id) {
-      // Sync state with service to maintain state across page navigation
-      setScreenShareOn(simpleScreenShare.isSharing || false);
-    }
-  }, [meetingId, user?.id]);
-
-  // Screen share handlers
-  const handleToggleScreenShare = async () => {
-    if (screenShareOn) {
-      setScreenShareOn(false);
-    } else {
-      try {
-        const success = await simpleScreenShare.startScreenShare();
-        if (success) {
-          setScreenShareOn(true);
-        }
-      } catch (error) {
-        console.error('Failed to start screen sharing:', error);
-      }
-    }
-  };
-
-  // Handle screen share close from preview component
-  const handleScreenShareClose = () => {
-    setScreenShareOn(false);
-  };
+  // Screen sharing controls handled elsewhere
 
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Set up global close handler for screen share
-  useEffect(() => {
-    window.screenShareCloseHandler = handleScreenShareClose;
-    return () => {
-      window.screenShareCloseHandler = null;
-    };
-  }, []);
+  // Removed global close handler
 
   useEffect(() => {
     let cancel = false;
@@ -299,14 +261,7 @@ export default function Notes() {
 
       {/* Content */}
       <main className="pd-main">
-        {/* Simple Screen Share */}
-        <SimpleScreenShare 
-          meetingId={meetingId} 
-          userId={user?.id}
-          isSharing={screenShareOn}
-          onSharingChange={setScreenShareOn}
-          onError={(error) => console.error('Screen share error:', error)}
-        />
+        {/* Screen share moved to dedicated page */}
         
         <section className="notes-wrap">
           <div className="notes-header">
@@ -464,9 +419,6 @@ export default function Notes() {
 
         <MeetingFooter
           showEndButton={true}
-          onMenuClick={() => console.log("open menu")}
-          screenShareOn={screenShareOn}
-          onToggleScreenShare={handleToggleScreenShare}
         />
 
 

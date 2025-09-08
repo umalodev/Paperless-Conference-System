@@ -66,7 +66,7 @@ export default function MeetingFooter({
   };
 
   const handleEnd = onEndMeeting || defaultEndMeeting;
-  const handleMenu = onMenuClick || (() => {});
+  const handleMenu = onMenuClick || (() => navigate("/participant/dashboard"));
   const handleHelp = onHelpClick || (() => alert("Need help?"));
 
   return (
@@ -93,12 +93,13 @@ export default function MeetingFooter({
 
       <div className="pd-controls-right">
         <button
-          className={`pd-ctrl ${screenShareOn ? "is-active" : ""}`}
-          title={screenShareOn ? "Stop Screen Share" : "Share Screen"}
-          onClick={onToggleScreenShare}
+          className="pd-ctrl"
+          title="Open Screen Share Page"
+          onClick={() => navigate("/menu/screenshare")}
         >
           <Icon slug="screen-share" />
         </button>
+
         <button className="pd-ghost" onClick={handleMenu}>
           Menu
         </button>

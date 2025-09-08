@@ -302,10 +302,11 @@ class SimpleScreenShare {
     
     const sendFrame = () => {
       if (!this.isSharing || !this.currentStream) return;
-      
-      // Reduce resolution for better performance
-      const maxWidth = 800;
-      const maxHeight = 600;
+      // Choose dynamic max resolution based on viewport (cap to 1920x1080)
+      const viewportW = (typeof window !== 'undefined' ? window.innerWidth : 1280) || 1280;
+      const viewportH = (typeof window !== 'undefined' ? window.innerHeight : 720) || 720;
+      const maxWidth = Math.min(1920, Math.max(960, viewportW));
+      const maxHeight = Math.min(1080, Math.max(540, viewportH));
       let width = video.videoWidth;
       let height = video.videoHeight;
       
@@ -320,8 +321,8 @@ class SimpleScreenShare {
       canvas.height = height;
       ctx.drawImage(video, 0, 0, width, height);
       
-      // Convert to base64 with lower quality for better performance
-      const imageData = canvas.toDataURL('image/jpeg', 0.5);
+      // Convert to base64 with moderate quality to keep clarity
+      const imageData = canvas.toDataURL('image/jpeg', 0.7);
       
       // Send frame
       this.sendMessage({
@@ -333,7 +334,7 @@ class SimpleScreenShare {
       });
       
       // Continue sending frames
-      setTimeout(sendFrame, 500); // 2 FPS - reduced for better performance
+      setTimeout(sendFrame, 200); // ~5 FPS for better smoothness
     };
     
     video.onloadedmetadata = () => {

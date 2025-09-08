@@ -37,6 +37,8 @@ const SimpleScreenShare = ({
         console.log('Component: simpleScreenShare already initialized, just setting up listeners');
         // Just set up event listeners if already initialized
         setupEventListeners();
+        // Sync current status from service in case we navigated away and back
+        syncFromService();
       }
     }
     
@@ -99,6 +101,21 @@ const SimpleScreenShare = ({
   const initializeScreenShare = async () => {
     await simpleScreenShare.initialize(meetingId, userId);
     setupEventListeners();
+    // After init, reflect current service state (might already be sharing)
+    syncFromService();
+  };
+
+  const syncFromService = () => {
+    try {
+      const currentlySharing = !!simpleScreenShare.isSharing;
+      setIsSharing(currentlySharing);
+      if (currentlySharing) {
+        // If I am the sharer, show me; otherwise keep previous sharingUser until a frame arrives
+        setSharingUser(simpleScreenShare.userId || userId);
+      }
+    } catch (e) {
+      // no-op
+    }
   };
 
   const handleStartShare = async () => {
@@ -140,10 +157,7 @@ const SimpleScreenShare = ({
     }
   }, [receivedStream]);
 
-  // Only render the component if there's an active screen share
-  if (!receivedStream && !isSharing) {
-    return null;
-  }
+  // Always render to allow starting share from this page and show empty state
 
   return (
     <div className="simple-screen-share">
@@ -183,7 +197,6 @@ const SimpleScreenShare = ({
                 ref={imageRef}
                 className="screen-share-image"
                 alt="Screen Share"
-                style={{ border: '2px solid red' }} // Debug border
               />
             </div>
           </div>

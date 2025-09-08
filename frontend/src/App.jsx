@@ -18,6 +18,7 @@ import Start from "./pages/start/Start.jsx";
 import WaitingRoom from "./pages/waiting/WaitingRoom.jsx";
 import SetUp from "./pages/start/SetUp.jsx";
 import Services from "./pages/menu/services/services.jsx";
+import ScreenSharePage from "./pages/menu/screenshare/ScreenShare.jsx";
 
 function App() {
   return (
@@ -55,6 +56,7 @@ function App() {
         <Route path="/waiting" element={<WaitingRoom />} />
         <Route path="/setup" element={<SetUp />} />
         <Route path="/menu/services" element={<Services />} />
+        <Route path="/menu/screenshare" element={<ScreenSharePage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -7,8 +7,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import "./Agenda.css";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
-import simpleScreenShare from "../../../services/simpleScreenShare.js";
+// Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
@@ -35,11 +34,7 @@ export default function Agenda() {
   // Check if user is host/admin (can add agenda)
   const isHost = /^(host|admin)$/i.test(user?.role || "");
 
-  // Screen share state - initialize from service if already sharing
-  const [screenShareOn, setScreenShareOn] = useState(() => {
-    // Check if screen sharing is already active from service
-    return simpleScreenShare.isSharing || false;
-  });
+  // Screen sharing UI moved to dedicated page
 
   const navigate = useNavigate();
 
@@ -54,34 +49,7 @@ export default function Agenda() {
     }
   }, []);
 
-  // Screen share handlers - menggunakan simpleScreenShare yang berhasil
-  const handleToggleScreenShare = async () => {
-    try {
-      console.log('Toggle screen share clicked, current state:', screenShareOn);
-      console.log('Meeting ID:', meetingId, 'User ID:', user?.id);
-      
-      if (screenShareOn) {
-        // Stop screen sharing
-        console.log('Attempting to stop screen sharing...');
-        simpleScreenShare.stopScreenShare();
-        setScreenShareOn(false);
-        console.log('Screen sharing stopped successfully');
-      } else {
-        // Start screen sharing
-        console.log('Attempting to start screen sharing...');
-        const success = await simpleScreenShare.startScreenShare();
-        
-        if (success) {
-          setScreenShareOn(true);
-          console.log('Screen sharing started successfully');
-        } else {
-          console.error('Failed to start screen sharing');
-        }
-      }
-    } catch (error) {
-      console.error('Screen sharing error:', error);
-    }
-  };
+  // Screen sharing controls handled elsewhere
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -105,64 +73,7 @@ export default function Agenda() {
     };
   }, [navigate]);
 
-  // Initialize screen sharing service - menggunakan simpleScreenShare
-  useEffect(() => {
-    console.log('Screen sharing initialization effect triggered');
-    console.log('Meeting ID:', meetingId, 'User ID:', user?.id);
-    
-    if (meetingId && user?.id) {
-      // Sync state with service on mount to maintain state across page navigation
-      setScreenShareOn(simpleScreenShare.isSharing || false);
-      
-      // SimpleScreenShare component will handle initialization
-      // We just need to set up event listeners for footer button state
-      const setupFooterListeners = () => {
-        console.log('Setting up footer event listeners...');
-        
-        // Store original handlers to avoid overriding
-        const originalOnStart = simpleScreenShare.onScreenShareStart;
-        const originalOnStop = simpleScreenShare.onScreenShareStop;
-        const originalOnReceived = simpleScreenShare.onScreenShareReceived;
-        
-        // Set up event listeners for footer button state
-        simpleScreenShare.onScreenShareStart = (data) => {
-          console.log('Footer: Screen share started by:', data.userId);
-          if (data.userId === user.id) {
-            setScreenShareOn(true);
-          }
-          // Call original handler if exists
-          if (originalOnStart) {
-            originalOnStart(data);
-          }
-        };
-
-        simpleScreenShare.onScreenShareStop = (data) => {
-          console.log('Footer: Screen share stopped by:', data.userId);
-          if (data.userId === user.id) {
-            setScreenShareOn(false);
-          }
-          // Call original handler if exists
-          if (originalOnStop) {
-            originalOnStop(data);
-          }
-        };
-
-        simpleScreenShare.onScreenShareReceived = (data) => {
-          console.log('Footer: Screen share received from:', data.userId);
-          // Call original handler if exists
-          if (originalOnReceived) {
-            originalOnReceived(data);
-          }
-        };
-        
-        console.log('Footer event listeners set up');
-      };
-
-      setupFooterListeners();
-    } else {
-      console.log('Screen sharing initialization skipped - missing meetingId or userId');
-    }
-  }, [meetingId, user?.id]);
+  // Screen sharing setup removed
 
   // ----- MENUS -----
   useEffect(() => {
@@ -358,14 +269,7 @@ export default function Agenda() {
 
       {/* Konten utama */}
       <main className="pd-main">
-        {/* Simple Screen Share */}
-        <SimpleScreenShare 
-          meetingId={meetingId} 
-          userId={user?.id}
-          isSharing={screenShareOn}
-          onSharingChange={setScreenShareOn}
-          onError={(error) => console.error('Screen share error:', error)}
-        />
+        {/* Screen share moved to dedicated page */}
         
         <section className="agenda-wrap">
           <div className="agenda-header">
@@ -497,9 +401,6 @@ export default function Agenda() {
 
         <MeetingFooter
           showEndButton={true}
-          onMenuClick={() => console.log("open menu")}
-          screenShareOn={screenShareOn}
-          onToggleScreenShare={handleToggleScreenShare}
         />
 
 

@@ -8,8 +8,7 @@ import "./Survey.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
-import simpleScreenShare from "../../../services/simpleScreenShare.js";
+// Removed inline screen share usage; viewing is moved to dedicated page
 import SurveyViewer from "./components/SurveyViewer.jsx";
 import SurveyEditor from "./components/SurveyEditor.jsx";
 import {
@@ -50,37 +49,11 @@ export default function Survey() {
   const [editing, setEditing] = useState(null); // survey object being edited
   const [saving, setSaving] = useState(false);
 
-  // Screen share state - initialize from service if already sharing
-  const [screenShareOn, setScreenShareOn] = useState(() => {
-    // Check if screen sharing is already active from service
-    return simpleScreenShare.isSharing || false;
-  });
+  // Screen sharing UI moved to dedicated page
 
   const navigate = useNavigate();
 
-  // Sync screen share state with service on mount
-  useEffect(() => {
-    if (meetingId && user?.id) {
-      // Sync state with service to maintain state across page navigation
-      setScreenShareOn(simpleScreenShare.isSharing || false);
-    }
-  }, [meetingId, user?.id]);
-
-  // Screen share handlers
-  const handleToggleScreenShare = async () => {
-    if (screenShareOn) {
-      setScreenShareOn(false);
-    } else {
-      try {
-        const success = await simpleScreenShare.startScreenShare();
-        if (success) {
-          setScreenShareOn(true);
-        }
-      } catch (error) {
-        console.error('Failed to start screen sharing:', error);
-      }
-    }
-  };
+  // Screen sharing controls handled elsewhere
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -247,14 +220,7 @@ export default function Survey() {
 
       {/* content */}
       <main className="pd-main">
-        {/* Simple Screen Share */}
-        <SimpleScreenShare 
-          meetingId={meetingId} 
-          userId={user?.id}
-          isSharing={screenShareOn}
-          onSharingChange={setScreenShareOn}
-          onError={(error) => console.error('Screen share error:', error)}
-        />
+        {/* Screen share moved to dedicated page */}
         
         <section className="svr-wrap">
           <div className="svr-header">
@@ -389,9 +355,6 @@ export default function Survey() {
 
         <MeetingFooter
           showEndButton={true}
-          onMenuClick={() => console.log("open menu")}
-          screenShareOn={screenShareOn}
-          onToggleScreenShare={handleToggleScreenShare}
         />
 
 
