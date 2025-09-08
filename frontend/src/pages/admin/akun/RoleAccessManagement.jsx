@@ -9,7 +9,6 @@ const RoleAccessManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedRole, setSelectedRole] = useState(null);
-  const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -52,8 +51,7 @@ const RoleAccessManagement = () => {
   };
 
   const handleRoleSelect = (role) => {
-    setSelectedRole(role);
-    setShowEditForm(true);
+    setSelectedRole(selectedRole?.userRoleId === role.userRoleId ? null : role);
   };
 
   // ====== Normalisasi & Map Akses (INTI PERBAIKAN) ======
@@ -78,13 +76,11 @@ const RoleAccessManagement = () => {
     accessMap.get(String(roleId))?.size ?? 0;
   // =====================================================
 
-  const handleMenuToggle = async (menuId, currentlyHasAccess) => {
-    if (!selectedRole) return;
-
+  const handleMenuToggle = async (roleId, menuId, currentlyHasAccess) => {
     try {
       const method = currentlyHasAccess ? "DELETE" : "POST";
       const url = currentlyHasAccess
-        ? `${API_URL}/api/menu/role-access/${selectedRole.userRoleId}/${menuId}`
+        ? `${API_URL}/api/menu/role-access/${roleId}/${menuId}`
         : `${API_URL}/api/menu/role-access`;
 
       const res = await fetch(url, {
@@ -94,7 +90,7 @@ const RoleAccessManagement = () => {
         body:
           method === "POST"
             ? JSON.stringify({
-                userRoleId: selectedRole.userRoleId,
+                userRoleId: roleId,
                 menuId,
                 flag: "Y",
               })
@@ -110,64 +106,54 @@ const RoleAccessManagement = () => {
   };
 
   // Bulk ops (tetap sama, hanya panggil fetchData setelahnya)
-  const handleBulkGrantAccess = async (menuIds) => {
-    if (!selectedRole || !menuIds?.length) return;
+  const handleBulkGrantAccess = async (roleId) => {
     try {
-      const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userRoleId: selectedRole.userRoleId,
-          menuIds,
-          action: "grant",
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await fetchData();
+      const allMenuIds = menus.map((m) => m.menuId);
+      const granted = Array.from(accessMap.get(String(roleId)) ?? []);
+      const missing = allMenuIds.filter((id) => !granted.includes(String(id)));
+      
+      if (missing.length) {
+        const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userRoleId: roleId,
+            menuIds: missing,
+            action: "grant",
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await fetchData();
+      }
     } catch (err) {
       console.error("Error bulk granting access:", err);
       setError("Gagal melakukan bulk grant access");
     }
   };
 
-  const handleBulkRevokeAccess = async (menuIds) => {
-    if (!selectedRole || !menuIds?.length) return;
+  const handleBulkRevokeAccess = async (roleId) => {
     try {
-      const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userRoleId: selectedRole.userRoleId,
-          menuIds,
-          action: "revoke",
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await fetchData();
+      const granted = Array.from(accessMap.get(String(roleId)) ?? []);
+      
+      if (granted.length) {
+        const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userRoleId: roleId,
+            menuIds: granted.map((x) => Number(x)),
+            action: "revoke",
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await fetchData();
+      }
     } catch (err) {
       console.error("Error bulk revoking access:", err);
       setError("Gagal melakukan bulk revoke access");
     }
-  };
-
-  const handleSelectAllMenus = () => {
-    if (!selectedRole) return;
-    const allMenuIds = menus.map((m) => m.menuId);
-    const granted = Array.from(
-      accessMap.get(String(selectedRole.userRoleId)) ?? []
-    );
-    const missing = allMenuIds.filter((id) => !granted.includes(String(id)));
-    if (missing.length) handleBulkGrantAccess(missing);
-  };
-
-  const handleRevokeAllMenus = () => {
-    if (!selectedRole) return;
-    const granted = Array.from(
-      accessMap.get(String(selectedRole.userRoleId)) ?? []
-    );
-    if (granted.length) handleBulkRevokeAccess(granted.map((x) => Number(x)));
   };
 
   if (loading)
@@ -175,168 +161,79 @@ const RoleAccessManagement = () => {
 
   return (
     <div className="role-access-management">
-      <div className="section-header">
-        <h2>Role Access Management</h2>
-        <p>Kelola akses menu untuk setiap role</p>
-      </div>
 
       {error && <div className="error-message">{error}</div>}
 
-      {/* Roles Overview */}
-      <div className="roles-overview">
-        <h3>Roles Overview</h3>
-        <div className="roles-grid">
-          {roles.map((role) => (
-            <div key={role.userRoleId} className="role-card">
-              <div className="role-header">
-                <h4>
-                  {role.nama?.charAt(0).toUpperCase() + role.nama?.slice(1)}
-                </h4>
-                <span className="access-count">
-                  {getMenuAccessCount(role.userRoleId)} menus
-                </span>
-              </div>
-              <p className="role-description">
-                {role.nama === "admin" && "Full access to all features"}
-                {role.nama === "host" &&
-                  "Access to most features including recording and screen sharing"}
-                {role.nama === "participant" &&
-                  "Basic access to files, chat, and materials"}
-              </p>
+      {/* Role Cards */}
+      <div className="role-cards">
+        {roles.map((role) => (
+          <div key={role.userRoleId} className="role-card">
+            <div className="role-header">
+              <h3>{role.nama?.charAt(0).toUpperCase() + role.nama?.slice(1)}</h3>
+              <span className="menu-badge">{getMenuAccessCount(role.userRoleId)} Menu</span>
+            </div>
+            <p className="role-description">
+              {role.nama === "admin" && "Full access to all features"}
+              {role.nama === "host" && "Access to most features"}
+              {role.nama === "participant" && "Basic access to files, chat, and materials"}
+            </p>
+            <div className="role-actions">
               <button
-                className="btn-edit-access"
-                onClick={() => handleRoleSelect(role)}
+                className="btn-grant-all"
+                onClick={() => handleBulkGrantAccess(role.userRoleId)}
               >
-                Edit Access
+                🔒 Grant All
               </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Edit Role Access Modal */}
-      {showEditForm && selectedRole && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>
-                Edit Access for{" "}
-                {selectedRole.nama?.charAt(0).toUpperCase() +
-                  selectedRole.nama?.slice(1)}
-              </h3>
               <button
-                className="close-btn"
-                onClick={() => {
-                  setShowEditForm(false);
-                  setSelectedRole(null);
-                }}
+                className="btn-revoke-all"
+                onClick={() => handleBulkRevokeAccess(role.userRoleId)}
               >
-                ×
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {/* Bulk Actions */}
-              <div className="bulk-actions">
-                <button
-                  className="btn-bulk-action grant-all"
-                  onClick={handleSelectAllMenus}
-                >
-                  Grant All Access
-                </button>
-                <button
-                  className="btn-bulk-action revoke-all"
-                  onClick={handleRevokeAllMenus}
-                >
-                  Revoke All Access
-                </button>
-              </div>
-
-              <div className="menu-access-list">
-                {menus.map((menu) => {
-                  const checked = hasMenuAccess(
-                    selectedRole.userRoleId,
-                    menu.menuId
-                  );
-                  return (
-                    <div key={menu.menuId} className="menu-access-item">
-                      <div className="menu-info">
-                        <span className="menu-label">{menu.displayLabel}</span>
-                        <span className="menu-slug">({menu.slug})</span>
-                      </div>
-                      <div className="access-controls">
-                        <label className="toggle-switch">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() =>
-                              handleMenuToggle(menu.menuId, checked)
-                            }
-                          />
-                          <span className="slider"></span>
-                        </label>
-                        <span className="access-status">
-                          {checked ? "Access Granted" : "Access Denied"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  setShowEditForm(false);
-                  setSelectedRole(null);
-                }}
-              >
-                Close
+                🔒 Revoke All
               </button>
             </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {/* Current Access Matrix */}
-      <div className="access-matrix">
-        <h3>Current Access Matrix</h3>
-        <div className="matrix-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Menu</th>
-                {roles.map((role) => (
-                  <th key={role.userRoleId}>
-                    {role.nama?.charAt(0).toUpperCase() + role.nama?.slice(1)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {menus.map((menu) => (
-                <tr key={menu.menuId}>
-                  <td className="menu-name">
-                    <strong>{menu.displayLabel}</strong>
-                    <br />
-                    <small>{menu.slug}</small>
-                  </td>
-                  {roles.map((role) => (
-                    <td key={role.userRoleId} className="access-cell">
-                      {hasMenuAccess(role.userRoleId, menu.menuId) ? (
-                        <span className="access-granted">✓</span>
-                      ) : (
-                        <span className="access-denied">✗</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
+
+      {/* Permissions Table */}
+      <div className="permissions-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Menu</th>
+              {roles.map((role) => (
+                <th key={role.userRoleId}>
+                  {role.nama?.charAt(0).toUpperCase() + role.nama?.slice(1)}
+                </th>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {menus.map((menu) => (
+              <tr key={menu.menuId}>
+                <td className="menu-name">
+                  <strong>{menu.displayLabel}</strong>
+                </td>
+                {roles.map((role) => {
+                  const hasAccess = hasMenuAccess(role.userRoleId, menu.menuId);
+                  return (
+                    <td key={role.userRoleId} className="access-cell">
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={hasAccess}
+                          onChange={() => handleMenuToggle(role.userRoleId, menu.menuId, hasAccess)}
+                        />
+                        <span className="slider"></span>
+                      </label>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

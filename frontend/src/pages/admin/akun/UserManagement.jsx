@@ -272,17 +272,37 @@ const UserManagement = () => {
 
   return (
     <div className="user-management">
-      <div className="section-header">
-        <h2>User Management</h2>
-        <button 
-          className="btn-primary"
-          onClick={() => setShowAddForm(true)}
-        >
-          + Add New User
-        </button>
-      </div>
 
       {error && <div className="error-message">{error}</div>}
+
+      <div className="user-stats">
+        <div className="stat-card">
+          <h3>Total Users</h3>
+          <p className="stat-number">{users.length}</p>
+        </div>
+        <div className="stat-card">
+          <h3>Admins</h3>
+          <p className="stat-number">{users.filter(u => u.role === 'admin').length}</p>
+        </div>
+        <div className="stat-card">
+          <h3>Hosts</h3>
+          <p className="stat-number">{users.filter(u => u.role === 'host').length}</p>
+        </div>
+        <div className="stat-card">
+          <h3>Participants</h3>
+          <p className="stat-number">{users.filter(u => u.role === 'participant').length}</p>
+        </div>
+      </div>
+
+      <div className="button-container">
+        <button 
+          className="btn-primary add-user-btn"
+          onClick={() => setShowAddForm(true)}
+        >
+          <span className="btn-icon">👤</span>
+          Add New User
+        </button>
+      </div>
 
       {/* Add/Edit User Form */}
       {showAddForm && (
@@ -376,14 +396,16 @@ const UserManagement = () => {
                     <button 
                       className="btn-edit"
                       onClick={() => handleEdit(user)}
+                      title="Edit User"
                     >
-                      Edit
+                      ✏️
                     </button>
                     <button 
                       className="btn-delete"
                       onClick={() => deleteUser(user.id)}
+                      title="Delete User"
                     >
-                      Delete
+                      🗑️
                     </button>
                   </div>
                 </td>
@@ -391,26 +413,6 @@ const UserManagement = () => {
             ))}
           </tbody>
         </table>
-      </div>
-
-      {/* Statistics */}
-      <div className="user-stats">
-        <div className="stat-card">
-          <h3>Total Users</h3>
-          <p className="stat-number">{users.length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Admins</h3>
-          <p className="stat-number">{users.filter(u => u.role === 'admin').length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Hosts</h3>
-          <p className="stat-number">{users.filter(u => u.role === 'host').length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Participants</h3>
-          <p className="stat-number">{users.filter(u => u.role === 'participant').length}</p>
-        </div>
       </div>
     </div>
   );

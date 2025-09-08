@@ -13,6 +13,7 @@ const participantRoutes = require("./participants");
 const chatRoutes = require("./chat");
 const SurveyRoutes = require("./survey");
 const filesRoutes = require("./files");
+const dashboardRoutes = require("./dashboard");
 
 
 // Use route modules
@@ -28,6 +29,7 @@ router.use("/participants", participantRoutes);
 router.use("/chat", chatRoutes);
 
 router.use("/files", filesRoutes);
+router.use("/dashboard", dashboardRoutes);
 
 
 // Health check endpoint

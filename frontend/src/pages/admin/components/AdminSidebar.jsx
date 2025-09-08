@@ -12,20 +12,17 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
     { 
       id: 'dashboard', 
       name: 'Dashboard', 
-      icon: '📊',
-      description: 'Overview & Statistics'
+      icon: '📊'
     },
     { 
       id: 'account-management', 
-      name: 'Management Akun', 
-      icon: '👥',
-      description: 'User & Role Management'
+      name: 'User Management', 
+      icon: '⚙️'
     },
     { 
       id: 'role-access', 
       name: 'Role Access', 
-      icon: '🔐',
-      description: 'Menu Access Control'
+      icon: '👤'
     }
   ];
 
@@ -47,15 +44,9 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
       {/* Sidebar Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <img src="/img/logo.png" alt="Logo" className="logo-img" />
-          <span className="logo-text">Admin Panel</span>
+          <div className="logo-container">
+          </div>
         </div>
-        <button 
-          className="sidebar-toggle"
-          onClick={toggleSidebar}
-        >
-          {sidebarOpen ? '◀' : '▶'}
-        </button>
       </div>
 
       {/* Navigation Menu */}
@@ -68,10 +59,7 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
                 onClick={() => handleMenuClick(item.id)}
               >
                 <span className="nav-icon">{item.icon}</span>
-                <div className="nav-content">
-                  <span className="nav-text">{item.name}</span>
-                  <span className="nav-description">{item.description}</span>
-                </div>
+                <span className="nav-text">{item.name}</span>
               </button>
             </li>
           ))}

@@ -1,4 +1,5 @@
-const { User, UserRole } = require('../models');
+const db = require('../models');
+const { User, UserRole } = db;
 
 const authMiddleware = {
   // Check if user is authenticated
