@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const AgendaController = require("../controllers/agendaController");
+const auth = require("../middleware/auth");
 
 // GET all agendas (dengan filter/pagination opsional via query)
 router.get("/", AgendaController.getAgendas);
@@ -11,19 +12,19 @@ router.get("/meeting/:meetingId", AgendaController.getAgendasByMeeting);
 // GET one
 router.get("/:agendaId", AgendaController.getAgendaById);
 
-// CREATE
-router.post("/", AgendaController.createAgenda);
+// CREATE - Only hosts and admins can create agendas
+router.post("/", auth.isAuthenticated, auth.isModerator, AgendaController.createAgenda);
 
-// UPDATE
-router.put("/:agendaId", AgendaController.updateAgenda);
+// UPDATE - Only hosts and admins can update agendas
+router.put("/:agendaId", auth.isAuthenticated, auth.isModerator, AgendaController.updateAgenda);
 
-// SOFT DELETE
-router.delete("/:agendaId", AgendaController.deleteAgenda);
+// SOFT DELETE - Only hosts and admins can delete agendas
+router.delete("/:agendaId", auth.isAuthenticated, auth.isModerator, AgendaController.deleteAgenda);
 
-// RESTORE
-router.post("/:agendaId/restore", AgendaController.restoreAgenda);
+// RESTORE - Only hosts and admins can restore agendas
+router.post("/:agendaId/restore", auth.isAuthenticated, auth.isModerator, AgendaController.restoreAgenda);
 
-// BULK REORDER
-router.post("/reorder", AgendaController.bulkReorder);
+// BULK REORDER - Only hosts and admins can reorder agendas
+router.post("/reorder", auth.isAuthenticated, auth.isModerator, AgendaController.bulkReorder);
 
 module.exports = router;

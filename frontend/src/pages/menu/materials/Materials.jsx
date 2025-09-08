@@ -27,6 +27,9 @@ export default function Materials() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
+  // Check if user is host/admin (can add materials)
+  const isHost = /^(host|admin)$/i.test(user?.role || "");
+
   // Screen share state - initialize from service if already sharing
   const [screenShareOn, setScreenShareOn] = useState(() => {
     // Check if screen sharing is already active from service
@@ -321,23 +324,25 @@ export default function Materials() {
             <div className="mtl-title">
               <Icon slug="materials" /> <span>Materials</span>
             </div>
-            <div className="mtl-actions">
-              <button
-                className="mtl-btn"
-                onClick={onClickUpload}
-                disabled={!meetingId || uploading}
-              >
-                <Icon slug="upload" />{" "}
-                <span>{uploading ? "Uploading…" : "Upload"}</span>
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                style={{ display: "none" }}
-                onChange={onFilesSelected}
-              />
-            </div>
+            {isHost && (
+              <div className="mtl-actions">
+                <button
+                  className="mtl-btn"
+                  onClick={onClickUpload}
+                  disabled={!meetingId || uploading}
+                >
+                  <Icon slug="upload" />{" "}
+                  <span>{uploading ? "Uploading…" : "Upload"}</span>
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={onFilesSelected}
+                />
+              </div>
+            )}
           </div>
 
           {/* List */}
@@ -358,7 +363,8 @@ export default function Materials() {
                   meta={formatMeta(it)}
                   onPreview={() => handlePreview(it)}
                   onDownload={() => handleDownload(it)}
-                  onDelete={() => handleDelete(it)}
+                  onDelete={isHost ? () => handleDelete(it) : null}
+                  canDelete={isHost}
                 />
               ))}
             </div>
@@ -395,7 +401,7 @@ export default function Materials() {
   );
 }
 
-function MaterialCard({ name, meta, onPreview, onDownload, onDelete }) {
+function MaterialCard({ name, meta, onPreview, onDownload, onDelete, canDelete }) {
   return (
     <div className="mtl-card">
       <div className="mtl-fileicon">
@@ -414,9 +420,11 @@ function MaterialCard({ name, meta, onPreview, onDownload, onDelete }) {
         <button className="mtl-act" title="Download" onClick={onDownload}>
           <Icon slug="download" />
         </button>
-        <button className="mtl-act danger" title="Delete" onClick={onDelete}>
-          <Icon slug="trash" />
-        </button>
+        {canDelete && onDelete && (
+          <button className="mtl-act danger" title="Delete" onClick={onDelete}>
+            <Icon slug="trash" />
+          </button>
+        )}
       </div>
     </div>
   );

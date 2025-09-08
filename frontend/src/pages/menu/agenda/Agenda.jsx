@@ -32,6 +32,9 @@ export default function Agenda() {
     end: "", // HH:MM
   });
 
+  // Check if user is host/admin (can add agenda)
+  const isHost = /^(host|admin)$/i.test(user?.role || "");
+
   // Screen share state - initialize from service if already sharing
   const [screenShareOn, setScreenShareOn] = useState(() => {
     // Check if screen sharing is already active from service
@@ -235,7 +238,7 @@ export default function Agenda() {
   }, [loadAgendas]);
 
   // ----- ADD AGENDA -----
-  const canCreate = !!meetingId;
+  const canCreate = !!meetingId && isHost;
 
   const openAdd = () => {
     setFormErr("");
@@ -368,14 +371,15 @@ export default function Agenda() {
           <div className="agenda-header">
             <span className="agenda-title">Agenda</span>
 
-            <button
-              className="agenda-add"
-              title={canCreate ? "Add agenda" : "Create/Join a meeting first"}
-              onClick={canCreate ? openAdd : undefined}
-              disabled={!canCreate}
-            >
-              <Icon slug="plus" />
-            </button>
+            {isHost && (
+              <button
+                className="agenda-add"
+                title="Add agenda"
+                onClick={openAdd}
+              >
+                <Icon slug="plus" />
+              </button>
+            )}
           </div>
 
           {/* Add form (inline) */}
