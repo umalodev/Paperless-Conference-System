@@ -13,13 +13,16 @@ export default function SetUp() {
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
   const [showWizard, setShowWizard] = useState(false);
+  const [isQuickStartWizard, setIsQuickStartWizard] = useState(false);
+  const [viewMode, setViewMode] = useState("scheduled");
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [errHistory, setErrHistory] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
     if (raw) {
-      
-        setUser(JSON.parse(raw));
-     
+      setUser(JSON.parse(raw));
     }
     setDisplayName(localStorage.getItem("pconf.displayName") || "");
   }, []);
@@ -33,18 +36,7 @@ export default function SetUp() {
     try {
       setCreating(true);
       setErr("");
-      
-      // Log the payload for debugging
-      console.log("🎯 Schedule Meeting Payload:", {
-        title: payload.title,
-        description: payload.description,
-        startTime: payload.startTime,
-        endTime: payload.endTime,
-        agendasCount: payload.agendas?.length || 0,
-        materialsCount: payload.materials?.length || 0,
-        materials: payload.materials?.map(m => ({ name: m.name, size: m.size, type: m.type }))
-      });
-      
+
       // Create meeting with agendas and materials
       const result = await meetingService.createMeeting(payload);
       if (!result?.success) {
@@ -55,7 +47,7 @@ export default function SetUp() {
       console.log("📊 Meeting Summary:", {
         meetingId: result.data.meetingId,
         agendasCount: result.data.agendasCount,
-        materialsCount: result.data.materialsCount
+        materialsCount: result.data.materialsCount,
       });
 
       // Upload materials files if any
@@ -69,15 +61,28 @@ export default function SetUp() {
           // Don't fail the meeting creation if materials upload fails
         }
       }
-      
+
       setShowWizard(false);
-      
+      setIsQuickStartWizard(false);
+
+      // Jika quick start, langsung navigate ke meeting (meeting sudah di-start otomatis)
+      if (payload.isQuickStart) {
+        const info = {
+          id: result.data.meetingId,
+          code: result.data.meetingId,
+          title: result.data.title || payload.title,
+          status: "started",
+        };
+        localStorage.setItem("currentMeeting", JSON.stringify(info));
+        navigate("/waiting");
+        return; // Keluar dari fungsi setelah navigate
+      }
+
       // Show success message
       setErr(""); // Clear any previous errors
-      
+
       // Refresh the scheduled meetings list
       // You can add a refresh function here if needed
-      
     } catch (error) {
       console.error("❌ Error creating meeting:", error);
       setErr(String(error.message || error));
@@ -88,28 +93,31 @@ export default function SetUp() {
 
   // Function to upload materials files
   const uploadMaterialsFiles = async (meetingId, materials) => {
-    const token = localStorage.getItem('token'); // Get auth token
-    
+    const token = localStorage.getItem("token"); // Get auth token
+
     for (const material of materials) {
       try {
         const formData = new FormData();
-        formData.append('file', material);
-        
+        formData.append("file", material);
+
         const response = await fetch(`/api/materials/upload/${meetingId}`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
-          body: formData
+          body: formData,
         });
-        
+
         if (!response.ok) {
-          throw new Error(`Upload failed for ${material.name}: ${response.statusText}`);
+          throw new Error(
+            `Upload failed for ${material.name}: ${response.statusText}`
+          );
         }
-        
+
         const result = await response.json();
-        console.log(`✅ File uploaded: ${material.name} -> ${result.data.path}`);
-        
+        console.log(
+          `✅ File uploaded: ${material.name} -> ${result.data.path}`
+        );
       } catch (error) {
         console.error(`❌ Failed to upload ${material.name}:`, error);
         throw error;
@@ -168,8 +176,60 @@ export default function SetUp() {
     };
   }, []);
 
-  const goSchedule = () => setShowWizard(true);
-  const goHistory = () => navigate("/history"); // stub route
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    setErrHistory("");
+    try {
+      let res = meetingService.getHistoryMeetings
+        ? await meetingService.getHistoryMeetings()
+        : await meetingService.getRecentMeetings?.();
+
+      console.log("history raw:", res);
+      console.table(
+        (res?.data || []).map(
+          ({ id, status, startTime, endTime, endedAt }) => ({
+            id,
+            status,
+            startTime,
+            endTime,
+            endedAt,
+          })
+        )
+      );
+
+      const arr = Array.isArray(res?.data) ? res.data : [];
+      const list = arr
+        .map((m) => ({
+          meetingId: m.meetingId || m.id || String(Math.random()),
+          title: m.title || "Untitled Meeting",
+          status: (m.status || "ended").toLowerCase(),
+          startTime: m.startTime || m.start_time || m.scheduledAt || null,
+          participants: m.participants || 0,
+        }))
+        .filter((m) => m.status === "ended")
+        .sort((a, b) => {
+          const da = a.startTime ? new Date(a.startTime).getTime() : 0;
+          const db = b.startTime ? new Date(b.startTime).getTime() : 0;
+          return db - da;
+        });
+
+      setHistory(list);
+    } catch (e) {
+      setErrHistory(String(e.message || e));
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const goSchedule = () => {
+    setViewMode("scheduled");
+    setIsQuickStartWizard(false);
+    setShowWizard(true);
+  };
+  const goHistory = () => {
+    setViewMode("history");
+    fetchHistory();
+  };
 
   const toLocalDT = (iso) => {
     if (!iso) return "—";
@@ -190,59 +250,10 @@ export default function SetUp() {
     }
   };
 
-  // Quick Start (instan)
-  const quickStart = async () => {
-    setCreating(true);
-    setErr("");
-    try {
-      const body = {
-        title: `Quick Start by ${hostName}`,
-        description: "Instant conference",
-        startTime: new Date().toISOString(),
-        endTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      };
-      const result = await meetingService.createMeeting(body);
-      if (!result?.success)
-        throw new Error(result?.message || "Failed to create meeting");
-
-      console.log("Quick meeting created:", result);
-      
-      // For Quick Start, meeting should already be started
-      if (result.data.isQuickStart) {
-        const info = {
-          id: result.data.meetingId,
-          code: result.data.meetingId,
-          title: result.data.title || body.title,
-          status: "started",
-        };
-        localStorage.setItem("currentMeeting", JSON.stringify(info));
-        navigate("/waiting");
-      } else {
-        // Fallback: manually start the meeting
-        try {
-          if (meetingService.startMeeting) {
-            const startRes = await meetingService.startMeeting(result.data.meetingId);
-            if (startRes?.success) {
-              const info = {
-                id: result.data.meetingId,
-                code: result.data.meetingId,
-                title: result.data.title || body.title,
-                status: "started",
-              };
-              localStorage.setItem("currentMeeting", JSON.stringify(info));
-              navigate("/waiting");
-            }
-          }
-        } catch (startError) {
-          console.error("Warning: Failed to start quick meeting:", startError);
-          setErr("Meeting created but failed to start. Please try starting manually.");
-        }
-      }
-    } catch (e) {
-      setErr(String(e.message || e));
-    } finally {
-      setCreating(false);
-    }
+  // Quick Start (buka modal wizard)
+  const quickStart = () => {
+    setIsQuickStartWizard(true);
+    setShowWizard(true);
   };
 
   // Start meeting yang terjadwal
@@ -255,10 +266,12 @@ export default function SetUp() {
         if (!res?.success)
           throw new Error(res?.message || "Failed to start meeting");
       }
-      
+
       // Update local state to reflect the change
-      setScheduled(prev => prev.filter(meeting => meeting.meetingId !== m.meetingId));
-      
+      setScheduled((prev) =>
+        prev.filter((meeting) => meeting.meetingId !== m.meetingId)
+      );
+
       localStorage.setItem(
         "currentMeeting",
         JSON.stringify({
@@ -324,8 +337,12 @@ export default function SetUp() {
             </button>
             <MeetingWizardModal
               open={showWizard}
-              onClose={() => setShowWizard(false)}
+              onClose={() => {
+                setShowWizard(false);
+                setIsQuickStartWizard(false);
+              }}
               onSave={handleSaveMeeting}
+              isQuickStart={isQuickStartWizard}
             />
           </div>
 
@@ -344,48 +361,99 @@ export default function SetUp() {
         </section>
 
         {/* scheduled meeting */}
-        <section className="hd-recent">
-          <div className="hd-recent-head">
-            <div>
-              <div className="hd-recent-title">Scheduled Meetings</div>
-              <div className="hd-recent-sub">Meetings you’ve planned</div>
+        {viewMode === "scheduled" && (
+          <section className="hd-recent">
+            <div className="hd-recent-head">
+              <div>
+                <div className="hd-recent-title">Scheduled Meetings</div>
+                <div className="hd-recent-sub">Meetings you’ve planned</div>
+              </div>
             </div>
-          </div>
+            <div className="hd-recent-list">
+              {loadingScheduled && <div className="hd-empty">Loading…</div>}
+              {err && !loadingScheduled && (
+                <div className="hd-error">Error: {err}</div>
+              )}
+              {!loadingScheduled && !err && scheduled.length === 0 && (
+                <div className="hd-empty">No scheduled meetings.</div>
+              )}
+              {!loadingScheduled &&
+                !err &&
+                scheduled.map((m) => (
+                  <div key={m.meetingId} className="hd-meet-item">
+                    <div className="hd-meet-left">
+                      <div className="hd-meet-title">{m.title}</div>
+                      <div className="hd-meet-meta">
+                        <span className={`hd-badge ${m.status}`}>
+                          {m.status}
+                        </span>
+                        <span className="hd-meta">ID: {m.meetingId}</span>
+                        <span className="hd-meta">
+                          {m.participants} participants
+                        </span>
+                        <span className="hd-meta">
+                          {toLocalDT(m.startTime)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      className="hd-btn hd-primary"
+                      onClick={() => handleStartMeeting(m)}
+                    >
+                      Start
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </section>
+        )}
 
-          <div className="hd-recent-list">
-            {loadingScheduled && <div className="hd-empty">Loading…</div>}
-            {err && !loadingScheduled && (
-              <div className="hd-error">Error: {err}</div>
-            )}
-            {!loadingScheduled && !err && scheduled.length === 0 && (
-              <div className="hd-empty">No scheduled meetings.</div>
-            )}
-
-            {!loadingScheduled &&
-              !err &&
-              scheduled.map((m) => (
-                <div key={m.meetingId} className="hd-meet-item">
-                  <div className="hd-meet-left">
-                    <div className="hd-meet-title">{m.title}</div>
-                    <div className="hd-meet-meta">
-                      <span className={`hd-badge ${m.status}`}>{m.status}</span>
-                      <span className="hd-meta">ID: {m.meetingId}</span>
-                      <span className="hd-meta">
-                        {m.participants} participants
-                      </span>
-                      <span className="hd-meta">{toLocalDT(m.startTime)}</span>
+        {viewMode === "history" && (
+          <section className="hd-recent">
+            <div className="hd-recent-head">
+              <div>
+                <div className="hd-recent-title">Meeting History</div>
+                <div className="hd-recent-sub">Meetings you’ve ended</div>
+              </div>
+              <button
+                className="hd-btn hd-outline"
+                onClick={() => setViewMode("scheduled")}
+              >
+                Back to Scheduled
+              </button>
+            </div>
+            <div className="hd-recent-list">
+              {loadingHistory && <div className="hd-empty">Loading…</div>}
+              {errHistory && !loadingHistory && (
+                <div className="hd-error">Error: {errHistory}</div>
+              )}
+              {!loadingHistory && !errHistory && history.length === 0 && (
+                <div className="hd-empty">No meeting history.</div>
+              )}
+              {!loadingHistory &&
+                !errHistory &&
+                history.map((m) => (
+                  <div key={m.meetingId} className="hd-meet-item">
+                    <div className="hd-meet-left">
+                      <div className="hd-meet-title">{m.title}</div>
+                      <div className="hd-meet-meta">
+                        <span className={`hd-badge ${m.status}`}>
+                          {m.status}
+                        </span>
+                        <span className="hd-meta">ID: {m.meetingId}</span>
+                        <span className="hd-meta">
+                          {m.participants} participants
+                        </span>
+                        <span className="hd-meta">
+                          {toLocalDT(m.startTime)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <button
-                    className="hd-btn hd-primary"
-                    onClick={() => handleStartMeeting(m)}
-                  >
-                    Start
-                  </button>
-                </div>
-              ))}
-          </div>
-        </section>
+                ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
