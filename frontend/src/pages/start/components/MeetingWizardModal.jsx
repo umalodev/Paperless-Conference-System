@@ -1,24 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./MeetingWizard.css";
 
-export default function MeetingWizardModal({ open, onClose, onSave }) {
+export default function MeetingWizardModal({
+  open,
+  onClose,
+  onSave,
+  isQuickStart = false,
+}) {
   const [tab, setTab] = useState(0); // 0: detail, 1: agenda, 2: materials
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // ---- Tab 1: Detail
-  // default: mulai 15 menit dari sekarang, selesai +60 menit
   const now = useMemo(() => new Date(), []);
   const defaultStart = useMemo(() => {
-    const d = new Date(now.getTime() + 15 * 60 * 1000);
+    const d = isQuickStart
+      ? new Date(now.getTime()) // sekarang untuk quick start
+      : new Date(now.getTime() + 15 * 60 * 1000); // 15 menit dari sekarang untuk scheduled
     d.setSeconds(0, 0);
     return toLocalInputValue(d);
-  }, [now]);
+  }, [now, isQuickStart]);
   const defaultEnd = useMemo(() => {
-    const d = new Date(now.getTime() + 75 * 60 * 1000);
+    const d = isQuickStart
+      ? new Date(now.getTime() + 4 * 60 * 60 * 1000) // +4 jam untuk quick start (lebih fleksibel)
+      : new Date(now.getTime() + 75 * 60 * 1000); // +75 menit untuk scheduled
     d.setSeconds(0, 0);
     return toLocalInputValue(d);
-  }, [now]);
+  }, [now, isQuickStart]);
 
   const [detail, setDetail] = useState({
     title: "",
@@ -188,18 +195,27 @@ export default function MeetingWizardModal({ open, onClose, onSave }) {
 
     // validate detail
     if (!detail.title.trim()) return setError("Title is required.");
-    if (!detail.start || !detail.end)
-      return setError("Start & End are required.");
-    const s = new Date(detail.start);
-    const e = new Date(detail.end);
-    if (!(s < e)) return setError("End time must be after start time.");
+
+    // Untuk quick start, waktu sudah diatur otomatis
+    if (!isQuickStart) {
+      if (!detail.start || !detail.end)
+        return setError("Start & End are required.");
+      const s = new Date(detail.start);
+      const e = new Date(detail.end);
+      if (!(s < e)) return setError("End time must be after start time.");
+    }
 
     // build payload
     const payload = {
       title: detail.title.trim(),
       description: detail.description?.trim() || "",
-      startTime: new Date(detail.start).toISOString(),
-      endTime: new Date(detail.end).toISOString(),
+      startTime: isQuickStart
+        ? new Date().toISOString() // sekarang untuk quick start
+        : new Date(detail.start).toISOString(),
+      endTime: isQuickStart
+        ? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() // +4 jam untuk quick start
+        : new Date(detail.end).toISOString(),
+      isQuickStart: isQuickStart, // flag untuk backend
       agendas: agendas.map((a, idx) => ({
         seq: idx + 1,
         judul: a.judul,
@@ -218,11 +234,11 @@ export default function MeetingWizardModal({ open, onClose, onSave }) {
       endTime: payload.endTime,
       agendasCount: payload.agendas.length,
       materialsCount: payload.materials.length,
-      materials: payload.materials.map(m => ({
+      materials: payload.materials.map((m) => ({
         name: m.name,
         size: m.size,
-        type: m.type
-      }))
+        type: m.type,
+      })),
     });
 
     try {
@@ -241,7 +257,9 @@ export default function MeetingWizardModal({ open, onClose, onSave }) {
     <div className="mw-overlay" role="dialog" aria-modal="true">
       <div className="mw-modal">
         <header className="mw-head">
-          <div className="mw-title">Schedule Meeting</div>
+          <div className="mw-title">
+            {isQuickStart ? "Quick Start Meeting" : "Schedule Meeting"}
+          </div>
           <button className="mw-close" onClick={onClose} aria-label="Close">
             ✕
           </button>
@@ -303,38 +321,45 @@ export default function MeetingWizardModal({ open, onClose, onSave }) {
                 />
               </div>
 
-              <div className="mw-grid">
-                <div className="mw-col">
-                  <label className="mw-label">Start</label>
-                  <input
-                    type="datetime-local"
-                    className="mw-input"
-                    value={detail.start}
-                    onChange={(e) =>
-                      setDetail((s) => ({ ...s, start: e.target.value }))
-                    }
-                  />
+              {!isQuickStart && (
+                <div className="mw-grid">
+                  <div className="mw-col">
+                    <label className="mw-label">Start</label>
+                    <input
+                      type="datetime-local"
+                      className="mw-input"
+                      value={detail.start}
+                      onChange={(e) =>
+                        setDetail((s) => ({ ...s, start: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="mw-col">
+                    <label className="mw-label">End</label>
+                    <input
+                      type="datetime-local"
+                      className="mw-input"
+                      value={detail.end}
+                      onChange={(e) =>
+                        setDetail((s) => ({ ...s, end: e.target.value }))
+                      }
+                    />
+                  </div>
                 </div>
-                <div className="mw-col">
-                  <label className="mw-label">End</label>
-                  <input
-                    type="datetime-local"
-                    className="mw-input"
-                    value={detail.end}
-                    onChange={(e) =>
-                      setDetail((s) => ({ ...s, end: e.target.value }))
-                    }
-                  />
+              )}
+              {isQuickStart && (
+                <div className="mw-info">
+                  <div className="mw-info-text">
+                    ⚡ Quick Start: Meeting akan langsung dimulai
+                  </div>
                 </div>
-              </div>
+              )}
             </section>
           )}
 
           {tab === 1 && (
             <section className="mw-pane">
-              <div className="mw-help">
-                Tambahkan agenda satu per satu atau impor dari CSV.
-              </div>
+              <div className="mw-help">Tambahkan agenda satu per satu</div>
 
               <div className="mw-grid">
                 <div className="mw-col">
@@ -389,32 +414,6 @@ export default function MeetingWizardModal({ open, onClose, onSave }) {
                 <button className="mw-btn" onClick={addAgenda}>
                   Add agenda
                 </button>
-
-                <label className="mw-upload">
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    hidden
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const items = await parseCSV(file);
-                      if (items?.length) {
-                        setAgendas((arr) => [
-                          ...arr,
-                          ...items.map((it) => ({
-                            ...it,
-                            id:
-                              crypto.randomUUID?.() ||
-                              Math.random().toString(36),
-                          })),
-                        ]);
-                      }
-                      e.target.value = "";
-                    }}
-                  />
-                  Import CSV
-                </label>
               </div>
 
               <div className="mw-list">
@@ -544,7 +543,13 @@ export default function MeetingWizardModal({ open, onClose, onSave }) {
                 onClick={handleSave}
                 disabled={saving}
               >
-                {saving ? "Saving…" : "Save"}
+                {saving
+                  ? isQuickStart
+                    ? "Starting…"
+                    : "Saving…"
+                  : isQuickStart
+                  ? "Start Meeting"
+                  : "Save"}
               </button>
             )}
           </div>
