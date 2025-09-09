@@ -839,7 +839,7 @@ export default function Chat() {
         )}
 
         <MeetingFooter
-          showEndButton={true}
+          userRole={user?.role || "participant"}
           onMenuClick={() => console.log("open menu")}
           screenShareOn={screenShareOn}
           onToggleScreenShare={handleToggleScreenShare}

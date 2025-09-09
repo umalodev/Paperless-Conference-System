@@ -134,27 +134,27 @@ export default function ParticipantDashboard() {
     window.location.href = "/";
   };
 
-  const handleEndMeeting = async () => {
-    if (window.confirm("Are you sure you want to end this meeting?")) {
+  const handleLeaveMeeting = async () => {
+    if (window.confirm("Are you sure you want to leave this meeting?")) {
       try {
         // Get the actual meeting ID from currentMeeting
         const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
 
         if (!meetingId) {
-          alert("Meeting ID not found. Cannot end meeting.");
+          alert("Meeting ID not found. Cannot leave meeting.");
           return;
         }
 
-        // Call the API to end the meeting
-        await meetingService.endMeeting(meetingId);
+        // Call the API to leave the meeting
+        await meetingService.leaveMeeting(meetingId);
 
         // Clear local storage and redirect
         localStorage.removeItem("currentMeeting");
-        alert("Meeting ended successfully!");
+        alert("Left meeting successfully!");
         navigate("/start");
       } catch (error) {
-        console.error("Failed to end meeting:", error);
-        alert(`Failed to end meeting: ${error.message}`);
+        console.error("Failed to leave meeting:", error);
+        alert(`Failed to leave meeting: ${error.message}`);
       }
     }
   };
@@ -235,8 +235,8 @@ export default function ParticipantDashboard() {
       </main>
 
       <MeetingFooter
-        showEndButton={true}
-        onEndMeeting={handleEndMeeting}
+        userRole={user?.role || "participant"}
+        onLeaveMeeting={handleLeaveMeeting}
         // contoh toggle kalau nanti ada state mic/cam:
         // micOn={micOn}
         // camOn={camOn}

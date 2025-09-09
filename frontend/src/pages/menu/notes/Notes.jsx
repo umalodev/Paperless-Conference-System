@@ -418,7 +418,7 @@ export default function Notes() {
       )}
 
         <MeetingFooter
-          showEndButton={true}
+          userRole={user?.role || "participant"}
         />
 
 

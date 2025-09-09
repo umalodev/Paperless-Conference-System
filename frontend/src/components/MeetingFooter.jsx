@@ -8,8 +8,11 @@ import "./meeting-footer.css";
 /**
  * MeetingFooter
  * Props:
+ * - userRole?: string (default: "participant") → role user untuk menentukan button yang ditampilkan
  * - showEndButton?: boolean (default: false) → tampilkan tombol "End Meeting" (untuk host)
+ * - showLeaveButton?: boolean (default: false) → tampilkan tombol "Leave Meeting" (untuk participant)
  * - onEndMeeting?: () => Promise<void> | void → aksi end meeting custom; jika tak ada dipakai default
+ * - onLeaveMeeting?: () => Promise<void> | void → aksi leave meeting custom; jika tak ada dipakai default
  * - onMenuClick?: () => void → klik tombol "Menu"
  * - onHelpClick?: () => void → klik tombol "?"
  * - micOn?: boolean
@@ -20,8 +23,11 @@ import "./meeting-footer.css";
  * - onToggleScreenShare?: () => void
  */
 export default function MeetingFooter({
+  userRole = "participant",
   showEndButton = false,
+  showLeaveButton = false,
   onEndMeeting,
+  onLeaveMeeting,
   onMenuClick,
   onHelpClick,
   micOn,
@@ -65,9 +71,47 @@ export default function MeetingFooter({
     }
   };
 
+  const defaultLeaveMeeting = async () => {
+    try {
+      if (!window.confirm("Are you sure you want to leave this meeting?")) return;
+
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      const meetingId = cm?.meetingId || cm?.id || cm?.code;
+      if (!meetingId) {
+        alert("Meeting ID not found. Cannot leave meeting.");
+        return;
+      }
+
+      // Stop screen sharing if active
+      if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
+        window.simpleScreenShare.stopScreenShare();
+      }
+
+      // Close WebSocket connections
+      if (window.meetingWebSocket) {
+        window.meetingWebSocket.close();
+      }
+
+      await meetingService.leaveMeeting(meetingId);
+      localStorage.removeItem("currentMeeting");
+      alert("Left meeting successfully!");
+      navigate("/start");
+    } catch (err) {
+      console.error("Failed to leave meeting:", err);
+      alert(`Failed to leave meeting: ${err?.message || err}`);
+    }
+  };
+
   const handleEnd = onEndMeeting || defaultEndMeeting;
+  const handleLeave = onLeaveMeeting || defaultLeaveMeeting;
   const handleMenu = onMenuClick || (() => navigate("/participant/dashboard"));
   const handleHelp = onHelpClick || (() => alert("Need help?"));
+
+  // Determine which button to show based on user role
+  const isHost = userRole === "host" || userRole === "admin";
+  const shouldShowEndButton = showEndButton || (isHost && !showLeaveButton);
+  const shouldShowLeaveButton = showLeaveButton || (!isHost && !showEndButton);
 
   return (
     <footer className="pd-bottombar">
@@ -104,7 +148,13 @@ export default function MeetingFooter({
           Menu
         </button>
 
-        {showEndButton && (
+        {shouldShowLeaveButton && (
+          <button className="pd-warning" onClick={handleLeave}>
+            Leave Meeting
+          </button>
+        )}
+
+        {shouldShowEndButton && (
           <button className="pd-danger" onClick={handleEnd}>
             End Meeting
           </button>

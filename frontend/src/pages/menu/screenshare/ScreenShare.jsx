@@ -33,7 +33,7 @@ export default function ScreenSharePage() {
         <main className="pd-main">
           <SimpleScreenShare meetingId={meetingId} userId={userId} />
         </main>
-        <MeetingFooter showEndButton={true} />
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );

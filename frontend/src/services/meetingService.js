@@ -351,6 +351,37 @@ class MeetingService {
     }
   }
 
+  // Leave meeting (participant only)
+  async leaveMeeting(meetingId) {
+    try {
+      const response = await fetch(`${API_URL}/api/meeting/leave`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({ meetingId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || 'Failed to leave meeting' };
+        }
+        
+        throw new Error(errorData.message || 'Failed to leave meeting');
+      }
+
+      const result = await response.json();
+      console.log('Left meeting successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error leaving meeting:', error);
+      throw error;
+    }
+  }
+
   // Update token when it changes
   updateToken(newToken) {
     this.token = newToken;

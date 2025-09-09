@@ -400,7 +400,7 @@ export default function Agenda() {
       )}
 
         <MeetingFooter
-          showEndButton={true}
+          showLeaveButton={true}
         />
 
 

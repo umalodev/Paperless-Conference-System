@@ -303,7 +303,7 @@ export default function Files() {
       )}
 
         <MeetingFooter
-          showEndButton={true}
+          userRole={user?.role || "participant"}
         />
 
 
