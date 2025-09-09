@@ -180,9 +180,8 @@ export default function SetUp() {
     setLoadingHistory(true);
     setErrHistory("");
     try {
-      let res = meetingService.getHistoryMeetings
-        ? await meetingService.getHistoryMeetings()
-        : await meetingService.getRecentMeetings?.();
+      // Use my-meetings and filter by ended status (no dedicated history endpoint)
+      const res = await meetingService.getMyMeetings();
 
       console.log("history raw:", res);
       console.table(
