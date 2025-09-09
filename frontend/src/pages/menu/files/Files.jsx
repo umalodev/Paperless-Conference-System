@@ -8,7 +8,7 @@ import "./Files.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-// Removed inline screen share usage; viewing is moved to dedicated page
+
 import {
   listFiles,
   uploadFile,
@@ -179,7 +179,7 @@ export default function Files() {
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
-      userRole={user?.role || 'participant'}
+      userRole={user?.role || "participant"}
       socket={null} // Will be set when socket is integrated
       mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
     >
@@ -214,99 +214,95 @@ export default function Files() {
           </div>
         </header>
 
-      {/* Content */}
-      <main className="pd-main">
-        {/* Screen share moved to dedicated page */}
-        
-        <section className="files-wrap">
-          <div className="files-header">
-            <div className="files-title">
-              <Icon slug="files" iconUrl="/img/files.svg" size={22} />
-              <span>Daftar File</span>
-            </div>
-            <div className="files-actions">
-              <div className="files-search">
-                <input
-                  type="text"
-                  placeholder="Cari file atau uploader…"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                />
+        {/* Content */}
+        <main className="pd-main">
+          {/* Screen share moved to dedicated page */}
+
+          <section className="files-wrap">
+            <div className="files-header">
+              <div className="files-title">
+                <Icon slug="files" iconUrl="/img/files.svg" size={22} />
+                <span>Daftar File</span>
               </div>
-              <button
-                className="files-btn ghost"
-                onClick={() => window.location.reload()}
-                title="Refresh"
-              >
-                <Icon slug="refresh" size={18} />
-                <span>Refresh</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Upload form */}
-          <form
-            className="file-uploader"
-            onSubmit={doUpload}
-            style={{ marginBottom: 12 }}
-          >
-            <input
-              id="file-input"
-              type="file"
-              onChange={(e) => setPick(e.target.files?.[0] || null)}
-              style={{ marginRight: 8 }}
-            />
-
-            <button
-              className="files-btn"
-              type="submit"
-              disabled={!pick || uploading || !meetingId}
-            >
-              <Icon slug="upload" size={18} />
-              <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
-            </button>
-          </form>
-
-          {loadingFiles && <div className="pd-empty">Memuat file…</div>}
-          {errFiles && !loadingFiles && (
-            <div className="pd-error">Gagal memuat file: {errFiles}</div>
-          )}
-
-          {!loadingFiles && !errFiles && (
-            <>
-              {filtered.length === 0 ? (
-                <div className="pd-empty">Belum ada file.</div>
-              ) : (
-                <div className="files-grid">
-                  {filtered.map((f) => (
-                    <FileCard
-                      key={f.fileId || f.url}
-                      file={f}
-                      me={user}
-                      onDelete={handleDelete}
-                    />
-                  ))}
+              <div className="files-actions">
+                <div className="files-search">
+                  <input
+                    type="text"
+                    placeholder="Cari file atau uploader…"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
                 </div>
-              )}
-            </>
-          )}
-        </section>
-      </main>
+                <button
+                  className="files-btn ghost"
+                  onClick={() => window.location.reload()}
+                  title="Refresh"
+                >
+                  <Icon slug="refresh" size={18} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
 
-      {/* Bottom nav dari DB (ikon dari database) */}
-      {!loadingMenus && !errMenus && (
-        <BottomNav
-          items={visibleMenus}
-          active="files"
-          onSelect={handleSelectNav}
-        />
-      )}
+            {/* Upload form */}
+            <form
+              className="file-uploader"
+              onSubmit={doUpload}
+              style={{ marginBottom: 12 }}
+            >
+              <input
+                id="file-input"
+                type="file"
+                onChange={(e) => setPick(e.target.files?.[0] || null)}
+                style={{ marginRight: 8 }}
+              />
 
-        <MeetingFooter
-          showEndButton={true}
-        />
+              <button
+                className="files-btn"
+                type="submit"
+                disabled={!pick || uploading || !meetingId}
+              >
+                <Icon slug="upload" size={18} />
+                <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
+              </button>
+            </form>
 
+            {loadingFiles && <div className="pd-empty">Memuat file…</div>}
+            {errFiles && !loadingFiles && (
+              <div className="pd-error">Gagal memuat file: {errFiles}</div>
+            )}
 
+            {!loadingFiles && !errFiles && (
+              <>
+                {filtered.length === 0 ? (
+                  <div className="pd-empty">Belum ada file.</div>
+                ) : (
+                  <div className="files-grid">
+                    {filtered.map((f) => (
+                      <FileCard
+                        key={f.fileId || f.url}
+                        file={f}
+                        me={user}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </main>
+
+        {/* Bottom nav dari DB (ikon dari database) */}
+        {!loadingMenus && !errMenus && (
+          <BottomNav
+            items={visibleMenus}
+            active="files"
+            onSelect={handleSelectNav}
+          />
+        )}
+
+        <MeetingFooter showEndButton={true} />
       </div>
     </MeetingLayout>
   );

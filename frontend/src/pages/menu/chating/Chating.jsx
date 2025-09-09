@@ -8,8 +8,7 @@ import "./Chating.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
-import simpleScreenShare from "../../../services/simpleScreenShare.js";
+// Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Chat() {
   const [user, setUser] = useState(null);
@@ -28,11 +27,7 @@ export default function Chat() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
-  // screen share - initialize from service if already sharing
-  const [screenShareOn, setScreenShareOn] = useState(() => {
-    // Check if screen sharing is already active from service
-    return simpleScreenShare.isSharing || false;
-  });
+  // Screen sharing UI moved to dedicated page
 
   // chat mode
   const [chatMode, setChatMode] = useState('global'); // 'global' or 'private'
@@ -588,31 +583,7 @@ export default function Chat() {
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
-  // Sync screen share state with service on mount
-  useEffect(() => {
-    if (getMeetingId() && user?.id) {
-      // Sync state with service to maintain state across page navigation
-      setScreenShareOn(simpleScreenShare.isSharing || false);
-    }
-  }, [user?.id]);
-
-  // Screen share handlers
-  const handleToggleScreenShare = async () => {
-    if (screenShareOn) {
-      // Stop screen sharing
-      setScreenShareOn(false);
-    } else {
-      // Start screen sharing directly
-      try {
-        const success = await simpleScreenShare.startScreenShare();
-        if (success) {
-          setScreenShareOn(true);
-        }
-      } catch (error) {
-        console.error('Failed to start screen sharing:', error);
-      }
-    }
-  };
+  // Screen sharing controls handled elsewhere
 
   return (
     <MeetingLayout
@@ -655,15 +626,6 @@ export default function Chat() {
 
         {/* Chat content */}
         <main className="pd-main">
-          {/* Simple Screen Share */}
-          <SimpleScreenShare 
-            meetingId={getMeetingId()} 
-            userId={user?.id}
-            isSharing={screenShareOn}
-            onSharingChange={setScreenShareOn}
-            onError={(error) => console.error('Screen share error:', error)}
-          />
-          
           <section className="chat-wrap">
             <div className="chat-header">
               <div className="chat-title">
@@ -840,9 +802,6 @@ export default function Chat() {
 
         <MeetingFooter
           showEndButton={true}
-          onMenuClick={() => console.log("open menu")}
-          screenShareOn={screenShareOn}
-          onToggleScreenShare={handleToggleScreenShare}
         />
 
 
