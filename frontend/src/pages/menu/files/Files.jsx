@@ -302,7 +302,7 @@ export default function Files() {
           />
         )}
 
-        <MeetingFooter showEndButton={true} />
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );

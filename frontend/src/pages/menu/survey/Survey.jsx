@@ -354,7 +354,7 @@ export default function Survey() {
       )}
 
         <MeetingFooter
-          showEndButton={true}
+          userRole={user?.role || "participant"}
         />
 
 

@@ -429,7 +429,7 @@ export default function ParticipantsPage() {
         )}
 
         <MeetingFooter
-          showEndButton={true}
+          userRole={user?.role || "participant"}
         />
       </div>
     </MeetingLayout>

@@ -355,7 +355,7 @@ export default function Materials() {
       )}
 
         <MeetingFooter
-          showEndButton={true}
+          userRole={user?.role || "participant"}
         />
 
 

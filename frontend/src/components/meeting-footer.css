@@ -53,6 +53,18 @@
   cursor: pointer;
 }
 
+.pd-warning {
+  border: 0;
+  background: #f59e0b;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.pd-warning:hover {
+  filter: brightness(0.95);
+}
+
 .pd-danger {
   border: 0;
   background: #dc2626;
