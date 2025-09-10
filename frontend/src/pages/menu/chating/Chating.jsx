@@ -8,6 +8,9 @@ import "./Chating.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import { getUserMenus } from "../../../services/menuService.js";
+import { getChatMessages, sendChatMessage, getChatParticipants, markMessagesAsRead } from "../../../services/chating/chatService.js";
+import { getJoinedParticipants, getTestParticipants } from "../../../services/participants/participantsService.js";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Chat() {
@@ -179,21 +182,7 @@ export default function Chat() {
       try {
         setLoadingMenus(true);
         setErrMenus("");
-        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json?.data)
-          ? json.data.map((m) => ({
-              slug: m.slug,
-              label: m.displayLabel,
-              flag: m.flag ?? "Y",
-              iconUrl: m.iconMenu || null,
-              seq: m.sequenceMenu,
-            }))
-          : [];
+        const list = await getUserMenus();
         if (!cancel) setMenus(list);
       } catch (e) {
         if (!cancel) setErrMenus(String(e.message || e));
@@ -516,31 +505,24 @@ export default function Chat() {
     setSending(true);
 
     try {
-      // Prepare request body
-      const requestBody = { textMessage: trimmed };
-
-      // Add userReceiveId for private chat
-      if (chatMode === "private" && selectedParticipant?.userId) {
-        requestBody.userReceiveId = selectedParticipant.userId;
-      }
 
       // Kirim ke backend API
-      const res = await fetch(`${API_URL}/api/chat/meeting/${meetingId}/send`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
+      const messageData = {
+        meetingId,
+        textMessage: trimmed,
+        userReceiveId: chatMode === "private" && selectedParticipant?.userId 
+          ? selectedParticipant.userId 
+          : null,
+      };
+      
+      const result = await sendChatMessage(messageData);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-
-      if (json.success) {
+      if (result.success) {
         // replace temp msg id -> server id
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempId
-              ? { ...m, id: json.data.meetingChatId, _optimistic: false }
+              ? { ...m, id: result.data.meetingChatId, _optimistic: false }
               : m
           )
         );
@@ -548,7 +530,7 @@ export default function Chat() {
         // Note: WebSocket is only for receiving messages from other users
         // Our own message is already added to the list above
       } else {
-        throw new Error(json.message || "Gagal mengirim pesan");
+        throw new Error(result.message || "Gagal mengirim pesan");
       }
     } catch (e) {
       // tandai gagal

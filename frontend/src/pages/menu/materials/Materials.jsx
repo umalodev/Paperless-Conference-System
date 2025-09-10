@@ -7,6 +7,8 @@ import Icon from "../../../components/Icon.jsx";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import { getUserMenus } from "../../../services/menuService.js";
+import { getMaterials, uploadMaterial, updateMaterial, deleteMaterial } from "../../../services/materials/materialsService.js";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Materials() {
@@ -80,20 +82,7 @@ export default function Materials() {
       try {
         setLoadingMenus(true);
         setErrMenus("");
-        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json", ...authHeaders },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json?.data)
-          ? json.data.map((m) => ({
-              slug: m.slug,
-              label: m.displayLabel,
-              iconUrl: m.iconMenu || null,
-              flag: m.flag ?? "Y",
-            }))
-          : [];
+        const list = await getUserMenus();
         if (!cancel) setMenus(list);
       } catch (e) {
         if (!cancel) setErrMenus(String(e.message || e));
@@ -123,16 +112,8 @@ export default function Materials() {
     setLoadingItems(true);
     setErrItems("");
     try {
-      const res = await fetch(
-        `${API_URL}/api/materials/meeting/${encodeURIComponent(meetingId)}`,
-        {
-          credentials: "include",
-          headers: { ...authHeaders },
-        }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const arr = Array.isArray(json?.data) ? json.data : [];
+      const data = await getMaterials(meetingId);
+      const arr = Array.isArray(data) ? data : [];
 
       // Normalisasi — backend kamu biasanya kirim: { id, meetingId, path, url?, createdAt }
       const list = arr.map((x) => ({
@@ -164,21 +145,11 @@ export default function Materials() {
     setUploading(true);
     try {
       for (const f of files) {
-        const fd = new FormData();
-        fd.append("file", f); // field-name HARUS "file" sesuai routes kamu
-        const res = await fetch(
-          `${API_URL}/api/materials/upload/${encodeURIComponent(meetingId)}`,
-          {
-            method: "POST",
-            body: fd,
-            credentials: "include",
-            headers: { ...authHeaders }, // Authorization ikut terkirim
-          }
-        );
-        if (!res.ok) {
-          const t = await res.json().catch(() => ({}));
-          throw new Error(t?.message || `Upload gagal (HTTP ${res.status})`);
-        }
+        const materialData = {
+          meetingId,
+          file: f,
+        };
+        await uploadMaterial(materialData);
       }
       await loadMaterials();
     } catch (err) {
@@ -225,15 +196,7 @@ export default function Materials() {
   const handleDelete = async (it) => {
     if (!confirm(`Hapus material "${it.name}"?`)) return;
     try {
-      const res = await fetch(`${API_URL}/api/materials/${it.id}`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: { ...authHeaders },
-      });
-      if (!res.ok) {
-        const t = await res.json().catch(() => ({}));
-        throw new Error(t?.message || `HTTP ${res.status}`);
-      }
+      await deleteMaterial(it.id);
       await loadMaterials();
     } catch (e) {
       alert(`Gagal menghapus: ${e.message || e}`);

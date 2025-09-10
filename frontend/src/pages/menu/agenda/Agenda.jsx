@@ -7,6 +7,8 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import "./Agenda.css";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import { getUserMenus } from "../../../services/menuService.js";
+import { getAgendaItems, createAgendaItem, updateAgendaItem, deleteAgendaItem } from "../../../services/agenda/agendaService.js";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Agenda() {
@@ -82,20 +84,7 @@ export default function Agenda() {
       try {
         setLoading(true);
         setErr("");
-        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json?.data)
-          ? json.data.map((m) => ({
-              slug: m.slug,
-              label: m.displayLabel,
-              flag: m.flag ?? "Y",
-              iconUrl: m.iconMenu || null,
-            }))
-          : [];
+        const list = await getUserMenus();
         if (!cancel) setMenus(list);
       } catch (e) {
         if (!cancel) setErr(String(e.message || e));
@@ -120,15 +109,13 @@ export default function Agenda() {
     setAgendaLoading(true);
     setAgendaErr("");
     try {
-      const qs = meetingId ? `?meetingId=${encodeURIComponent(meetingId)}` : "";
-      const res = await fetch(`${API_URL}/api/agendas${qs}`, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const items = Array.isArray(json?.data)
-        ? json.data.map((it) => ({
+      if (!meetingId) {
+        setAgendas([]);
+        return;
+      }
+      const data = await getAgendaItems(meetingId);
+      const items = Array.isArray(data)
+        ? data.map((it) => ({
             id: it.meetingAgendaId || it.meeting_agenda_id || it.id,
             title: it.judul,
             start: it.startTime || it.start_time,
@@ -142,7 +129,7 @@ export default function Agenda() {
     } finally {
       setAgendaLoading(false);
     }
-  }, [API_URL, meetingId]);
+  }, [meetingId]);
 
   useEffect(() => {
     loadAgendas();
@@ -198,7 +185,7 @@ export default function Agenda() {
 
     try {
       setSaving(true);
-      const body = {
+      const agendaData = {
         meetingId,
         judul: form.judul.trim(),
         deskripsi: form.deskripsi?.trim() || null,
@@ -206,16 +193,7 @@ export default function Agenda() {
         end_time: endDate.toISOString(),
         seq: agendas.length + 1,
       };
-      const res = await fetch(`${API_URL}/api/agendas`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const t = await res.json().catch(() => ({}));
-        throw new Error(t?.message || `HTTP ${res.status}`);
-      }
+      await createAgendaItem(agendaData);
       await loadAgendas();
       closeAdd();
     } catch (e) {

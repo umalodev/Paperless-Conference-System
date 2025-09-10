@@ -16,8 +16,9 @@ import {
   createSurvey,
   updateSurvey,
   deleteSurvey,
-  toggleVisibility,
-} from "../../../services/surveyService.js";
+  toggleSurveyVisibility,
+} from "../../../services/survey/surveyService.js";
+import { getUserMenus } from "../../../services/menuService.js";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
@@ -67,21 +68,7 @@ export default function Survey() {
       try {
         setLoadingMenus(true);
         setErrMenus("");
-        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json?.data)
-          ? json.data.map((m) => ({
-              slug: m.slug,
-              label: m.displayLabel,
-              flag: m.flag ?? "Y",
-              iconUrl: m.iconMenu || null,
-              seq: m.sequenceMenu,
-            }))
-          : [];
+        const list = await getUserMenus();
         if (!cancel) setMenus(list);
       } catch (e) {
         if (!cancel) setErrMenus(String(e.message || e));
@@ -170,7 +157,7 @@ export default function Survey() {
 
   const setActive = async (s, flag) => {
     try {
-      await toggleVisibility(s.surveyId, flag ? "Y" : "N");
+      await toggleSurveyVisibility(s.surveyId, flag ? "Y" : "N");
       await reload();
     } catch (e) {
       alert(`Gagal mengubah visibilitas: ${e.message || e}`);
