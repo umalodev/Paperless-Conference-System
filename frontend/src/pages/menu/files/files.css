@@ -145,3 +145,25 @@
   background: #fee2e2;
   color: #b91c1c;
 }
+.file-uploader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: nowrap;        /* biar tidak turun baris */
+}
+
+.file-uploader .files-btn {
+  margin-left: auto;        /* <<< dorong tombol ke kanan */
+}
+
+/* opsional: tombol full-width saat layar sempit */
+@media (max-width: 520px) {
+  .file-uploader {
+    flex-wrap: wrap;        /* biar boleh turun baris di HP kecil */
+  }
+  .file-uploader .files-btn {
+    margin-left: 0;
+    width: 100%;
+  }
+}
