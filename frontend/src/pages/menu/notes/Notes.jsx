@@ -8,8 +8,6 @@ import "./Notes.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-import { getUserMenus } from "../../../services/menuService.js";
-import { getNotes, createNote, updateNote, deleteNote } from "../../../services/notes/notesService.js";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Notes() {
@@ -68,7 +66,16 @@ export default function Notes() {
           setNotes([]); // belum ada meeting
           return;
         }
-        const data = await getNotes(meetingId);
+        const res = await fetch(
+          `${API_URL}/api/notes?meetingId=${encodeURIComponent(meetingId)}`,
+          {
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const data = Array.isArray(json?.data) ? json.data : [];
         if (!cancel) setNotes(data);
       } catch (e) {
         if (!cancel) setErrNotes(String(e.message || e));
@@ -88,7 +95,21 @@ export default function Notes() {
       try {
         setLoadingMenus(true);
         setErrMenus("");
-        const list = await getUserMenus();
+        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const list = Array.isArray(json?.data)
+          ? json.data.map((m) => ({
+              slug: m.slug,
+              label: m.displayLabel,
+              flag: m.flag ?? "Y",
+              iconUrl: m.iconMenu || null,
+              seq: m.sequenceMenu,
+            }))
+          : [];
         if (!cancel) setMenus(list);
       } catch (e) {
         if (!cancel) setErrMenus(String(e.message || e));
@@ -126,8 +147,16 @@ export default function Notes() {
     }
     setSaving(true);
     try {
-      const noteData = { meetingId, title: t, body: b };
-      const created = await createNote(noteData);
+      const payload = { meetingId, title: t, body: b };
+      const res = await fetch(`${API_URL}/api/notes`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const created = json.data;
       setNotes((prev) => [created, ...prev]);
       resetComposer();
     } catch (e) {
@@ -153,8 +182,16 @@ export default function Notes() {
     if (!editingId) return;
     setSaving(true);
     try {
-      const noteData = { title: editTitle.trim(), body: editBody.trim() };
-      const updated = await updateNote(editingId, noteData);
+      const payload = { title: editTitle.trim(), body: editBody.trim() };
+      const res = await fetch(`${API_URL}/api/notes/${editingId}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const updated = json.data;
       setNotes((prev) => prev.map((x) => (x.id === editingId ? updated : x)));
       cancelEdit();
     } catch (e) {
@@ -168,7 +205,11 @@ export default function Notes() {
     if (!confirm("Hapus catatan ini?")) return;
     setSaving(true);
     try {
-      await deleteNote(id);
+      const res = await fetch(`${API_URL}/api/notes/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNotes((prev) => prev.filter((x) => x.id !== id));
     } catch (e) {
       alert(`Gagal menghapus: ${e.message || e}`);

@@ -5,7 +5,6 @@ import { API_URL } from "../../../config";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import Icon from "../../../components/Icon.jsx";
-import { getUserMenus } from "../../../services/menuService.js";
 import "./services.css";
 
 export default function Services() {
@@ -41,7 +40,21 @@ export default function Services() {
       try {
         setLoadingMenus(true);
         setErrMenus("");
-        const list = await getUserMenus();
+        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const list = Array.isArray(json?.data)
+          ? json.data.map((m) => ({
+              slug: m.slug,
+              label: m.displayLabel,
+              flag: m.flag ?? "Y",
+              iconUrl: m.iconMenu || null,
+              seq: m.sequenceMenu,
+            }))
+          : [];
         if (!cancel) setMenus(list);
       } catch (e) {
         if (!cancel) setErrMenus(String(e.message || e));
