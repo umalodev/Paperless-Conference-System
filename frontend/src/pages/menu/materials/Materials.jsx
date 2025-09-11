@@ -7,7 +7,6 @@ import Icon from "../../../components/Icon.jsx";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-// Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Materials() {
   const [user, setUser] = useState(null);
@@ -17,7 +16,7 @@ export default function Materials() {
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
 
-  // materials
+  // materials (current meeting)
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [errItems, setErrItems] = useState("");
@@ -26,10 +25,14 @@ export default function Materials() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
+  // history
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyGroups, setHistoryGroups] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [errHistory, setErrHistory] = useState("");
+
   // Check if user is host/admin (can add materials)
   const isHost = /^(host|admin)$/i.test(user?.role || "");
-
-  // Screen sharing UI moved to dedicated page
 
   const navigate = useNavigate();
 
@@ -49,27 +52,23 @@ export default function Materials() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Screen sharing controls handled elsewhere
-
   // Helper header auth (JWT opsional) + cookie session
   const authHeaders = useMemo(() => {
     const token =
       localStorage.getItem("token") || localStorage.getItem("accessToken");
     const user = localStorage.getItem("user");
     let headers = {};
-    
     if (token && user) {
       try {
         const userData = JSON.parse(user);
-        headers = { 
+        headers = {
           Authorization: `Bearer ${token}`,
-          'x-user-id': userData.id
+          "x-user-id": userData.id,
         };
       } catch (e) {
-        console.error('Error parsing user data:', e);
+        console.error("Error parsing user data:", e);
       }
     }
-    
     return headers;
   }, []);
 
@@ -112,7 +111,7 @@ export default function Materials() {
   );
   const handleSelect = (item) => navigate(`/menu/${item.slug}`);
 
-  // ===== Materials API =====
+  // ===== Materials (current meeting) =====
   const loadMaterials = async () => {
     if (!meetingId) {
       setItems([]);
@@ -134,13 +133,12 @@ export default function Materials() {
       const json = await res.json();
       const arr = Array.isArray(json?.data) ? json.data : [];
 
-      // Normalisasi — backend kamu biasanya kirim: { id, meetingId, path, url?, createdAt }
       const list = arr.map((x) => ({
         id: x.id,
         path: x.path,
         url: x.url || toAbsolute(API_URL, x.path),
         name: guessName(x.path),
-        createdAt: x.createdAt,
+        createdAt: x.createdAt || x.created_at,
       }));
       setItems(list);
     } catch (e) {
@@ -155,6 +153,51 @@ export default function Materials() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meetingId]);
 
+  // ===== Materials History (group by meeting) =====
+  const loadHistory = async () => {
+    setLoadingHistory(true);
+    setErrHistory("");
+    try {
+      const url = new URL(`${API_URL}/api/materials/history`);
+      if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
+      url.searchParams.set("limit", "30");
+      url.searchParams.set("withMaterialsOnly", "1");
+
+      const res = await fetch(url.toString(), {
+        credentials: "include",
+        headers: { ...authHeaders },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const arr = Array.isArray(json?.data) ? json.data : [];
+
+      const groups = arr.map((g) => ({
+        meetingId: g.meetingId,
+        title: g.title,
+        startTime: g.startTime,
+        endTime: g.endTime,
+        status: g.status,
+        materials: (g.materials || []).map((x) => ({
+          id: x.id,
+          path: x.path,
+          url: toAbsolute(API_URL, x.path),
+          name: guessName(x.path),
+          createdAt: x.created_at || x.createdAt,
+        })),
+      }));
+      setHistoryGroups(groups);
+    } catch (e) {
+      setErrHistory(String(e.message || e));
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showHistory) loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistory]);
+
   // Upload
   const onClickUpload = () => fileRef.current?.click();
 
@@ -165,14 +208,14 @@ export default function Materials() {
     try {
       for (const f of files) {
         const fd = new FormData();
-        fd.append("file", f); // field-name HARUS "file" sesuai routes kamu
+        fd.append("file", f);
         const res = await fetch(
           `${API_URL}/api/materials/upload/${encodeURIComponent(meetingId)}`,
           {
             method: "POST",
             body: fd,
             credentials: "include",
-            headers: { ...authHeaders }, // Authorization ikut terkirim
+            headers: { ...authHeaders },
           }
         );
         if (!res.ok) {
@@ -189,26 +232,20 @@ export default function Materials() {
     }
   };
 
-  // Preview → fetch blob (pakai Authorization), lalu buka tab baru
+  // Preview & Download
   const handlePreview = async (it) => {
     try {
-      // kalau backend kirim url statis & bisa diakses cookie, bisa langsung window.open(it.url)
-      // tapi untuk JWT-only, pakai fetch blob dari download endpoint atau path langsung
-      // prefer endpoint download supaya Content-Type/Disposition benar:
       const blob = await fetchBlobWithAuth(
         `${API_URL}/api/materials/${it.id}/download`,
         authHeaders
       );
       openBlobInNewTab(blob, it.name);
-    } catch (e) {
-      // fallback: coba open direct url (bisa gagal jika butuh header)
+    } catch {
       try {
         window.open(it.url, "_blank", "noopener,noreferrer");
       } catch {}
     }
   };
-
-  // Download → fetch blob + buat link unduh
   const handleDownload = async (it) => {
     try {
       const blob = await fetchBlobWithAuth(
@@ -246,9 +283,9 @@ export default function Materials() {
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
-      userRole={user?.role || 'participant'}
-      socket={null} // Will be set when socket is integrated
-      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+      userRole={user?.role || "participant"}
+      socket={null}
+      mediasoupDevice={null}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -267,107 +304,215 @@ export default function Materials() {
                 minute: "2-digit",
               })}
             </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(user?.username || "US").slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <div className="pd-user-name">
-                {user?.username || "Participant"}
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
-              <div className="pd-user-role">Participant</div>
+              <div>
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
+                </div>
+                <div className="pd-user-role">Participant</div>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Content */}
-      <main className="pd-main">
-        {/* Screen share moved to dedicated page */}
-        
-        <section className="mtl-wrap">
-          <div className="mtl-header">
-            <div className="mtl-title">
-              <Icon slug="materials" /> <span>Materials</span>
-            </div>
-            {isHost && (
+        {/* Content */}
+        <main className="pd-main">
+          <section className="mtl-wrap">
+            <div className="mtl-header">
+              <div className="mtl-title">
+                <Icon slug="materials" /> <span>Materials</span>
+                <span className="mtl-chip">{items.length} file</span>
+              </div>
+
+              {/* Actions */}
               <div className="mtl-actions">
+                {isHost && (
+                  <button
+                    className="mtl-btn"
+                    onClick={onClickUpload}
+                    disabled={!meetingId || uploading}
+                  >
+                    <Icon slug="upload" />{" "}
+                    <span>{uploading ? "Uploading…" : "Upload"}</span>
+                  </button>
+                )}
                 <button
-                  className="mtl-btn"
-                  onClick={onClickUpload}
-                  disabled={!meetingId || uploading}
+                  className={`mtl-btn ${showHistory ? "active" : ""}`}
+                  onClick={() => setShowHistory((s) => !s)}
                 >
-                  <Icon slug="upload" />{" "}
-                  <span>{uploading ? "Uploading…" : "Upload"}</span>
+                  <Icon slug="history" />{" "}
+                  <span>{showHistory ? "Tutup Riwayat" : "Riwayat"}</span>
                 </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  style={{ display: "none" }}
-                  onChange={onFilesSelected}
-                />
+                {isHost && (
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    multiple
+                    style={{ display: "none" }}
+                    onChange={onFilesSelected}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Current meeting materials */}
+            {loadingItems && <SkeletonGrid />}
+            {errItems && !loadingItems && (
+              <div className="pd-error">Gagal memuat materials: {errItems}</div>
+            )}
+            {!loadingItems && !errItems && items.length === 0 && (
+              <div className="pd-empty">Belum ada materials.</div>
+            )}
+
+            {!loadingItems && !errItems && items.length > 0 && (
+              <div className="mtl-grid">
+                {items.map((it) => (
+                  <MaterialCard
+                    key={it.id}
+                    name={it.name}
+                    meta={formatMeta(it)}
+                    ext={extKind(it.name)}
+                    onPreview={() => handlePreview(it)}
+                    onDownload={() => handleDownload(it)}
+                    onDelete={isHost ? () => handleDelete(it) : null}
+                    canDelete={isHost}
+                  />
+                ))}
               </div>
             )}
-          </div>
 
-          {/* List */}
-          {loadingItems && <div className="pd-empty">Loading materials…</div>}
-          {errItems && !loadingItems && (
-            <div className="pd-error">Gagal memuat materials: {errItems}</div>
-          )}
-          {!loadingItems && !errItems && items.length === 0 && (
-            <div className="pd-empty">Belum ada materials.</div>
-          )}
+            {/* History panel */}
+            {showHistory && (
+              <>
+                <div className="mtl-divider" />
+                <section className="mtl-history">
+                  <h3 className="mtl-history-title">
+                    <Icon slug="history" /> Riwayat Materials
+                    <span className="mtl-chip ghost">
+                      {historyGroups.length} meeting
+                    </span>
+                  </h3>
 
-          {!loadingItems && !errItems && items.length > 0 && (
-            <div className="mtl-grid">
-              {items.map((it) => (
-                <MaterialCard
-                  key={it.id}
-                  name={it.name}
-                  meta={formatMeta(it)}
-                  onPreview={() => handlePreview(it)}
-                  onDownload={() => handleDownload(it)}
-                  onDelete={isHost ? () => handleDelete(it) : null}
-                  canDelete={isHost}
-                />
-              ))}
-            </div>
-          )}
+                  {loadingHistory && <SkeletonAccordion />}
+                  {errHistory && !loadingHistory && (
+                    <div className="pd-error">
+                      Gagal memuat riwayat: {errHistory}
+                    </div>
+                  )}
+                  {!loadingHistory &&
+                    !errHistory &&
+                    historyGroups.length === 0 && (
+                      <div className="pd-empty">
+                        Belum ada riwayat materials.
+                      </div>
+                    )}
 
-          {/* error menu nav bila ada */}
-          {errMenus && (
-            <div className="pd-error" style={{ marginTop: 12 }}>
-              Gagal memuat menu: {errMenus}
-            </div>
-          )}
-        </section>
-      </main>
+                  {!loadingHistory &&
+                    !errHistory &&
+                    historyGroups.length > 0 && (
+                      <div className="mtl-accordion">
+                        {historyGroups.map((group) => (
+                          <HistoryGroup
+                            key={group.meetingId}
+                            group={group}
+                            onPreview={(it) => handlePreview(it)}
+                            onDownload={(it) => handleDownload(it)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                </section>
+              </>
+            )}
 
-      {/* Bottom nav */}
-      {!loadingMenus && !errMenus && (
-        <BottomNav
-          items={visibleMenus}
-          active="materials"
-          onSelect={handleSelect}
-        />
-      )}
+            {/* error menu nav bila ada */}
+            {errMenus && (
+              <div className="pd-error" style={{ marginTop: 12 }}>
+                Gagal memuat menu: {errMenus}
+              </div>
+            )}
+          </section>
+        </main>
 
-        <MeetingFooter
-          userRole={user?.role || "participant"}
-        />
+        {/* Bottom nav */}
+        {!loadingMenus && !errMenus && (
+          <BottomNav
+            items={visibleMenus}
+            active="materials"
+            onSelect={handleSelect}
+          />
+        )}
 
-
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );
 }
 
-function MaterialCard({ name, meta, onPreview, onDownload, onDelete, canDelete }) {
+function HistoryGroup({ group, onPreview, onDownload }) {
+  const [open, setOpen] = useState(false);
+  const { meetingId, title, startTime, endTime, status, materials } = group;
+
+  return (
+    <div className={`mtl-acc ${open ? "open" : ""}`}>
+      <button className="mtl-acc-head" onClick={() => setOpen((o) => !o)}>
+        <div className="mtl-acc-info">
+          <div className="mtl-acc-title">
+            {title || `Meeting #${meetingId}`}
+            {status && <span className={`mtl-chip ${status}`}>{status}</span>}
+          </div>
+          <div className="mtl-acc-meta">
+            {formatDateRange(startTime, endTime)}
+          </div>
+        </div>
+        <div className="mtl-acc-count">
+          <Icon slug="file" />
+          {materials?.length || 0}
+        </div>
+      </button>
+
+      {open && (
+        <div className="mtl-acc-body">
+          {(!materials || materials.length === 0) && (
+            <div className="pd-empty">Tidak ada materials.</div>
+          )}
+          {materials && materials.length > 0 && (
+            <div className="mtl-grid">
+              {materials.map((it) => (
+                <MaterialCard
+                  key={it.id}
+                  name={it.name}
+                  meta={formatMeta(it)}
+                  ext={extKind(it.name)}
+                  onPreview={() => onPreview(it)}
+                  onDownload={() => onDownload(it)}
+                  canDelete={false}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MaterialCard({
+  name,
+  meta,
+  ext,
+  onPreview,
+  onDownload,
+  onDelete,
+  canDelete,
+}) {
   return (
     <div className="mtl-card">
-      <div className="mtl-fileicon">
+      <div className={`mtl-fileicon ${ext}`}>
+        <div className="mtl-fileext">{extLabel(ext)}</div>
         <Icon slug="file" />
       </div>
       <div className="mtl-info">
@@ -393,6 +538,44 @@ function MaterialCard({ name, meta, onPreview, onDownload, onDelete, canDelete }
   );
 }
 
+/* ============ Skeletons ============ */
+function SkeletonGrid() {
+  return (
+    <div className="mtl-grid">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div className="mtl-card sk" key={i}>
+          <div className="mtl-fileicon sk" />
+          <div className="mtl-info">
+            <div className="sk-line w-70" />
+            <div className="sk-line w-40" />
+          </div>
+          <div className="mtl-actions-right">
+            <div className="mtl-act sk" />
+            <div className="mtl-act sk" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function SkeletonAccordion() {
+  return (
+    <div className="mtl-accordion">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div className="mtl-acc sk" key={i}>
+          <div className="mtl-acc-head">
+            <div className="mtl-acc-info">
+              <div className="sk-line w-50" />
+              <div className="sk-line w-30" />
+            </div>
+            <div className="mtl-acc-count sk" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ====================== utils kecil ====================== */
 function guessName(p = "") {
   try {
@@ -409,8 +592,27 @@ function toAbsolute(base, rel) {
   return `${base}/${rel}`;
 }
 function formatMeta(it) {
-  // kamu bisa menambah size/type jika backend kirim
   return it.createdAt ? new Date(it.createdAt).toLocaleString() : "—";
+}
+function formatDateRange(a, b) {
+  try {
+    const s = a ? new Date(a) : null;
+    const e = b ? new Date(b) : null;
+    const fmt = (d) =>
+      d.toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    if (s && e) return `${fmt(s)} – ${fmt(e)}`;
+    if (s) return fmt(s);
+    if (e) return fmt(e);
+    return "—";
+  } catch {
+    return "—";
+  }
 }
 async function fetchBlobWithAuth(url, authHeaders = {}) {
   const res = await fetch(url, {
@@ -424,7 +626,6 @@ async function fetchBlobWithAuth(url, authHeaders = {}) {
 function openBlobInNewTab(blob, filename = "file") {
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank", "noopener,noreferrer");
-  // fallback simpan kalau popup diblok
   if (!win) downloadBlob(blob, filename);
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
@@ -437,4 +638,30 @@ function downloadBlob(blob, filename = "file") {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/* ===== file kind helpers (untuk style ikon/label) ===== */
+function extKind(name = "") {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "img";
+  if (["pdf"].includes(ext)) return "pdf";
+  if (["doc", "docx", "rtf"].includes(ext)) return "doc";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "xls";
+  if (["ppt", "pptx", "key"].includes(ext)) return "ppt";
+  if (["zip", "rar", "7z"].includes(ext)) return "zip";
+  if (["txt", "md"].includes(ext)) return "txt";
+  return "oth";
+}
+function extLabel(kind) {
+  const map = {
+    img: "IMG",
+    pdf: "PDF",
+    doc: "DOC",
+    xls: "XLS",
+    ppt: "PPT",
+    zip: "ZIP",
+    txt: "TXT",
+    oth: "FILE",
+  };
+  return map[kind] || "FILE";
 }

@@ -270,7 +270,7 @@ export default function Services() {
           />
         )}
 
-        <MeetingFooter onMenuClick={() => {}} showEndButton={true} />
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );

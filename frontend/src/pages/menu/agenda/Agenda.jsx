@@ -61,15 +61,15 @@ export default function Agenda() {
   // Handle meeting end event
   useEffect(() => {
     const handleMeetingEnd = (event) => {
-      console.log('Meeting ended, redirecting to start page');
+      console.log("Meeting ended, redirecting to start page");
       localStorage.removeItem("currentMeeting");
       navigate("/start");
     };
 
-    window.addEventListener('meeting-ended', handleMeetingEnd);
-    
+    window.addEventListener("meeting-ended", handleMeetingEnd);
+
     return () => {
-      window.removeEventListener('meeting-ended', handleMeetingEnd);
+      window.removeEventListener("meeting-ended", handleMeetingEnd);
     };
   }, [navigate]);
 
@@ -231,7 +231,7 @@ export default function Agenda() {
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
-      userRole={user?.role || 'participant'}
+      userRole={user?.role || "participant"}
       socket={null} // Will be set when socket is integrated
       mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
     >
@@ -267,143 +267,141 @@ export default function Agenda() {
           </div>
         </header>
 
-      {/* Konten utama */}
-      <main className="pd-main">
-        {/* Screen share moved to dedicated page */}
-        
-        <section className="agenda-wrap">
-          <div className="agenda-header">
-            <span className="agenda-title">Agenda</span>
+        {/* Konten utama */}
+        <main className="pd-main">
+          {/* Screen share moved to dedicated page */}
 
-            {isHost && (
-              <button
-                className="agenda-add"
-                title="Add agenda"
-                onClick={openAdd}
-              >
-                <Icon slug="plus" />
-              </button>
-            )}
-          </div>
+          <section className="agenda-wrap">
+            <div className="agenda-header">
+              <span className="agenda-title">Agenda</span>
 
-          {/* Add form (inline) */}
-          {showAdd && (
-            <form className="agenda-form" onSubmit={submitAdd}>
-              <div className="af-row">
-                <label className="af-label">Judul</label>
-                <input
-                  name="judul"
-                  className="af-input"
-                  placeholder="Contoh: Pembukaan"
-                  value={form.judul}
-                  onChange={handleFormChange}
-                />
-              </div>
-
-              <div className="af-row">
-                <label className="af-label">Deskripsi</label>
-                <textarea
-                  name="deskripsi"
-                  className="af-textarea"
-                  rows={2}
-                  placeholder="Opsional"
-                  value={form.deskripsi}
-                  onChange={handleFormChange}
-                />
-              </div>
-
-              <div className="af-grid">
-                <div className="af-col">
-                  <label className="af-label">Tanggal</label>
-                  <input
-                    type="date"
-                    name="date"
-                    className="af-input"
-                    value={form.date}
-                    onChange={handleFormChange}
-                  />
-                </div>
-                <div className="af-col">
-                  <label className="af-label">Mulai</label>
-                  <input
-                    type="time"
-                    name="start"
-                    className="af-input"
-                    value={form.start}
-                    onChange={handleFormChange}
-                  />
-                </div>
-                <div className="af-col">
-                  <label className="af-label">Selesai</label>
-                  <input
-                    type="time"
-                    name="end"
-                    className="af-input"
-                    value={form.end}
-                    onChange={handleFormChange}
-                  />
-                </div>
-              </div>
-
-              {formErr && (
-                <div className="pd-error" style={{ marginTop: 8 }}>
-                  {formErr}
-                </div>
-              )}
-
-              <div className="af-actions">
+              {isHost && (
                 <button
-                  type="button"
-                  className="pd-ghost"
-                  onClick={closeAdd}
-                  disabled={saving}
+                  className="agenda-add"
+                  title="Add agenda"
+                  onClick={openAdd}
                 >
-                  Batal
+                  <Icon slug="plus" />
                 </button>
-                <button type="submit" className="pd-danger" disabled={saving}>
-                  {saving ? "Menyimpan…" : "Simpan"}
-                </button>
-              </div>
-            </form>
-          )}
+              )}
+            </div>
 
-          <div className="agenda-list">
-            {agendaLoading && <div className="pd-empty">Loading agendas…</div>}
-            {agendaErr && !agendaLoading && (
-              <div className="pd-error">Gagal memuat agenda: {agendaErr}</div>
+            {/* Add form (inline) */}
+            {showAdd && (
+              <form className="agenda-form" onSubmit={submitAdd}>
+                <div className="af-row">
+                  <label className="af-label">Judul</label>
+                  <input
+                    name="judul"
+                    className="af-input"
+                    placeholder="Contoh: Pembukaan"
+                    value={form.judul}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="af-row">
+                  <label className="af-label">Deskripsi</label>
+                  <textarea
+                    name="deskripsi"
+                    className="af-textarea"
+                    rows={2}
+                    placeholder="Opsional"
+                    value={form.deskripsi}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="af-grid">
+                  <div className="af-col">
+                    <label className="af-label">Tanggal</label>
+                    <input
+                      type="date"
+                      name="date"
+                      className="af-input"
+                      value={form.date}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  <div className="af-col">
+                    <label className="af-label">Mulai</label>
+                    <input
+                      type="time"
+                      name="start"
+                      className="af-input"
+                      value={form.start}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  <div className="af-col">
+                    <label className="af-label">Selesai</label>
+                    <input
+                      type="time"
+                      name="end"
+                      className="af-input"
+                      value={form.end}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                </div>
+
+                {formErr && (
+                  <div className="pd-error" style={{ marginTop: 8 }}>
+                    {formErr}
+                  </div>
+                )}
+
+                <div className="af-actions">
+                  <button
+                    type="button"
+                    className="pd-ghost"
+                    onClick={closeAdd}
+                    disabled={saving}
+                  >
+                    Batal
+                  </button>
+                  <button type="submit" className="pd-danger" disabled={saving}>
+                    {saving ? "Menyimpan…" : "Simpan"}
+                  </button>
+                </div>
+              </form>
             )}
-            {!agendaLoading && !agendaErr && agendas.length === 0 && (
-              <div className="pd-empty">Belum ada agenda.</div>
-            )}
-            {!agendaLoading &&
-              !agendaErr &&
-              agendas.map((a) => (
-                <AgendaItem
-                  key={a.id}
-                  id={a.id}
-                  title={a.title}
-                  time={formatRange(a.start, a.end)}
-                  desc={a.desc}
-                />
-              ))}
-          </div>
-        </section>
-      </main>
 
-      {/* Bottom nav dari API */}
-      {!loading && !err && (
-        <BottomNav
-          items={visibleMenus}
-          active="agenda"
-          onSelect={handleSelect}
-        />
-      )}
+            <div className="agenda-list">
+              {agendaLoading && (
+                <div className="pd-empty">Loading agendas…</div>
+              )}
+              {agendaErr && !agendaLoading && (
+                <div className="pd-error">Gagal memuat agenda: {agendaErr}</div>
+              )}
+              {!agendaLoading && !agendaErr && agendas.length === 0 && (
+                <div className="pd-empty">Belum ada agenda.</div>
+              )}
+              {!agendaLoading &&
+                !agendaErr &&
+                agendas.map((a) => (
+                  <AgendaItem
+                    key={a.id}
+                    id={a.id}
+                    title={a.title}
+                    time={formatRange(a.start, a.end)}
+                    desc={a.desc}
+                  />
+                ))}
+            </div>
+          </section>
+        </main>
 
-        <MeetingFooter
-          showLeaveButton={true}
-        />
+        {/* Bottom nav dari API */}
+        {!loading && !err && (
+          <BottomNav
+            items={visibleMenus}
+            active="agenda"
+            onSelect={handleSelect}
+          />
+        )}
 
-
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );
