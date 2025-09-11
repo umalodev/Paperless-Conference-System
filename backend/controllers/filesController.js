@@ -1,9 +1,10 @@
 // controllers/filesController.js
 const path = require("path");
 const fs = require("fs/promises");
+const { Op } = require("sequelize");
 
 module.exports = (models, opts = {}) => {
-  const { File, User } = models;
+  const { File, User, Meeting } = models;
   const uploadBaseUrl = opts.uploadBaseUrl || "/uploads/files";
 
   const sanitize = (row) => ({
@@ -87,6 +88,86 @@ module.exports = (models, opts = {}) => {
       } catch (e) {
         return res
           .status(400)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    history: async (req, res) => {
+      try {
+        const limit = Math.min(Number(req.query.limit) || 20, 100);
+        const excludeMeetingId = req.query.excludeMeetingId
+          ? Number(req.query.excludeMeetingId)
+          : null;
+        const withFilesOnly = String(req.query.withFilesOnly || "1") === "1";
+        const q = (req.query.q || "").trim();
+
+        // ambil meetings aktif terbaru
+        const whereMeeting = { flag: "Y" };
+        if (excludeMeetingId)
+          whereMeeting.meetingId = { [Op.ne]: excludeMeetingId };
+
+        const meetings = await Meeting.findAll({
+          where: whereMeeting,
+          order: [["startTime", "DESC"]],
+          limit,
+          attributes: ["meetingId", "title", "startTime", "endTime", "status"],
+        });
+
+        if (meetings.length === 0) {
+          return res.json({
+            success: true,
+            message: "Files history retrieved",
+            data: [],
+          });
+        }
+
+        const ids = meetings.map((m) => m.meetingId);
+
+        const whereFiles = { meetingId: { [Op.in]: ids }, flag: "Y" };
+        if (q) {
+          whereFiles[Op.or] = [
+            { originalName: { [Op.like]: `%${q}%` } },
+            { description: { [Op.like]: `%${q}%` } },
+          ];
+        }
+
+        const fileRows = await File.findAll({
+          where: whereFiles,
+          include: [{ model: User, as: "Uploader" }],
+          order: [["created_at", "DESC"]],
+        });
+
+        // group by meetingId
+        const grouped = new Map();
+        for (const m of meetings) {
+          grouped.set(m.meetingId, {
+            meetingId: m.meetingId,
+            title: m.title,
+            startTime: m.startTime,
+            endTime: m.endTime,
+            status: m.status,
+            files: [],
+          });
+        }
+        for (const r of fileRows) {
+          const g = grouped.get(r.meetingId);
+          if (!g) continue;
+          g.files.push(sanitize(r));
+        }
+
+        let data = Array.from(grouped.values());
+        if (withFilesOnly)
+          data = data.filter((g) => (g.files || []).length > 0);
+
+        return res.json({
+          success: true,
+          message: "Files history retrieved",
+          data,
+        });
+      } catch (e) {
+        console.error("Files history error:", e);
+        return res
+          .status(500)
           .json({ success: false, message: e.message || e });
       }
     },

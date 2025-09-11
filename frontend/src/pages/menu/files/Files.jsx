@@ -17,10 +17,10 @@ import {
 
 const absolutize = (u) => {
   if (!u) return "";
-  if (/^https?:\/\//i.test(u)) return u; // sudah absolut
+  if (/^https?:\/\//i.test(u)) return u;
   const base = String(API_URL || "").replace(/\/+$/, "");
-  const path = `/${String(u).replace(/^\/+/, "")}`;
-  return `${base}${path}`;
+  const p = `/${String(u).replace(/^\/+/, "")}`;
+  return `${base}${p}`;
 };
 
 export default function Files() {
@@ -41,11 +41,15 @@ export default function Files() {
   const [desc, setDesc] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Screen sharing UI moved to dedicated page
+  // HISTORY UI
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyGroups, setHistoryGroups] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [errHistory, setErrHistory] = useState("");
+  const [qHistory, setQHistory] = useState("");
 
   const navigate = useNavigate();
 
-  // meetingId dari localStorage
   const meetingId = useMemo(() => {
     try {
       const raw = localStorage.getItem("currentMeeting");
@@ -61,9 +65,7 @@ export default function Files() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Screen sharing controls handled elsewhere
-
-  // bottom nav (ikon dari DB)
+  // menus
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -97,7 +99,7 @@ export default function Files() {
     };
   }, []);
 
-  // load files dari API
+  // load files current meeting
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -121,6 +123,50 @@ export default function Files() {
       cancel = true;
     };
   }, [meetingId]);
+
+  // load history
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    setErrHistory("");
+    try {
+      const url = new URL(`${API_URL}/api/files/history`);
+      if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
+      url.searchParams.set("limit", "30");
+      url.searchParams.set("withFilesOnly", "1");
+      if (qHistory.trim()) url.searchParams.set("q", qHistory.trim());
+
+      const res = await fetch(url.toString(), {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+
+      const groups = Array.isArray(json?.data)
+        ? json.data.map((g) => ({
+            meetingId: g.meetingId,
+            title: g.title,
+            startTime: g.startTime,
+            endTime: g.endTime,
+            status: g.status,
+            files: (g.files || []).map((f) => ({
+              ...f,
+              urlAbs: absolutize(f.url),
+            })),
+          }))
+        : [];
+      setHistoryGroups(groups);
+    } catch (e) {
+      setErrHistory(String(e.message || e));
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showHistory) fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistory]);
 
   const visibleMenus = useMemo(
     () =>
@@ -167,7 +213,15 @@ export default function Files() {
     if (!confirm("Hapus file ini?")) return;
     try {
       await deleteFile(fileId);
+      // hapus dari current list
       setFiles((prev) => prev.filter((x) => x.fileId !== fileId));
+      // juga dari history (kalau ada)
+      setHistoryGroups((prev) =>
+        prev.map((g) => ({
+          ...g,
+          files: g.files.filter((f) => f.fileId !== fileId),
+        }))
+      );
     } catch (e) {
       alert(`Gagal menghapus: ${e.message || e}`);
     }
@@ -180,8 +234,8 @@ export default function Files() {
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
-      socket={null} // Will be set when socket is integrated
-      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+      socket={null}
+      mediasoupDevice={null}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -216,8 +270,6 @@ export default function Files() {
 
         {/* Content */}
         <main className="pd-main">
-          {/* Screen share moved to dedicated page */}
-
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
@@ -233,6 +285,14 @@ export default function Files() {
                     onChange={(e) => setQ(e.target.value)}
                   />
                 </div>
+                <button
+                  className={`files-btn ${showHistory ? "active" : ""}`}
+                  onClick={() => setShowHistory((s) => !s)}
+                  title="Riwayat file meeting sebelumnya"
+                >
+                  <Icon slug="history" size={18} />
+                  <span>{showHistory ? "Tutup Riwayat" : "Riwayat"}</span>
+                </button>
                 <button
                   className="files-btn ghost"
                   onClick={() => window.location.reload()}
@@ -256,7 +316,13 @@ export default function Files() {
                 onChange={(e) => setPick(e.target.files?.[0] || null)}
                 style={{ marginRight: 8 }}
               />
-
+              <input
+                type="text"
+                placeholder="Deskripsi (opsional)"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                className="file-desc-input"
+              />
               <button
                 className="files-btn"
                 type="submit"
@@ -290,10 +356,66 @@ export default function Files() {
                 )}
               </>
             )}
+
+            {/* HISTORY */}
+            {showHistory && (
+              <>
+                <div className="files-divider" />
+                <section className="files-history">
+                  <div className="files-history-head">
+                    <h3 className="files-history-title">
+                      <Icon slug="history" /> Riwayat Files
+                    </h3>
+                    <div className="files-history-actions">
+                      <input
+                        className="files-history-search"
+                        type="text"
+                        placeholder="Cari di riwayat…"
+                        value={qHistory}
+                        onChange={(e) => setQHistory(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && fetchHistory()}
+                      />
+                      <button className="files-btn" onClick={fetchHistory}>
+                        <Icon slug="search" size={16} />
+                        <span>Cari</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingHistory && (
+                    <div className="pd-empty">Memuat riwayat…</div>
+                  )}
+                  {errHistory && !loadingHistory && (
+                    <div className="pd-error">
+                      Gagal memuat riwayat: {errHistory}
+                    </div>
+                  )}
+                  {!loadingHistory &&
+                    !errHistory &&
+                    historyGroups.length === 0 && (
+                      <div className="pd-empty">Belum ada riwayat files.</div>
+                    )}
+
+                  {!loadingHistory &&
+                    !errHistory &&
+                    historyGroups.length > 0 && (
+                      <div className="files-accordion">
+                        {historyGroups.map((g) => (
+                          <FilesHistoryGroup
+                            key={g.meetingId}
+                            group={g}
+                            me={user}
+                            onDelete={handleDelete}
+                          />
+                        ))}
+                      </div>
+                    )}
+                </section>
+              </>
+            )}
           </section>
         </main>
 
-        {/* Bottom nav dari DB (ikon dari database) */}
         {!loadingMenus && !errMenus && (
           <BottomNav
             items={visibleMenus}
@@ -305,6 +427,44 @@ export default function Files() {
         <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
+  );
+}
+
+function FilesHistoryGroup({ group, me, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const { meetingId, title, startTime, endTime, status, files } = group || {};
+
+  return (
+    <div className={`facc ${open ? "open" : ""}`}>
+      <button className="facc-head" onClick={() => setOpen((o) => !o)}>
+        <div className="facc-info">
+          <div className="facc-title">
+            {title || `Meeting #${meetingId}`}
+            {status && <span className={`fchip ${status}`}>{status}</span>}
+          </div>
+          <div className="facc-meta">{formatDateRange(startTime, endTime)}</div>
+        </div>
+        <div className="facc-count">
+          <Icon slug="files" size={16} />
+          {files?.length || 0}
+        </div>
+      </button>
+
+      {open && (
+        <div className="facc-body">
+          {(!files || files.length === 0) && (
+            <div className="pd-empty">Tidak ada file.</div>
+          )}
+          {files && files.length > 0 && (
+            <div className="files-grid">
+              {files.map((f) => (
+                <FileCard key={f.fileId} file={f} me={me} onDelete={onDelete} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -376,7 +536,7 @@ function FileCard({ file, me, onDelete }) {
   );
 }
 
-/* utils kecil */
+/* utils */
 function getExt(name = "") {
   const m = name.toLowerCase().match(/\.([a-z0-9]+)$/);
   return m ? m[1] : "";
@@ -430,6 +590,26 @@ function formatDate(iso) {
     });
   } catch {
     return "";
+  }
+}
+function formatDateRange(a, b) {
+  try {
+    const s = a ? new Date(a) : null;
+    const e = b ? new Date(b) : null;
+    const fmt = (d) =>
+      d.toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    if (s && e) return `${fmt(s)} – ${fmt(e)}`;
+    if (s) return fmt(s);
+    if (e) return fmt(e);
+    return "—";
+  } catch {
+    return "—";
   }
 }
 

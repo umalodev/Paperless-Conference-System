@@ -406,3 +406,137 @@
     font-size: 10px;
   }
 }
+
+/* Toggle & divider */
+.files-btn.active {
+  background: #eaf2ff;
+  border-color: #d6e4ff;
+}
+.files-divider {
+  height: 1px;
+  background: #eef0f3;
+  margin: 18px 0 12px;
+}
+
+/* history header */
+.files-history {
+  margin-top: 8px;
+}
+.files-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.files-history-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 16px;
+  color: #111827;
+}
+.files-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.files-history-search {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 220px;
+}
+
+/* accordion */
+.files-accordion {
+  display: grid;
+  gap: 10px;
+}
+.facc {
+  border: 1px solid #eef0f2;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+.facc.open {
+  border-color: #dde6ff;
+  box-shadow: 0 3px 10px rgba(26, 77, 255, 0.06);
+}
+.facc-head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(0deg, #fff, #f9fbff);
+  cursor: pointer;
+}
+.facc-info {
+  min-width: 0;
+}
+.facc-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: #111827;
+}
+.facc-meta {
+  font-size: 12px;
+  color: #6b7280;
+}
+.facc-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+.facc-body {
+  padding: 12px;
+  background: #fcfdff;
+}
+
+/* small input near uploader */
+.file-desc-input {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 6px 8px;
+  min-width: 200px;
+  margin-right: 8px;
+}
+
+/* optional status chip */
+.fchip {
+  margin-left: 8px;
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #f5f7fb;
+  color: #666;
+  border: 1px solid #eaeef5;
+}
+.fchip.started {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #d1fae5;
+}
+.fchip.ended {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+.fchip.scheduled {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fde68a;
+}

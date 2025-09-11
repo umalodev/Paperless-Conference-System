@@ -29,6 +29,8 @@ const controller = filesControllerFactory(db, {
   uploadBaseUrl: "/uploads/files",
 });
 
+router.get("/history", authenticateToken, controller.history);
+
 // list + create + delete
 router.get("/", authenticateToken, controller.list); // ?meetingId=...
 router.post("/", authenticateToken, upload.single("file"), controller.create);
