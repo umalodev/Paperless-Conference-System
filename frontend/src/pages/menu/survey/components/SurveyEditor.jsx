@@ -187,60 +187,74 @@ export default function SurveyEditor({
   const canSave = payload.title && payload.questions.length > 0;
 
   return (
-    <div className="svr-item" style={{ borderColor: "#dbe1e6" }}>
-      <div className="svr-qtext" style={{ marginBottom: 8 }}>
+    <div
+      className="svr-item"
+      style={{
+        borderColor: "#dbe1e6",
+        background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+      }}
+    >
+      <div
+        className="svr-qtext"
+        style={{
+          marginBottom: 16,
+          fontSize: 18,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span style={{ fontSize: "24px" }}>✏️</span>
         Kelola Survey
       </div>
 
-      <div className="af-row" style={{ marginBottom: 8 }}>
-        <label className="af-label">Judul</label>
-        <input
-          className="svr-text"
-          placeholder="Contoh: Survey Kepuasan"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+      <div className="svr-editor-section">
+        <div className="af-row">
+          <label className="af-label">📝 Judul Survey</label>
+          <input
+            className="svr-text"
+            placeholder="Contoh: Survey Kepuasan Peserta Meeting"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+
+        <div className="af-row">
+          <label className="af-label">📄 Deskripsi (Opsional)</label>
+          <textarea
+            className="svr-text"
+            rows={3}
+            placeholder="Jelaskan tujuan survey ini kepada peserta..."
+            value={description || ""}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+
+        <label className="svr-opt" style={{ marginBottom: 0 }}>
+          <input
+            type="checkbox"
+            checked={isShow}
+            onChange={(e) => setIsShow(e.target.checked)}
+          />
+          <span>🌐 Tampilkan ke peserta (aktif)</span>
+        </label>
       </div>
 
-      <div className="af-row" style={{ marginBottom: 8 }}>
-        <label className="af-label">Deskripsi</label>
-        <textarea
-          className="svr-text"
-          rows={2}
-          placeholder="Opsional"
-          value={description || ""}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </div>
-
-      <label className="svr-opt" style={{ marginBottom: 12 }}>
-        <input
-          type="checkbox"
-          checked={isShow}
-          onChange={(e) => setIsShow(e.target.checked)}
-        />
-        <span>Tampilkan ke peserta (aktif)</span>
-      </label>
-
-      <div className="svr-qtext" style={{ margin: "8px 0" }}>
-        Pertanyaan
+      <div
+        className="svr-qtext"
+        style={{ margin: "16px 0 12px 0", fontSize: 16 }}
+      >
+        ❓ Pertanyaan
       </div>
       <div className="svr-list">
         {questions.map((q, idx) => (
-          <div className="svr-item" key={q._id}>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
+          <div className="svr-question-editor" key={q._id}>
+            <div className="svr-question-controls">
               <select
                 className="svr-text"
                 value={q.typeName}
                 onChange={(e) => changeType(q._id, e.target.value)}
-                style={{ maxWidth: 220 }}
+                style={{ maxWidth: 200, flex: 1 }}
               >
                 {(types.length
                   ? types
@@ -253,7 +267,17 @@ export default function SurveyEditor({
                     ]
                 ).map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {t === "short_text"
+                      ? "📝 Teks Singkat"
+                      : t === "paragraph"
+                      ? "📄 Paragraf"
+                      : t === "multiple_choice"
+                      ? "🔘 Pilihan Ganda"
+                      : t === "checkbox"
+                      ? "☑️ Checkbox"
+                      : t === "date"
+                      ? "📅 Tanggal"
+                      : t}
                   </option>
                 ))}
               </select>
@@ -262,25 +286,40 @@ export default function SurveyEditor({
                 type="button"
                 className="svr-btn"
                 onClick={() => move(q._id, "up")}
-                title="Naik"
+                title="Pindah ke atas"
+                style={{
+                  background: "#f0f9ff",
+                  borderColor: "#3b82f6",
+                  color: "#1d4ed8",
+                }}
               >
-                ▲
+                ⬆️
               </button>
               <button
                 type="button"
                 className="svr-btn"
                 onClick={() => move(q._id, "down")}
-                title="Turun"
+                title="Pindah ke bawah"
+                style={{
+                  background: "#f0f9ff",
+                  borderColor: "#3b82f6",
+                  color: "#1d4ed8",
+                }}
               >
-                ▼
+                ⬇️
               </button>
               <button
                 type="button"
                 className="svr-btn"
                 onClick={() => removeQuestion(q._id)}
-                title="Hapus"
+                title="Hapus pertanyaan"
+                style={{
+                  background: "#fef2f2",
+                  borderColor: "#f87171",
+                  color: "#dc2626",
+                }}
               >
-                🗑
+                🗑️
               </button>
             </div>
 
@@ -301,16 +340,19 @@ export default function SurveyEditor({
             </label>
 
             {NEEDS_OPTIONS.has(q.typeName) && (
-              <div style={{ marginTop: 8 }}>
-                <div className="svr-qtext" style={{ marginBottom: 6 }}>
-                  Opsi
+              <div style={{ marginTop: 12 }}>
+                <div
+                  className="svr-qtext"
+                  style={{ marginBottom: 8, fontSize: 14 }}
+                >
+                  🎯 Opsi Jawaban
                 </div>
                 <div className="svr-options">
                   {(q.options || []).map((op) => (
-                    <div key={op._id} className="svr-opt" style={{ gap: 8 }}>
+                    <div key={op._id} className="svr-option-editor">
                       <input
                         className="svr-text"
-                        placeholder="Teks opsi…"
+                        placeholder="Masukkan opsi jawaban..."
                         value={op.optionBody}
                         onChange={(e) =>
                           changeOptionBody(q._id, op._id, e.target.value)
@@ -320,6 +362,11 @@ export default function SurveyEditor({
                         type="button"
                         className="svr-btn"
                         onClick={() => removeOption(q._id, op._id)}
+                        style={{
+                          background: "#fef2f2",
+                          borderColor: "#f87171",
+                          color: "#dc2626",
+                        }}
                       >
                         ✕
                       </button>
@@ -329,10 +376,15 @@ export default function SurveyEditor({
                 <button
                   type="button"
                   className="svr-btn"
-                  style={{ marginTop: 8 }}
+                  style={{
+                    marginTop: 8,
+                    background: "#f0fdf4",
+                    borderColor: "#22c55e",
+                    color: "#16a34a",
+                  }}
                   onClick={() => addOption(q._id)}
                 >
-                  <Icon slug="plus" /> <span>Tambah Opsi</span>
+                  <Icon slug="plus" /> <span>➕ Tambah Opsi</span>
                 </button>
               </div>
             )}
@@ -340,25 +392,47 @@ export default function SurveyEditor({
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      <div
+        style={{ display: "flex", gap: 12, marginTop: 20, flexWrap: "wrap" }}
+      >
         <button
           type="button"
           className="svr-btn"
           onClick={() => addQuestion("short_text")}
+          style={{
+            background: "#f0f9ff",
+            borderColor: "#3b82f6",
+            color: "#1d4ed8",
+          }}
         >
-          <Icon slug="plus" /> <span>Tambah Pertanyaan</span>
+          <Icon slug="plus" /> <span>➕ Tambah Pertanyaan</span>
         </button>
-        <button type="button" className="svr-btn" onClick={onCancel}>
-          Batal
+        <button
+          type="button"
+          className="svr-btn"
+          onClick={onCancel}
+          style={{
+            background: "#f8fafc",
+            borderColor: "#cbd5e1",
+            color: "#64748b",
+          }}
+        >
+          ❌ Batal
         </button>
         <button
           type="button"
           className="svr-submit"
           onClick={() => onSave(payload)}
           disabled={!canSave || saving}
+          style={{
+            background: canSave
+              ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+              : "#9ca3af",
+            boxShadow: canSave ? "0 4px 12px rgba(16, 185, 129, 0.3)" : "none",
+          }}
         >
           <Icon slug="save" name="save" />
-          <span>{saving ? "Menyimpan…" : "Simpan Survey"}</span>
+          <span>{saving ? "💾 Menyimpan…" : "💾 Simpan Survey"}</span>
         </button>
       </div>
     </div>

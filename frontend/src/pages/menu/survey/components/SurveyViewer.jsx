@@ -143,21 +143,55 @@ export default function SurveyViewer({ survey, meetingId }) {
     return (
       <>
         {survey.title ? (
-          <div className="svr-msg ok" style={{ marginBottom: 10 }}>
-            <b>{survey.title}</b>
-            {survey.description ? ` — ${survey.description}` : ""}
+          <div className="svr-msg ok" style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 8,
+              }}
+            >
+              <div style={{ fontSize: "24px" }}>✅</div>
+              <div>
+                <b style={{ fontSize: "18px" }}>{survey.title}</b>
+                {survey.description && (
+                  <div style={{ fontSize: "14px", opacity: 0.8, marginTop: 4 }}>
+                    {survey.description}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ) : null}
 
-        <div className="svr-msg ok" style={{ marginBottom: 10 }}>
-          Terima kasih! Anda sudah mengisi survey ini.
+        <div
+          className="svr-msg ok"
+          style={{ marginBottom: 16, textAlign: "center" }}
+        >
+          <div style={{ fontSize: "48px", marginBottom: 12 }}>🎉</div>
+          <div style={{ fontSize: "16px", fontWeight: 600, marginBottom: 4 }}>
+            Terima kasih! Survey berhasil dikirim.
+          </div>
+          <div style={{ fontSize: "14px", opacity: 0.8 }}>
+            Jawaban Anda telah tersimpan dengan aman.
+          </div>
         </div>
 
-        <div className="svr-actions" style={{ justifyContent: "flex-start" }}>
-          <button className="svr-btn" onClick={() => setShowAnswers((v) => !v)}>
+        <div className="svr-actions" style={{ justifyContent: "center" }}>
+          <button
+            className="svr-btn"
+            onClick={() => setShowAnswers((v) => !v)}
+            style={{
+              background: "#f0f9ff",
+              borderColor: "#3b82f6",
+              color: "#1d4ed8",
+              padding: "12px 20px",
+            }}
+          >
             <Icon slug="eye" />{" "}
             <span>
-              {showAnswers ? "Sembunyikan jawaban" : "Lihat jawaban saya"}
+              {showAnswers ? "Sembunyikan jawaban" : "👀 Lihat jawaban saya"}
             </span>
           </button>
         </div>
@@ -210,9 +244,25 @@ export default function SurveyViewer({ survey, meetingId }) {
   return (
     <>
       {survey.title ? (
-        <div className="svr-msg ok" style={{ marginBottom: 10 }}>
-          <b>{survey.title}</b>
-          {survey.description ? ` — ${survey.description}` : ""}
+        <div className="svr-msg ok" style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 8,
+            }}
+          >
+            <div style={{ fontSize: "24px" }}>📋</div>
+            <div>
+              <b style={{ fontSize: "18px" }}>{survey.title}</b>
+              {survey.description && (
+                <div style={{ fontSize: "14px", opacity: 0.8, marginTop: 4 }}>
+                  {survey.description}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
 

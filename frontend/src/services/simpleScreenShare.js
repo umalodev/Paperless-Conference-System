@@ -37,8 +37,7 @@ class SimpleScreenShare {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     
-    // For production, use same port as frontend (usually 80/443)
-    // For development, use port 3000 for backend
+    
     const port = process.env.NODE_ENV === 'production' ? '' : ':3000';
     const wsUrl = `${protocol}//${host}${port}/meeting/${this.meetingId}`;
     

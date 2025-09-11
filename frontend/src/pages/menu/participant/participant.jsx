@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-// Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function ParticipantsPage() {
   const [user, setUser] = useState(null);
@@ -21,8 +20,6 @@ export default function ParticipantsPage() {
   const [loadingList, setLoadingList] = useState(false);
   const [errList, setErrList] = useState("");
 
-  // Screen sharing UI moved to dedicated page
-
   const navigate = useNavigate();
   const meetingId = useMemo(() => {
     try {
@@ -34,16 +31,12 @@ export default function ParticipantsPage() {
     }
   }, []);
 
-  // meetingId dari localStorage
-
-  // Screen sharing controls handled elsewhere
-
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Ambil menu bottom-nav dari API (sama dengan dashboard)
+  // BottomNav menus
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -76,7 +69,7 @@ export default function ParticipantsPage() {
     };
   }, []);
 
-  // Ambil data participant dari database
+  // Participants (polling)
   useEffect(() => {
     let cancel = false;
 
@@ -85,43 +78,57 @@ export default function ParticipantsPage() {
         setLoadingList(true);
         setErrList("");
 
-        const qs = meetingId
-          ? `?meetingId=${encodeURIComponent(meetingId)}`
-          : "";
-        // Try to get participants with status "joined" from database first
+        const qs = meetingId ? `?meetingId=${encodeURIComponent(meetingId)}` : "";
         let res = await fetch(`${API_URL}/api/participants/joined${qs}`, {
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
 
-        // If joined endpoint fails, fallback to test-data endpoint
         if (!res.ok) {
-          console.log("Joined endpoint failed, trying test-data endpoint...");
+          // fallback test
           res = await fetch(`${API_URL}/api/participants/test-data`, {
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
           });
         }
-
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const json = await res.json();
 
         if (!cancel) {
           if (json.success) {
-            setParticipants(json.data || []);
+            const fresh = Array.isArray(json.data) ? json.data : [];
+
+            setParticipants((prev) => {
+              if (prev.length === 0) {
+                // initial: lama -> baru (biar nambahnya ke bawah)
+                return [...fresh].sort((a, b) => {
+                  const ta = new Date(a.joinTime || a.createdAt || 0).getTime();
+                  const tb = new Date(b.joinTime || b.createdAt || 0).getTime();
+                  return ta - tb;
+                });
+              }
+
+              // pertahankan urutan lama, update atribut, dan append item baru di bawah
+              const freshById = new Map(fresh.map((p) => [p.id, p]));
+              const prevIds = new Set(prev.map((p) => p.id));
+
+              const merged = prev.map((old) => {
+                const f = freshById.get(old.id);
+                return f ? { ...old, ...f } : old;
+              });
+
+              fresh.forEach((p) => {
+                if (!prevIds.has(p.id)) merged.push(p); // nambah di bawah
+              });
+
+              return merged;
+            });
           } else {
             setErrList(json.message || "Failed to load participants");
           }
         }
       } catch (e) {
         if (!cancel) {
-          console.error("Error loading participants:", e);
           setErrList(String(e.message || e));
         }
       } finally {
@@ -129,17 +136,13 @@ export default function ParticipantsPage() {
       }
     };
 
-    // Load participants immediately
     loadParticipants();
-
-    // Set up polling every 5 seconds to refresh participant data
     const interval = setInterval(loadParticipants, 5000);
-
     return () => {
       cancel = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [meetingId]);
 
   const visibleMenus = useMemo(
     () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
@@ -151,8 +154,8 @@ export default function ParticipantsPage() {
     if (!q) return participants;
     return participants.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.role.toLowerCase().includes(q) ||
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.role || "").toLowerCase().includes(q) ||
         (p.seat || "").toLowerCase().includes(q)
     );
   }, [participants, query]);
@@ -167,41 +170,31 @@ export default function ParticipantsPage() {
 
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
 
-  // Function to update participant status
+  // Update status mic/cam
   const updateParticipantStatus = async (participantId, updates) => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+      if (!token) throw new Error("No authentication token found");
 
-      // Map frontend properties to database fields
       const dbUpdates = {};
       if (updates.mic !== undefined) dbUpdates.isAudioEnabled = updates.mic;
       if (updates.cam !== undefined) dbUpdates.isVideoEnabled = updates.cam;
       if (updates.isScreenSharing !== undefined)
         dbUpdates.isScreenSharing = updates.isScreenSharing;
 
-      const res = await fetch(
-        `${API_URL}/api/participants/${participantId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(dbUpdates),
-        }
-      );
+      const res = await fetch(`${API_URL}/api/participants/${participantId}/status`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dbUpdates),
+      });
 
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
 
       if (json.success) {
-        // Update local state
         setParticipants((prev) =>
           prev.map((p) => (p.id === participantId ? { ...p, ...updates } : p))
         );
@@ -213,12 +206,10 @@ export default function ParticipantsPage() {
     }
   };
 
-  // Function to handle mic toggle
   const handleMicToggle = (participantId, currentStatus) => {
     updateParticipantStatus(participantId, { mic: !currentStatus });
   };
 
-  // Function to handle camera toggle
   const handleCameraToggle = (participantId, currentStatus) => {
     updateParticipantStatus(participantId, { cam: !currentStatus });
   };
@@ -230,8 +221,8 @@ export default function ParticipantsPage() {
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
-      socket={null} // Will be set when socket is integrated
-      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+      socket={null}
+      mediasoupDevice={null}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -245,29 +236,22 @@ export default function ParticipantsPage() {
           </div>
           <div className="pd-right">
             <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
                 {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
               <div>
-                <div className="pd-user-name">
-                  {user?.username || "Participant"}
-                </div>
+                <div className="pd-user-name">{user?.username || "Participant"}</div>
                 <div className="pd-user-role">Participant</div>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Content */}
+        {/* Content (scroll di sini) */}
         <main className="pd-main">
-          {/* Screen share moved to dedicated page */}
-
           <section className="prt-wrap">
             <div className="prt-header">
               <div className="prt-search">
@@ -295,36 +279,28 @@ export default function ParticipantsPage() {
 
             <div className="prt-summary">
               <div className="prt-card">
-                <div className="prt-card-icon">
-                  <Icon slug="users" />
-                </div>
+                <div className="prt-card-icon"><Icon slug="users" /></div>
                 <div>
                   <div className="prt-card-title">{totals.total}</div>
                   <div className="prt-card-sub">Total</div>
                 </div>
               </div>
               <div className="prt-card">
-                <div className="prt-card-icon">
-                  <Icon slug="mic" />
-                </div>
+                <div className="prt-card-icon"><Icon slug="mic" /></div>
                 <div>
                   <div className="prt-card-title">{totals.micOn}</div>
                   <div className="prt-card-sub">Mic On</div>
                 </div>
               </div>
               <div className="prt-card">
-                <div className="prt-card-icon">
-                  <Icon slug="camera" />
-                </div>
+                <div className="prt-card-icon"><Icon slug="camera" /></div>
                 <div>
                   <div className="prt-card-title">{totals.camOn}</div>
                   <div className="prt-card-sub">Cam On</div>
                 </div>
               </div>
               <div className="prt-card">
-                <div className="prt-card-icon">
-                  <Icon slug="hand" />
-                </div>
+                <div className="prt-card-icon"><Icon slug="hand" /></div>
                 <div>
                   <div className="prt-card-title">{totals.hands}</div>
                   <div className="prt-card-sub">Raised</div>
@@ -333,9 +309,7 @@ export default function ParticipantsPage() {
             </div>
 
             {/* List peserta */}
-            {loadingList && (
-              <div className="pd-empty">Loading participants…</div>
-            )}
+            {loadingList && <div className="pd-empty">Loading participants…</div>}
             {errList && !loadingList && (
               <div className="pd-error">Gagal memuat peserta: {errList}</div>
             )}
@@ -352,9 +326,7 @@ export default function ParticipantsPage() {
                       <div className="prt-meta">
                         <span className="prt-role">{p.role}</span>
                         {p.seat && <span className="prt-sep">•</span>}
-                        {p.seat && (
-                          <span className="prt-seat">Seat {p.seat}</span>
-                        )}
+                        {p.seat && <span className="prt-seat">Seat {p.seat}</span>}
                       </div>
                       {p.joinTime && (
                         <div className="prt-join-time">
@@ -365,22 +337,14 @@ export default function ParticipantsPage() {
                     <div className="prt-status">
                       <button
                         className={`prt-pill ${p.mic ? "on" : "off"}`}
-                        title={
-                          p.mic
-                            ? "Mic On - Click to turn off"
-                            : "Mic Off - Click to turn on"
-                        }
+                        title={p.mic ? "Mic On - Click to turn off" : "Mic Off - Click to turn on"}
                         onClick={() => handleMicToggle(p.id, p.mic)}
                       >
                         <Icon slug="mic" />
                       </button>
                       <button
                         className={`prt-pill ${p.cam ? "on" : "off"}`}
-                        title={
-                          p.cam
-                            ? "Camera On - Click to turn off"
-                            : "Camera Off - Click to turn on"
-                        }
+                        title={p.cam ? "Camera On - Click to turn off" : "Camera Off - Click to turn on"}
                         onClick={() => handleCameraToggle(p.id, p.cam)}
                       >
                         <Icon slug="camera" />
@@ -392,20 +356,15 @@ export default function ParticipantsPage() {
                       )}
                     </div>
                     <div className="prt-actions-right">
-                      <button className="prt-act" title="Pin">
-                        <Icon slug="pin" />
-                      </button>
-                      <button className="prt-act" title="More">
-                        <Icon slug="dots" />
-                      </button>
+                      <button className="prt-act" title="Pin"><Icon slug="pin" /></button>
+                      <button className="prt-act" title="More"><Icon slug="dots" /></button>
                     </div>
                   </div>
                 ))}
 
                 {filtered.length === 0 && participants.length === 0 && (
                   <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
-                    Tidak ada peserta yang sedang bergabung dalam meeting saat
-                    ini.
+                    Tidak ada peserta yang sedang bergabung dalam meeting saat ini.
                   </div>
                 )}
 
@@ -428,9 +387,7 @@ export default function ParticipantsPage() {
           />
         )}
 
-        <MeetingFooter
-          userRole={user?.role || "participant"}
-        />
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );

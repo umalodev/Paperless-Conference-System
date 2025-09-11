@@ -151,11 +151,12 @@
 
 
 /* Toggle Switch */
+/* CHANGED: diseragamkan ukurannya agar sejajar */
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 60px;
-  height: 30px;
+  width: 56px;   /* was 60px */
+  height: 28px;  /* was 30px */
 }
 
 .toggle-switch input {
@@ -172,19 +173,19 @@
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  transition: 0.3s;
-  border-radius: 30px;
+  transition: 0.25s; /* was 0.3s */
+  border-radius: 28px; /* was 30px */
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 22px;
-  width: 22px;
+  height: 20px;  /* was 22px */
+  width: 20px;   /* was 22px */
   left: 4px;
   bottom: 4px;
   background-color: white;
-  transition: 0.3s;
+  transition: 0.25s; /* was 0.3s */
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
@@ -194,7 +195,7 @@ input:checked + .slider {
 }
 
 input:checked + .slider:before {
-  transform: translateX(30px);
+  transform: translateX(28px); /* was 30px */
 }
 
 
@@ -206,24 +207,35 @@ input:checked + .slider:before {
   box-shadow: 0 10px 8px rgba(0, 180, 0, 0.3);
 }
 
+/* CHANGED: kunci layout kolom agar header–body sejajar */
 .permissions-table table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;  /* was collapse */
+  border-spacing: 0;          /* ADDED */
+  table-layout: fixed;        /* ADDED */
 }
 
 .permissions-table th,
 .permissions-table td {
   padding: 20px;
-  text-align: left;
+  /* REMOVED: text-align: left;  */
   border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;     /* ADDED: toggle center secara vertikal */
 }
 
+/* Tetap: header center */
 .permissions-table th {
   background: #f8f9fa;
   color: #000;
   font-weight: 600;
   font-size: 1rem;
   text-align: center;
+}
+
+/* ADDED: kolom pertama (Menu) rata kiri */
+.permissions-table thead th:first-child {
+  text-align: left;
+  padding-left: 24px;
 }
 
 .permissions-table td {
@@ -234,11 +246,24 @@ input:checked + .slider:before {
 .menu-name {
   font-weight: 600;
   text-align: left;
+  padding-left: 24px; /* ADDED: konsisten dengan header */
 }
 
 .access-cell {
   text-align: center;
+  min-width: 140px;   /* ADDED: biar toggle tidak geser-geser */
 }
+
+/* ADDED: lebar kolom tetap — Menu 40%, tiap role 20% */
+.permissions-table thead th:nth-child(1),
+.permissions-table tbody td:nth-child(1) { width: 40%; }
+
+.permissions-table thead th:nth-child(2),
+.permissions-table tbody td:nth-child(2),
+.permissions-table thead th:nth-child(3),
+.permissions-table tbody td:nth-child(3),
+.permissions-table thead th:nth-child(4),
+.permissions-table tbody td:nth-child(4) { width: 20%; }
 
 /* Loading and Error States */
 .loading {
@@ -282,8 +307,9 @@ input:checked + .slider:before {
     -webkit-overflow-scrolling: touch;
   }
   
+  /* CHANGED: beri ruang lebih agar 3 kolom role muat */
   .permissions-table table {
-    min-width: 600px;
+    min-width: 680px; /* was 600px */
   }
   
   .permissions-table th,
