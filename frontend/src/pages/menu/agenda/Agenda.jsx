@@ -7,38 +7,44 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import "./Agenda.css";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-// Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
   const [displayName, setDisplayName] = useState("");
+
+  // bottom nav
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  // current meeting agendas
   const [agendas, setAgendas] = useState([]);
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [agendaErr, setAgendaErr] = useState("");
 
+  // add form
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formErr, setFormErr] = useState("");
   const [form, setForm] = useState({
     judul: "",
     deskripsi: "",
-    date: "", // yyyy-mm-dd
-    start: "", // HH:MM
-    end: "", // HH:MM
+    date: "",
+    start: "",
+    end: "",
   });
 
-  // Check if user is host/admin (can add agenda)
-  const isHost = /^(host|admin)$/i.test(user?.role || "");
+  // history
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyGroups, setHistoryGroups] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyErr, setHistoryErr] = useState("");
 
-  // Screen sharing UI moved to dedicated page
+  const isHost = /^(host|admin)$/i.test(user?.role || "");
+  const canCreate = isHost;
 
   const navigate = useNavigate();
 
-  // meetingId dari localStorage (dibuat di Start saat create/join)
   const meetingId = useMemo(() => {
     try {
       const raw = localStorage.getItem("currentMeeting");
@@ -49,8 +55,6 @@ export default function Agenda() {
     }
   }, []);
 
-  // Screen sharing controls handled elsewhere
-
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
@@ -58,22 +62,15 @@ export default function Agenda() {
     setDisplayName(dn);
   }, []);
 
-  // Handle meeting end event
+  // end meeting handler
   useEffect(() => {
-    const handleMeetingEnd = (event) => {
-      console.log("Meeting ended, redirecting to start page");
+    const handleMeetingEnd = () => {
       localStorage.removeItem("currentMeeting");
       navigate("/start");
     };
-
     window.addEventListener("meeting-ended", handleMeetingEnd);
-
-    return () => {
-      window.removeEventListener("meeting-ended", handleMeetingEnd);
-    };
+    return () => window.removeEventListener("meeting-ended", handleMeetingEnd);
   }, [navigate]);
-
-  // Screen sharing setup removed
 
   // ----- MENUS -----
   useEffect(() => {
@@ -112,10 +109,9 @@ export default function Agenda() {
     () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
     [menus]
   );
-
   const handleSelect = (item) => navigate(`/menu/${item.slug}`);
 
-  // ----- AGENDAS -----
+  // ----- LOAD AGENDAS (current meeting) -----
   const loadAgendas = useCallback(async () => {
     setAgendaLoading(true);
     setAgendaErr("");
@@ -133,7 +129,7 @@ export default function Agenda() {
             title: it.judul,
             start: it.startTime || it.start_time,
             end: it.endTime || it.end_time,
-            desc: it.deskripsi || "<deskripsi kosong>",
+            desc: it.deskripsi || "",
           }))
         : [];
       setAgendas(items);
@@ -148,9 +144,52 @@ export default function Agenda() {
     loadAgendas();
   }, [loadAgendas]);
 
-  // ----- ADD AGENDA -----
-  const canCreate = !!meetingId && isHost;
+  // ----- LOAD HISTORY (group by meeting) -----
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryErr("");
+    try {
+      const url = new URL(`${API_URL}/api/agendas/history`);
+      if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
+      url.searchParams.set("limit", "30");
+      url.searchParams.set("withAgendasOnly", "1");
 
+      const res = await fetch(url.toString(), {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const groups = Array.isArray(json?.data)
+        ? json.data.map((g) => ({
+            meetingId: g.meetingId,
+            title: g.title,
+            startTime: g.startTime,
+            endTime: g.endTime,
+            status: g.status,
+            agendas: (g.agendas || []).map((a) => ({
+              id: a.id,
+              judul: a.judul,
+              deskripsi: a.deskripsi || "",
+              startTime: a.startTime || a.start_time,
+              endTime: a.endTime || a.end_time,
+              seq: a.seq,
+            })),
+          }))
+        : [];
+      setHistoryGroups(groups);
+    } catch (e) {
+      setHistoryErr(String(e.message || e));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [API_URL, meetingId]);
+
+  useEffect(() => {
+    if (showHistory) loadHistory();
+  }, [showHistory, loadHistory]);
+
+  // ----- ADD AGENDA -----
   const openAdd = () => {
     setFormErr("");
     setShowAdd(true);
@@ -161,40 +200,25 @@ export default function Agenda() {
     setFormErr("");
     setForm({ judul: "", deskripsi: "", date: "", start: "", end: "" });
   };
-
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
   };
-
-  const toISO = (dateStr, timeStr) => {
-    // Kirim sebagai local time ISO
-    // "2025-08-26" + "09:00" -> new Date("2025-08-26T09:00")
-    return new Date(`${dateStr}T${timeStr}`);
-  };
+  const toISO = (dateStr, timeStr) => new Date(`${dateStr}T${timeStr}`);
 
   const submitAdd = async (e) => {
     e.preventDefault();
     setFormErr("");
 
-    if (!canCreate) {
-      setFormErr("Meeting belum ada. Buat/Join meeting dulu.");
-      return;
-    }
-    if (!form.judul.trim()) {
-      setFormErr("Judul wajib diisi.");
-      return;
-    }
-    if (!form.date || !form.start || !form.end) {
-      setFormErr("Tanggal, jam mulai, dan jam selesai wajib diisi.");
-      return;
-    }
+    if (!meetingId) return setFormErr("Meeting belum ada. Buat/Join dulu.");
+    if (!form.judul.trim()) return setFormErr("Judul wajib diisi.");
+    if (!form.date || !form.start || !form.end)
+      return setFormErr("Tanggal, jam mulai, dan jam selesai wajib diisi.");
+
     const startDate = toISO(form.date, form.start);
     const endDate = toISO(form.date, form.end);
-    if (!(startDate < endDate)) {
-      setFormErr("Jam selesai harus lebih besar dari jam mulai.");
-      return;
-    }
+    if (!(startDate < endDate))
+      return setFormErr("Jam selesai harus lebih besar dari jam mulai.");
 
     try {
       setSaving(true);
@@ -232,8 +256,8 @@ export default function Agenda() {
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
-      socket={null} // Will be set when socket is integrated
-      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+      socket={null}
+      mediasoupDevice={null}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -267,26 +291,36 @@ export default function Agenda() {
           </div>
         </header>
 
-        {/* Konten utama */}
+        {/* Content */}
         <main className="pd-main">
-          {/* Screen share moved to dedicated page */}
-
           <section className="agenda-wrap">
             <div className="agenda-header">
-              <span className="agenda-title">Agenda</span>
+              <span className="agenda-title">
+                Agenda <span className="ag-chip">{agendas.length}</span>
+              </span>
 
-              {isHost && (
+              <div className="agenda-actions">
                 <button
-                  className="agenda-add"
-                  title="Add agenda"
-                  onClick={openAdd}
+                  className={`ag-btn ${showHistory ? "active" : ""}`}
+                  onClick={() => setShowHistory((s) => !s)}
                 >
-                  <Icon slug="plus" />
+                  <Icon slug="history" />{" "}
+                  {showHistory ? "Tutup Riwayat" : "Riwayat"}
                 </button>
-              )}
+
+                {isHost && (
+                  <button
+                    className="agenda-add"
+                    title="Tambah agenda"
+                    onClick={openAdd}
+                  >
+                    <Icon slug="plus" />
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Add form (inline) */}
+            {/* Add form */}
             {showAdd && (
               <form className="agenda-form" onSubmit={submitAdd}>
                 <div className="af-row">
@@ -345,11 +379,7 @@ export default function Agenda() {
                   </div>
                 </div>
 
-                {formErr && (
-                  <div className="pd-error" style={{ marginTop: 8 }}>
-                    {formErr}
-                  </div>
-                )}
+                {formErr && <div className="pd-error mt-8">{formErr}</div>}
 
                 <div className="af-actions">
                   <button
@@ -367,6 +397,7 @@ export default function Agenda() {
               </form>
             )}
 
+            {/* Current agendas */}
             <div className="agenda-list">
               {agendaLoading && (
                 <div className="pd-empty">Loading agendas…</div>
@@ -389,10 +420,49 @@ export default function Agenda() {
                   />
                 ))}
             </div>
+
+            {/* History panel */}
+            {showHistory && (
+              <>
+                <div className="ag-divider" />
+                <section className="ag-history">
+                  <h3 className="ag-history-title">
+                    <Icon slug="history" /> Riwayat Agenda{" "}
+                    <span className="ag-chip ghost">
+                      {historyGroups.length} meeting
+                    </span>
+                  </h3>
+
+                  {historyLoading && (
+                    <div className="pd-empty">Memuat riwayat…</div>
+                  )}
+                  {historyErr && !historyLoading && (
+                    <div className="pd-error">
+                      Gagal memuat riwayat: {historyErr}
+                    </div>
+                  )}
+                  {!historyLoading &&
+                    !historyErr &&
+                    historyGroups.length === 0 && (
+                      <div className="pd-empty">Belum ada riwayat agenda.</div>
+                    )}
+
+                  {!historyLoading &&
+                    !historyErr &&
+                    historyGroups.length > 0 && (
+                      <div className="ag-accordion">
+                        {historyGroups.map((g) => (
+                          <AgendaHistoryGroup key={g.meetingId} group={g} />
+                        ))}
+                      </div>
+                    )}
+                </section>
+              </>
+            )}
           </section>
         </main>
 
-        {/* Bottom nav dari API */}
+        {/* Bottom nav */}
         {!loading && !err && (
           <BottomNav
             items={visibleMenus}
@@ -407,10 +477,60 @@ export default function Agenda() {
   );
 }
 
+function AgendaHistoryGroup({ group }) {
+  const [open, setOpen] = useState(false);
+  const { meetingId, title, startTime, endTime, status, agendas } = group;
+
+  return (
+    <div className={`ag-acc ${open ? "open" : ""}`}>
+      <button className="ag-acc-head" onClick={() => setOpen((o) => !o)}>
+        <div className="ag-acc-info">
+          <div className="ag-acc-title">
+            {title || `Meeting #${meetingId}`}
+            {status && <span className={`ag-chip ${status}`}>{status}</span>}
+          </div>
+          <div className="ag-acc-meta">
+            {formatDateRange(startTime, endTime)}
+          </div>
+        </div>
+        <div className="ag-acc-count">
+          <Icon slug="calendar" />
+          {agendas?.length || 0}
+        </div>
+      </button>
+
+      {open && (
+        <div className="ag-acc-body">
+          {(!agendas || agendas.length === 0) && (
+            <div className="pd-empty">Tidak ada agenda.</div>
+          )}
+          {agendas &&
+            agendas.length > 0 &&
+            agendas.map((a) => (
+              <div className="ag-item" key={a.id}>
+                <div className="ag-item-left">
+                  <span className="ag-dot" />
+                  <div className="ag-item-title">{a.judul}</div>
+                </div>
+                <div className="ag-item-right">
+                  <div className="ag-item-time">
+                    {formatRange(a.startTime, a.endTime)}
+                  </div>
+                </div>
+                {a.deskripsi && (
+                  <div className="ag-item-desc">{a.deskripsi}</div>
+                )}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AgendaItem({ id, title, time, desc }) {
   const [open, setOpen] = React.useState(false);
   const hasDesc = !!desc && desc.trim().length > 0;
-
   const toggle = () => {
     if (hasDesc) setOpen((v) => !v);
   };
@@ -432,7 +552,6 @@ function AgendaItem({ id, title, time, desc }) {
         </div>
         <div className="agenda-right">
           <span className="agenda-time">{time}</span>
-
           {hasDesc && (
             <span className="agenda-caret" aria-hidden>
               ▾
@@ -462,4 +581,24 @@ function formatRange(start, end) {
   const f = (d) =>
     d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return `${f(s)} - ${f(e)}`;
+}
+function formatDateRange(a, b) {
+  try {
+    const s = a ? new Date(a) : null;
+    const e = b ? new Date(b) : null;
+    const fmt = (d) =>
+      d.toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    if (s && e) return `${fmt(s)} – ${fmt(e)}`;
+    if (s) return fmt(s);
+    if (e) return fmt(e);
+    return "—";
+  } catch {
+    return "—";
+  }
 }

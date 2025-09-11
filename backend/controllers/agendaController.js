@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { Agenda } = require("../models");
+const { Agenda, Meeting } = require("../models");
 
 class AgendaController {
   /**
@@ -82,6 +82,94 @@ class AgendaController {
     }
   }
 
+  static async getAgendaHistory(req, res) {
+    try {
+      const limit = Math.min(Number(req.query.limit) || 20, 100);
+      const excludeMeetingId = req.query.excludeMeetingId
+        ? Number(req.query.excludeMeetingId)
+        : null;
+      const withAgendasOnly = String(req.query.withAgendasOnly || "1") === "1";
+
+      // ambil meeting aktif terbaru
+      const whereMeeting = { flag: "Y" };
+      if (excludeMeetingId)
+        whereMeeting.meetingId = { [Op.ne]: excludeMeetingId };
+
+      const meetings = await Meeting.findAll({
+        where: whereMeeting,
+        order: [["startTime", "DESC"]],
+        limit,
+        attributes: ["meetingId", "title", "startTime", "endTime", "status"],
+      });
+
+      if (meetings.length === 0) {
+        return res.json({
+          success: true,
+          message: "Agenda history retrieved",
+          data: [],
+        });
+      }
+
+      const ids = meetings.map((m) => m.meetingId);
+      const agendaRows = await Agenda.findAll({
+        where: { meetingId: { [Op.in]: ids }, flag: "Y" },
+        order: [
+          ["seq", "ASC"],
+          ["start_time", "ASC"],
+          ["meeting_agenda_id", "ASC"],
+        ],
+        attributes: [
+          "meetingAgendaId",
+          "meetingId",
+          "judul",
+          "deskripsi",
+          "startTime",
+          "endTime",
+          "seq",
+        ],
+      });
+
+      // group agenda by meetingId
+      const grouped = new Map();
+      for (const m of meetings) {
+        grouped.set(m.meetingId, {
+          meetingId: m.meetingId,
+          title: m.title,
+          startTime: m.startTime,
+          endTime: m.endTime,
+          status: m.status,
+          agendas: [],
+        });
+      }
+      for (const a of agendaRows) {
+        const g = grouped.get(a.meetingId);
+        if (!g) continue;
+        g.agendas.push({
+          id: a.meetingAgendaId,
+          judul: a.judul,
+          deskripsi: a.deskripsi,
+          startTime: a.startTime,
+          endTime: a.endTime,
+          seq: a.seq,
+        });
+      }
+
+      let data = Array.from(grouped.values());
+      if (withAgendasOnly) data = data.filter((g) => g.agendas.length > 0);
+
+      return res.json({
+        success: true,
+        message: "Agenda history retrieved",
+        data,
+      });
+    } catch (error) {
+      console.error("Get agenda history error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
+
   /**
    * List agendas by meeting (ringkas; default hanya aktif)
    */
@@ -152,22 +240,18 @@ class AgendaController {
           .status(400)
           .json({ success: false, message: "judul is required" });
       if (!start_time || !end_time) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "start_time and end_time are required",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "start_time and end_time are required",
+        });
       }
       const start = new Date(start_time);
       const end = new Date(end_time);
       if (!(start < end)) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "end_time must be greater than start_time",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "end_time must be greater than start_time",
+        });
       }
 
       const agenda = await Agenda.create({
@@ -218,12 +302,10 @@ class AgendaController {
         agenda.endTime &&
         !(agenda.startTime < agenda.endTime)
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "end_time must be greater than start_time",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "end_time must be greater than start_time",
+        });
       }
 
       if (flag !== undefined) {
