@@ -5,27 +5,8 @@ import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
 import "./meeting-footer.css";
 
-/**
- * MeetingFooter
- * Props:
- * - userRole?: string (default: "participant") → role user untuk menentukan button yang ditampilkan
- * - showEndButton?: boolean (default: false) → tampilkan tombol "End Meeting" (untuk host)
- * - showLeaveButton?: boolean (default: false) → tampilkan tombol "Leave Meeting" (untuk participant)
- * - onEndMeeting?: () => Promise<void> | void → aksi end meeting custom; jika tak ada dipakai default
- * - onLeaveMeeting?: () => Promise<void> | void → aksi leave meeting custom; jika tak ada dipakai default
- * - onMenuClick?: () => void → klik tombol "Menu"
- * - onHelpClick?: () => void → klik tombol "?"
- * - micOn?: boolean
- * - camOn?: boolean
- * - onToggleMic?: () => void
- * - onToggleCam?: () => void
- * - screenShareOn?: boolean
- * - onToggleScreenShare?: () => void
- */
 export default function MeetingFooter({
   userRole = "participant",
-  showEndButton = false,
-  showLeaveButton = false,
   onEndMeeting,
   onLeaveMeeting,
   onMenuClick,
@@ -39,60 +20,91 @@ export default function MeetingFooter({
 }) {
   const navigate = useNavigate();
 
+  // Helpers
+  const getCurrentMeeting = () => {
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+  const getMeetingId = (cm) => cm?.meetingId || cm?.id || cm?.code;
+
+  // Role & meeting flags
+  const isHost = userRole === "host" || userRole === "admin";
+  const cm = getCurrentMeeting();
+  const meetingId = getMeetingId(cm);
+  const isDefaultMeeting =
+    Boolean(cm?.isDefault) || String(meetingId) === "1000"; // fallback ke 1000 bila flag belum terset
+
+  // Common cleanup (stop share, close WS)
+  const cleanupRealtime = () => {
+    try {
+      if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
+        window.simpleScreenShare.stopScreenShare();
+      }
+    } catch {}
+    try {
+      if (window.meetingWebSocket) {
+        window.meetingWebSocket.close();
+      }
+    } catch {}
+  };
+
+  // BACK action (participant: ke /start, host default: ke /setup)
+  const defaultBack = async () => {
+    try {
+      cleanupRealtime();
+      if (meetingId) {
+        // tetap panggil leave agar backend konsisten
+        await meetingService.leaveMeeting(meetingId);
+      }
+    } catch (err) {
+      // tidak blok navigasi
+      console.warn("leaveMeeting failed on back:", err);
+    } finally {
+      localStorage.removeItem("currentMeeting");
+      if (isHost) {
+        // host/admin
+        navigate("/setup");
+      } else {
+        // participant
+        navigate("/start");
+      }
+    }
+  };
+
+  // END action (hanya untuk host non-default)
   const defaultEndMeeting = async () => {
     try {
       if (!window.confirm("Are you sure you want to end this meeting?")) return;
-
-      const raw = localStorage.getItem("currentMeeting");
-      const cm = raw ? JSON.parse(raw) : null;
-      const meetingId = cm?.meetingId || cm?.id || cm?.code;
       if (!meetingId) {
         alert("Meeting ID not found. Cannot end meeting.");
         return;
       }
-
-      // Stop screen sharing if active
-      if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
-        window.simpleScreenShare.stopScreenShare();
-      }
-
-      // Close WebSocket connections
-      if (window.meetingWebSocket) {
-        window.meetingWebSocket.close();
-      }
-
+      cleanupRealtime();
       await meetingService.endMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
       alert("Meeting ended successfully!");
-      navigate("/start");
+      // setelah end → kembali ke halaman setup host
+      navigate("/setup");
     } catch (err) {
       console.error("Failed to end meeting:", err);
       alert(`Failed to end meeting: ${err?.message || err}`);
     }
   };
 
+  // (dipertahankan untuk kompatibilitas, tapi tidak ditampilkan untuk participant)
   const defaultLeaveMeeting = async () => {
     try {
-      if (!window.confirm("Are you sure you want to leave this meeting?")) return;
-
-      const raw = localStorage.getItem("currentMeeting");
-      const cm = raw ? JSON.parse(raw) : null;
-      const meetingId = cm?.meetingId || cm?.id || cm?.code;
+      if (!window.confirm("Are you sure you want to leave this meeting?"))
+        return;
       if (!meetingId) {
         alert("Meeting ID not found. Cannot leave meeting.");
         return;
       }
-
-      // Stop screen sharing if active
-      if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
-        window.simpleScreenShare.stopScreenShare();
-      }
-
-      // Close WebSocket connections
-      if (window.meetingWebSocket) {
-        window.meetingWebSocket.close();
-      }
-
+      cleanupRealtime();
       await meetingService.leaveMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
       alert("Left meeting successfully!");
@@ -105,13 +117,17 @@ export default function MeetingFooter({
 
   const handleEnd = onEndMeeting || defaultEndMeeting;
   const handleLeave = onLeaveMeeting || defaultLeaveMeeting;
+  const handleBack = defaultBack;
   const handleMenu = onMenuClick || (() => navigate("/participant/dashboard"));
   const handleHelp = onHelpClick || (() => alert("Need help?"));
 
-  // Determine which button to show based on user role
-  const isHost = userRole === "host" || userRole === "admin";
-  const shouldShowEndButton = showEndButton || (isHost && !showLeaveButton);
-  const shouldShowLeaveButton = showLeaveButton || (!isHost && !showEndButton);
+  // 🔎 Final UI rules:
+  // - Participant: hanya Back
+  // - Host/Admin + Default: hanya Back
+  // - Host/Admin + Non-default: hanya End
+  const showBackButton = !isHost || (isHost && isDefaultMeeting);
+  const showEndButton = isHost && !isDefaultMeeting;
+  const showLeaveButton = false; // disembunyikan sesuai requirement
 
   return (
     <footer className="pd-bottombar">
@@ -148,13 +164,19 @@ export default function MeetingFooter({
           Menu
         </button>
 
-        {shouldShowLeaveButton && (
+        {showBackButton && (
+          <button className="pd-outline" onClick={handleBack} title="Back">
+            Back
+          </button>
+        )}
+
+        {showLeaveButton && (
           <button className="pd-warning" onClick={handleLeave}>
             Leave Meeting
           </button>
         )}
 
-        {shouldShowEndButton && (
+        {showEndButton && (
           <button className="pd-danger" onClick={handleEnd}>
             End Meeting
           </button>

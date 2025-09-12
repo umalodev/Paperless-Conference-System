@@ -5,7 +5,7 @@ import meetingService from "../../services/meetingService.js";
 
 export default function Start() {
   const [user, setUser] = React.useState(null);
-  const [role, setRole] = React.useState("participant"); // default aman
+  const [role, setRole] = React.useState("participant");
   const [username, setUsername] = React.useState("");
   const [useAccountName, setUseAccountName] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -108,36 +108,66 @@ export default function Start() {
       if (isHost) {
         navigate("/setup");
       } else {
-        // Participant automatically finds and joins active meeting
         try {
-          // Get active meetings from server
-          const activeMeetingsResult = await meetingService.getActiveMeetings();
+          // 1) Cek meeting aktif publik (bisa muncul default bila tidak ada meeting host)
+          const publicActives = await meetingService.getPublicActiveMeetings();
 
-          if (
-            activeMeetingsResult.success &&
-            activeMeetingsResult.data.length > 0
-          ) {
-            // Join the first available active meeting
-            const activeMeeting = activeMeetingsResult.data[0];
-            console.log("Found active meeting:", activeMeeting);
+          let picked = null;
+          if (publicActives?.success && Array.isArray(publicActives.data)) {
+            // Prioritas: meeting host (isDefault !== true)
+            picked =
+              publicActives.data.find((m) => !m.isDefault) ||
+              publicActives.data[0] ||
+              null;
+          }
+
+          if (picked && !picked.isDefault) {
+            // ✅ Ada meeting host yang sedang started
+            console.log("Found active host meeting:", picked);
 
             const meetingInfo = {
-              id: activeMeeting.meetingId,
-              code: activeMeeting.meetingId,
-              title: activeMeeting.title || "Active Meeting",
-              status: activeMeeting.status || "started",
+              id: picked.meetingId,
+              code: picked.meetingId,
+              title: picked.title || "Active Meeting",
+              status: picked.status || "started",
+              isDefault: !!picked.isDefault,
             };
             localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
+            // display name simpan juga
+            localStorage.setItem("pconf.displayName", username || "");
 
-            // Navigate to waiting room
+            // (Opsional) kalau kamu ingin langsung create participant record di backend untuk non-default:
+            // await meetingService.autoJoinMeeting({ meetingId: picked.meetingId });
+
             navigate("/waiting");
-          } else {
-            // No active meeting found; show a message and keep user here
-            throw new Error('Tidak ada meeting aktif saat ini. Minta host untuk memulai.');
+            return;
           }
+
+          // 2) Tidak ada meeting host → langsung join default
+          const joinDefault = await meetingService.joinDefaultMeeting();
+          if (!joinDefault?.success) {
+            throw new Error(
+              joinDefault?.message || "Gagal bergabung ke default meeting."
+            );
+          }
+
+          // Ambil info default untuk disimpan di FE
+          const defInfo =
+            joinDefault.data || (await meetingService.getDefaultMeeting()).data;
+          const meetingInfo = {
+            id: defInfo.meetingId,
+            code: defInfo.meetingId,
+            title: defInfo.title || "UP-CONNECT Default Room",
+            status: defInfo.status || "started",
+            isDefault: true,
+          };
+          localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
+          localStorage.setItem("pconf.displayName", username || "");
+
+          navigate("/waiting");
         } catch (statusError) {
           console.log("Error getting active meetings:", statusError);
-          setError(statusError?.message || 'Gagal memuat meeting aktif.');
+          setError(statusError?.message || "Gagal memuat meeting aktif.");
         }
       }
     } catch (error) {
@@ -149,24 +179,30 @@ export default function Start() {
   };
 
   return (
-    <div className={styles['login-container']}>
-      <div className={styles['login-box']}>
-        <div className={styles['login-header']}>
-          <img src="/img/logo.png" alt="Logo" className={styles['login-logo']} />
+    <div className={styles["login-container"]}>
+      <div className={styles["login-box"]}>
+        <div className={styles["login-header"]}>
+          <img
+            src="/img/logo.png"
+            alt="Logo"
+            className={styles["login-logo"]}
+          />
           <div className="login-title-container">
-            <h2 className={styles['login-title']}>Paperless Conference System</h2>
-            <p className={styles['login-subtitle']}>
+            <h2 className={styles["login-title"]}>
+              Paperless Conference System
+            </h2>
+            <p className={styles["login-subtitle"]}>
               Join or host a paperless conference meeting
             </p>
           </div>
         </div>
 
-        <label className={styles['label-bold']}>I want to :</label>
-        <div className={styles['option-box']} role="status" aria-live="polite">
+        <label className={styles["label-bold"]}>I want to :</label>
+        <div className={styles["option-box"]} role="status" aria-live="polite">
           <img
             src={isHost ? "/img/pc.png" : "/img/pc.png"}
             alt={isHost ? "Host" : "Participant"}
-            className={styles['icon']}
+            className={styles["icon"]}
           />
           <span className="option-text">{intentText}</span>
         </div>
@@ -174,22 +210,24 @@ export default function Start() {
         <p></p>
 
         <form onSubmit={handleSubmit}>
-          <div className={styles['form-group']}>
-            <label className={styles['label-bold']} htmlFor="username">
+          <div className={styles["form-group"]}>
+            <label className={styles["label-bold"]} htmlFor="username">
               Your Name
             </label>
             <input
               id="username"
               type="text"
               placeholder="Enter Your Name"
-              className={styles['login-input']}
+              className={styles["login-input"]}
               value={username}
               onChange={handleChangeUsername}
               readOnly={useAccountName}
               required
             />
 
-            <label className={`${styles['inline-checkbox']} ${styles['no-center']}`}>
+            <label
+              className={`${styles["inline-checkbox"]} ${styles["no-center"]}`}
+            >
               <input
                 type="checkbox"
                 checked={useAccountName}
@@ -200,7 +238,7 @@ export default function Start() {
           </div>
 
           {!isHost && (
-            <div className={styles['form-group']}>
+            <div className={styles["form-group"]}>
               <div
                 style={{
                   background: "#f0f9ff",
@@ -219,14 +257,18 @@ export default function Start() {
             </div>
           )}
 
-          {error && <div className={styles['error-message']}>{error}</div>}
+          {error && <div className={styles["error-message"]}>{error}</div>}
 
-          <button type="submit" className={styles['login-button']} disabled={loading}>
+          <button
+            type="submit"
+            className={styles["login-button"]}
+            disabled={loading}
+          >
             {loading ? "Processing..." : ctaText}
           </button>
 
           {user && (
-            <div className={styles['meta-hint']}>
+            <div className={styles["meta-hint"]}>
               Logged in as{" "}
               <strong>
                 {user?.username || user?.name || user?.email || "user"}

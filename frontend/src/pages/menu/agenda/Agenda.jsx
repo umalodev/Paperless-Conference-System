@@ -265,7 +265,7 @@ export default function Agenda() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Test Meeting</h1>
+              <h1 className="pd-title">Agenda Meeting</h1>
             </div>
           </div>
           <div className="pd-right">
@@ -295,9 +295,7 @@ export default function Agenda() {
         <main className="pd-main">
           <section className="agenda-wrap">
             <div className="agenda-header">
-              <span className="agenda-title">
-                Agenda <span className="ag-chip">{agendas.length}</span>
-              </span>
+              <span className="agenda-title">Agenda</span>
 
               <div className="agenda-actions">
                 <button

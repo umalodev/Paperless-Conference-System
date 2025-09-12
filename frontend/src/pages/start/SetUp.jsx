@@ -18,6 +18,7 @@ export default function SetUp() {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [errHistory, setErrHistory] = useState("");
+  const [joiningDefault, setJoiningDefault] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
@@ -31,6 +32,44 @@ export default function SetUp() {
     () => displayName || user?.username || user?.name || "Host",
     [displayName, user]
   );
+
+  const joinDefaultAsHost = async () => {
+    setErr("");
+    setJoiningDefault(true);
+    try {
+      // Minta backend masukkan host sebagai participant ke default
+      const res = await meetingService.joinDefaultMeeting();
+      if (!res?.success)
+        throw new Error(res?.message || "Failed to join default room");
+
+      // Ambil info default (pakai response langsung; fallback ke GET jika perlu)
+      const info = res.data || (await meetingService.getDefaultMeeting()).data;
+
+      const meetingInfo = {
+        id: info.meetingId,
+        code: info.meetingId,
+        title: info.title || "UP-CONNECT Default Room",
+        status: info.status || "started",
+        isDefault: true,
+      };
+
+      // Simpan ke localStorage agar waiting/join page tahu meeting mana
+      localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
+
+      // Pastikan displayName tersimpan (dipakai di ruang meeting)
+      localStorage.setItem(
+        "pconf.displayName",
+        hostName || displayName || user?.username || "Host"
+      );
+
+      // Masuk ke waiting room
+      navigate("/waiting");
+    } catch (e) {
+      setErr(String(e.message || e));
+    } finally {
+      setJoiningDefault(false);
+    }
+  };
 
   const handleSaveMeeting = async (payload) => {
     try {
@@ -323,6 +362,25 @@ export default function SetUp() {
             </button>
           </div>
 
+          <div className="hd-card">
+            <div className="hd-card-head">
+              <span className="hd-card-ic">🏠</span>
+              <div>
+                <div className="hd-card-title">Join Default Room</div>
+                <div className="hd-card-sub">
+                  Masuk ke lobby default yang selalu aktif
+                </div>
+              </div>
+            </div>
+            <button
+              className="hd-btn hd-outline"
+              onClick={joinDefaultAsHost}
+              disabled={joiningDefault}
+              title="Bergabung ke default meeting (tanpa membuat meeting baru)"
+            >
+              {joiningDefault ? "Joining…" : "Join Default Room"}
+            </button>
+          </div>
           <div className="hd-card">
             <div className="hd-card-head">
               <span className="hd-card-ic">⚙</span>

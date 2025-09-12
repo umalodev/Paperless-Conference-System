@@ -324,7 +324,6 @@ export default function Materials() {
             <div className="mtl-header">
               <div className="mtl-title">
                 <Icon slug="materials" /> <span>Materials</span>
-                <span className="mtl-chip">{items.length} file</span>
               </div>
 
               {/* Actions */}

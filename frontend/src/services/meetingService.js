@@ -1,67 +1,92 @@
-import { API_URL } from '../config.js';
+import { API_URL } from "../config.js";
 
 class MeetingService {
   constructor() {
-    this.token = localStorage.getItem('token');
+    this.token = localStorage.getItem("token");
   }
 
   // Get auth headers
   getAuthHeaders() {
     return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.token}`
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.token}`,
     };
   }
 
   // Create a new meeting
   async createMeeting(meetingData) {
     try {
-      console.log('Creating meeting with data:', meetingData);
-      
+      console.log("Creating meeting with data:", meetingData);
+
       const response = await fetch(`${API_URL}/api/meeting/create`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include', // Include cookies for session
-        body: JSON.stringify(meetingData)
+        credentials: "include", // Include cookies for session
+        body: JSON.stringify(meetingData),
       });
 
-      console.log('Response status:', response.status);
+      console.log("Response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response text:', errorText);
-        
+        console.error("Error response text:", errorText);
+
         let errorData;
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to create meeting' };
+          errorData = { message: errorText || "Failed to create meeting" };
         }
-        
-        throw new Error(errorData.message || 'Failed to create meeting');
+
+        throw new Error(errorData.message || "Failed to create meeting");
       }
 
       const result = await response.json();
-      console.log('Meeting created successfully:', result);
+      console.log("Meeting created successfully:", result);
       return result;
     } catch (error) {
-      console.error('Error creating meeting:', error);
+      console.error("Error creating meeting:", error);
       throw error;
     }
+  }
+
+  async getPublicActiveMeetings() {
+    const res = await fetch(`${API_URL}/api/meeting/active/public`, {
+      method: "GET",
+    });
+    return res.json();
+  }
+
+  async getDefaultMeeting() {
+    const res = await fetch(`${API_URL}/api/meeting/default`, {
+      headers: this.getAuthHeaders(),
+      credentials: "include",
+    });
+    return res.json();
+  }
+
+  async joinDefaultMeeting() {
+    const res = await fetch(`${API_URL}/api/meeting/default/join`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify({}),
+    });
+    return res.json();
   }
 
   // Start a meeting (host only)
   async startMeeting(meetingId) {
     try {
       const response = await fetch(`${API_URL}/api/meeting/start`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
-        body: JSON.stringify({ meetingId })
+        credentials: "include",
+        body: JSON.stringify({ meetingId }),
       });
 
       if (!response.ok) {
@@ -70,17 +95,17 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to start meeting' };
+          errorData = { message: errorText || "Failed to start meeting" };
         }
-        
-        throw new Error(errorData.message || 'Failed to start meeting');
+
+        throw new Error(errorData.message || "Failed to start meeting");
       }
 
       const result = await response.json();
-      console.log('Meeting started successfully:', result);
+      console.log("Meeting started successfully:", result);
       return result;
     } catch (error) {
-      console.error('Error starting meeting:', error);
+      console.error("Error starting meeting:", error);
       throw error;
     }
   }
@@ -89,12 +114,12 @@ class MeetingService {
   async joinMeeting(meetingId) {
     try {
       const response = await fetch(`${API_URL}/api/meeting/join`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
-        body: JSON.stringify({ meetingId })
+        credentials: "include",
+        body: JSON.stringify({ meetingId }),
       });
 
       if (!response.ok) {
@@ -103,17 +128,17 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to join meeting' };
+          errorData = { message: errorText || "Failed to join meeting" };
         }
-        
-        throw new Error(errorData.message || 'Failed to join meeting');
+
+        throw new Error(errorData.message || "Failed to join meeting");
       }
 
       const result = await response.json();
-      console.log('Joined meeting successfully:', result);
+      console.log("Joined meeting successfully:", result);
       return result;
     } catch (error) {
-      console.error('Error joining meeting:', error);
+      console.error("Error joining meeting:", error);
       throw error;
     }
   }
@@ -122,12 +147,12 @@ class MeetingService {
   async autoJoinMeeting(meetingId) {
     try {
       const response = await fetch(`${API_URL}/api/meeting/auto-join`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
-        body: JSON.stringify({ meetingId })
+        credentials: "include",
+        body: JSON.stringify({ meetingId }),
       });
 
       if (!response.ok) {
@@ -136,15 +161,15 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to auto-join meeting' };
+          errorData = { message: errorText || "Failed to auto-join meeting" };
         }
-        throw new Error(errorData.message || 'Failed to auto-join meeting');
+        throw new Error(errorData.message || "Failed to auto-join meeting");
       }
 
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error auto-joining meeting:', error);
+      console.error("Error auto-joining meeting:", error);
       throw error;
     }
   }
@@ -152,9 +177,12 @@ class MeetingService {
   // Get meeting status (public endpoint, no auth required)
   async getMeetingStatus(meetingId) {
     try {
-      const response = await fetch(`${API_URL}/api/meeting/${meetingId}/public-status`, {
-        method: 'GET',
-      });
+      const response = await fetch(
+        `${API_URL}/api/meeting/${meetingId}/public-status`,
+        {
+          method: "GET",
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -162,16 +190,16 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to get meeting status' };
+          errorData = { message: errorText || "Failed to get meeting status" };
         }
-        
-        throw new Error(errorData.message || 'Failed to get meeting status');
+
+        throw new Error(errorData.message || "Failed to get meeting status");
       }
 
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error getting meeting status:', error);
+      console.error("Error getting meeting status:", error);
       throw error;
     }
   }
@@ -180,7 +208,7 @@ class MeetingService {
   async getActiveMeetings() {
     try {
       const response = await fetch(`${API_URL}/api/meeting/active/public`, {
-        method: 'GET',
+        method: "GET",
       });
 
       if (!response.ok) {
@@ -189,16 +217,16 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to get active meetings' };
+          errorData = { message: errorText || "Failed to get active meetings" };
         }
-        
-        throw new Error(errorData.message || 'Failed to get active meetings');
+
+        throw new Error(errorData.message || "Failed to get active meetings");
       }
 
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error getting active meetings:', error);
+      console.error("Error getting active meetings:", error);
       throw error;
     }
   }
@@ -206,10 +234,13 @@ class MeetingService {
   // Get meeting status with authentication (for authenticated users)
   async getMeetingStatusAuth(meetingId) {
     try {
-      const response = await fetch(`${API_URL}/api/meeting/${meetingId}/status`, {
-        method: 'GET',
-        credentials: 'include',
-      });
+      const response = await fetch(
+        `${API_URL}/api/meeting/${meetingId}/status`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -217,16 +248,16 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to get meeting status' };
+          errorData = { message: errorText || "Failed to get meeting status" };
         }
-        
-        throw new Error(errorData.message || 'Failed to get meeting status');
+
+        throw new Error(errorData.message || "Failed to get meeting status");
       }
 
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error getting authenticated meeting status:', error);
+      console.error("Error getting authenticated meeting status:", error);
       throw error;
     }
   }
@@ -236,17 +267,17 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/my-meetings`, {
         headers: this.getAuthHeaders(),
-        credentials: 'include',
+        credentials: "include",
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch meetings');
+        throw new Error(errorData.message || "Failed to fetch meetings");
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching meetings:', error);
+      console.error("Error fetching meetings:", error);
       throw error;
     }
   }
@@ -256,17 +287,19 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/scheduled`, {
         headers: this.getAuthHeaders(),
-        credentials: 'include',
+        credentials: "include",
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch scheduled meetings');
+        throw new Error(
+          errorData.message || "Failed to fetch scheduled meetings"
+        );
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching scheduled meetings:', error);
+      console.error("Error fetching scheduled meetings:", error);
       throw error;
     }
   }
@@ -276,17 +309,17 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/all`, {
         headers: this.getAuthHeaders(),
-        credentials: 'include',
+        credentials: "include",
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch all meetings');
+        throw new Error(errorData.message || "Failed to fetch all meetings");
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching all meetings:', error);
+      console.error("Error fetching all meetings:", error);
       throw error;
     }
   }
@@ -295,10 +328,10 @@ class MeetingService {
   async endMeeting(meetingId) {
     try {
       const response = await fetch(`${API_URL}/api/meeting/end`, {
-        method: 'POST',
+        method: "POST",
         headers: this.getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({ meetingId })
+        credentials: "include",
+        body: JSON.stringify({ meetingId }),
       });
 
       if (!response.ok) {
@@ -307,17 +340,17 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to end meeting' };
+          errorData = { message: errorText || "Failed to end meeting" };
         }
-        
-        throw new Error(errorData.message || 'Failed to end meeting');
+
+        throw new Error(errorData.message || "Failed to end meeting");
       }
 
       const result = await response.json();
-      console.log('Meeting ended successfully:', result);
+      console.log("Meeting ended successfully:", result);
       return result;
     } catch (error) {
-      console.error('Error ending meeting:', error);
+      console.error("Error ending meeting:", error);
       throw error;
     }
   }
@@ -325,11 +358,14 @@ class MeetingService {
   // Check meeting status for participant (for auto-exit)
   async checkMeetingStatus(meetingId) {
     try {
-      const response = await fetch(`${API_URL}/api/meeting/${meetingId}/status`, {
-        method: 'GET',
-        headers: this.getAuthHeaders(),
-        credentials: 'include'
-      });
+      const response = await fetch(
+        `${API_URL}/api/meeting/${meetingId}/status`,
+        {
+          method: "GET",
+          headers: this.getAuthHeaders(),
+          credentials: "include",
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -337,16 +373,18 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to check meeting status' };
+          errorData = {
+            message: errorText || "Failed to check meeting status",
+          };
         }
-        
-        throw new Error(errorData.message || 'Failed to check meeting status');
+
+        throw new Error(errorData.message || "Failed to check meeting status");
       }
 
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error checking meeting status:', error);
+      console.error("Error checking meeting status:", error);
       throw error;
     }
   }
@@ -355,10 +393,10 @@ class MeetingService {
   async leaveMeeting(meetingId) {
     try {
       const response = await fetch(`${API_URL}/api/meeting/leave`, {
-        method: 'POST',
+        method: "POST",
         headers: this.getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({ meetingId })
+        credentials: "include",
+        body: JSON.stringify({ meetingId }),
       });
 
       if (!response.ok) {
@@ -367,17 +405,17 @@ class MeetingService {
         try {
           errorData = JSON.parse(errorText);
         } catch (e) {
-          errorData = { message: errorText || 'Failed to leave meeting' };
+          errorData = { message: errorText || "Failed to leave meeting" };
         }
-        
-        throw new Error(errorData.message || 'Failed to leave meeting');
+
+        throw new Error(errorData.message || "Failed to leave meeting");
       }
 
       const result = await response.json();
-      console.log('Left meeting successfully:', result);
+      console.log("Left meeting successfully:", result);
       return result;
     } catch (error) {
-      console.error('Error leaving meeting:', error);
+      console.error("Error leaving meeting:", error);
       throw error;
     }
   }
