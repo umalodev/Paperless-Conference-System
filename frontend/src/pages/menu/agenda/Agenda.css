@@ -1,13 +1,34 @@
+/* Page-level layout adjustments for Agenda page */
+.agenda-page .pd-topbar {
+  background: var(--color-white);
+  border-bottom: 1px solid #e9e9e9;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.agenda-page .pd-main {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 22px; /* ensures content never touches the top bar */
+  overflow: auto;
+  min-height: 0;
+}
+
 /* Import modal styles for screen share */
 
 .agenda-wrap {
-  background: var(--color-white);
-  border: 1px solid #e9e9e9;
+  /* shiny green border */
+  background: linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
+  border: 1px solid transparent;
   border-radius: 18px;
   padding: 18px;
   max-width: 1000px;
   width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 0 0 2px rgba(16, 124, 16, 0.06) inset,
+    0 10px 28px rgba(16, 124, 16, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
   overflow-x: hidden; /* safety net */
 }
 
@@ -43,6 +64,43 @@
 .agenda-list {
   display: grid;
   gap: 10px;
+}
+
+/* empty state */
+.ag-empty {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px dashed #d7dde5;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 16px;
+}
+.ag-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+.ag-empty-copy {
+  min-width: 0;
+}
+.ag-empty-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+.ag-empty-desc {
+  font-size: 13px;
+  color: #475569;
+}
+.ag-empty-actions .pd-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* kartu agenda jadi kolom, deskripsi jatuh ke bawah */

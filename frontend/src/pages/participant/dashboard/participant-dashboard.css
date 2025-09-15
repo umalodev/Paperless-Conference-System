@@ -88,17 +88,20 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 22px;
+  align-items: flex-start; /* keep content below top bar, no overlap */
+  padding: 22px; /* consistent top spacing */
   overflow: auto;
   min-height: 0;
 }
 .pd-panel {
-  background: var(--color-primary-bg);
-  border: 1px solid #cdeacd;
+  /* unified shiny green border */
+  background: linear-gradient(#f6fff6, #f6fff6) padding-box,
+    linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
+  border: 1px solid transparent;
   border-radius: 18px;
   padding: 22px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 0 0 2px rgba(16, 124, 16, 0.06) inset,
+    0 10px 28px rgba(16, 124, 16, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
   max-width: 1000px;
   width: 100%;
 }

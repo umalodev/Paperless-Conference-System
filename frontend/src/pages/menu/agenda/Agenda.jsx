@@ -41,7 +41,6 @@ export default function Agenda() {
   const [historyErr, setHistoryErr] = useState("");
 
   const isHost = /^(host|admin)$/i.test(user?.role || "");
-  const canCreate = isHost;
 
   const navigate = useNavigate();
 
@@ -138,7 +137,7 @@ export default function Agenda() {
     } finally {
       setAgendaLoading(false);
     }
-  }, [API_URL, meetingId]);
+  }, [meetingId]);
 
   useEffect(() => {
     loadAgendas();
@@ -183,7 +182,7 @@ export default function Agenda() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [API_URL, meetingId]);
+  }, [meetingId]);
 
   useEffect(() => {
     if (showHistory) loadHistory();
@@ -259,7 +258,7 @@ export default function Agenda() {
       socket={null}
       mediasoupDevice={null}
     >
-      <div className="pd-app">
+      <div className="pd-app agenda-page">
         {/* Top bar */}
         <header className="pd-topbar">
           <div className="pd-left">
@@ -404,7 +403,29 @@ export default function Agenda() {
                 <div className="pd-error">Gagal memuat agenda: {agendaErr}</div>
               )}
               {!agendaLoading && !agendaErr && agendas.length === 0 && (
-                <div className="pd-empty">Belum ada agenda.</div>
+                <div
+                  className="ag-empty"
+                  role="region"
+                  aria-label="Keadaan kosong agenda"
+                >
+                  <div className="ag-empty-icon">
+                    <Icon slug="calendar" />
+                  </div>
+                  <div className="ag-empty-copy">
+                    <div className="ag-empty-title">Belum ada agenda</div>
+                    <div className="ag-empty-desc">
+                      Mulai dengan menambahkan item agenda agar peserta
+                      mengetahui alur meeting.
+                    </div>
+                  </div>
+                  {isHost && (
+                    <div className="ag-empty-actions">
+                      <button className="pd-danger" onClick={openAdd}>
+                        <Icon slug="plus" /> Tambah Agenda
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
               {!agendaLoading &&
                 !agendaErr &&
