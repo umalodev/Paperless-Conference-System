@@ -166,7 +166,7 @@ export default function MeetingFooter({
 
         {showBackButton && (
           <button className="pd-outline" onClick={handleBack} title="Back">
-            Back
+            Home
           </button>
         )}
 
