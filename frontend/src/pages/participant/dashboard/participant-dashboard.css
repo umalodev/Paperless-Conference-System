@@ -93,6 +93,11 @@
   overflow: auto;
   min-height: 0;
 }
+.pd-app.centered-page .pd-main {
+  display: flex;
+  justify-content: center;
+  align-items: center;   /* center hanya di halaman ini */
+}
 .pd-panel {
   /* unified shiny green border */
   background: linear-gradient(#f6fff6, #f6fff6) padding-box,
@@ -215,5 +220,3 @@
   font-size: 12px;
   color: var(--color-subtext);
 }
-
-/* Bottom bar styles are provided by shared meeting-footer.css via MeetingFooter component */

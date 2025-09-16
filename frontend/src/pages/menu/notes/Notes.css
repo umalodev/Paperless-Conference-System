@@ -150,3 +150,29 @@
   display: block;
   object-fit: contain;
 }
+.note-btn .pd-icon-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+/* ikon + teks judul */
+.notes-title-icon{
+  width: 26px;
+  height: 26px;
+  display: block;
+  object-fit: contain;
+}
+
+.notes-title-text{
+  font-weight: 800;      /* bold */
+  line-height: 1.1;
+  margin-left: 4px;      /* sedikit geser kanan */
+  position: relative;
+  top: -2px;             /* naikkan dikit agar sejajar ikon */
+}
+
+/* responsif kecil */
+@media (max-width: 560px){
+  .notes-title-icon{ width: 22px; height: 22px; }
+  .notes-title-text{ top: -1px; }
+}

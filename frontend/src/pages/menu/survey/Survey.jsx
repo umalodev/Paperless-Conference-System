@@ -225,28 +225,29 @@ export default function Survey() {
         <section className="svr-wrap">
           <div className="svr-header">
             <div className="svr-title">
-              <Icon slug="survey" iconUrl="/img/survey.svg" size={22} />
-              <span>Form Survey</span>
-            </div>
+  <img src="/img/Survey1.png" alt="" className="svr-title-icon" />
+  <span className="svr-title-text">Form Survey</span>
+</div>
             <div className="svr-header-actions">
               {isHost && !editing && (
                 <button
-                  className="svr-btn"
-                  onClick={() => setManageMode((v) => !v)}
-                >
-                  <Icon slug="settings" />{" "}
-                  <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
-                </button>
+  className="svr-btn"
+  onClick={() => setManageMode((v) => !v)}
+>
+  <img src="/img/pengaturan.png" alt="" className="pd-icon-img" />
+  <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
+</button>
               )}
-              <button
-                className="svr-btn ghost"
-                onClick={reload}
-                disabled={loading}
-                title="Refresh"
-              >
-                <RefreshIcon />
-                <span>Refresh</span>
-              </button>
+             <button
+  className="svr-btn ghost"
+  onClick={reload}
+  disabled={loading}
+  title="Refresh"
+>
+  {/* sesuaikan nama file: /img/refresh.png atau /img/refressh.png */}
+  <img src="/img/refresh.png" alt="" className="pd-icon-img" />
+  <span>Refresh</span>
+</button>
             </div>
           </div>
 

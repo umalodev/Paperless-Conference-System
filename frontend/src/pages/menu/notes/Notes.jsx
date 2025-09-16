@@ -263,22 +263,22 @@ export default function Notes() {
       <main className="pd-main">
         {/* Screen share moved to dedicated page */}
         
-        <section className="notes-wrap">
+         <section className="notes-wrap">
           <div className="notes-header">
-            <div className="notes-title">
-              <Icon slug="note" iconUrl="/img/note.svg" size={22} />
-              <span>Catatan</span>
+           <div className="notes-title">
+          <img src="/img/Catatan1.png" alt="" className="notes-title-icon" />
+          <span className="notes-title-text">Catatan</span>
             </div>
             <div className="notes-actions">
-              <button
-                className="note-btn ghost"
-                onClick={() => window.location.reload()}
-                title="Refresh"
-              >
-                <RefreshIcon />
-                <span>Refresh</span>
-              </button>
-            </div>
+          <button
+    className="note-btn ghost"
+    onClick={() => window.location.reload()}
+    title="Refresh"
+  >
+    <Icon iconUrl="/img/refresh.png" size={18} />
+    <span>Refresh</span>
+  </button>
+</div>
           </div>
 
           {/* Composer */}

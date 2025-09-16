@@ -1,18 +1,21 @@
 @import "../../../themes/variables.css";
 
+/* ====== WRAPPER ====== */
 .svr-wrap {
   background: linear-gradient(#ffffff, #ffffff) padding-box,
-    linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
+              linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
   border: 1px solid transparent;
   border-radius: 18px;
   padding: 18px;
   width: 100%;
   max-width: 1000px;
-  box-shadow: 0 0 0 2px rgba(16, 124, 16, 0.06) inset,
-    0 10px 28px rgba(16, 124, 16, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 0 0 2px rgba(16, 124, 16, 0.06) inset,
+    0 10px 28px rgba(16, 124, 16, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* header */
+/* ====== HEADER ====== */
 .svr-header {
   display: flex;
   align-items: center;
@@ -20,23 +23,46 @@
   gap: 12px;
   margin-bottom: 14px;
 }
+
+/* Title + icon (pakai Survey1.png) */
 .svr-title {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-weight: 800;
-  font-size: 18px;
   color: var(--color-text);
 }
+
+/* fallback bila masih ada <Icon /> */
 .svr-title .pd-svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
+/* gambar ikon judul */
+.svr-title-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+}
+
+/* teks judul */
+.svr-title-text {
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1.1;
+  margin-left: 4px;
+  position: relative;
+  top: -1px; /* sedikit dinaikkan biar sejajar ikon */
+}
+
+/* header actions */
 .svr-header-actions {
   display: flex;
   gap: 8px;
 }
+
+/* ====== BUTTONS ====== */
 .svr-btn {
   display: inline-flex;
   align-items: center;
@@ -47,31 +73,60 @@
   padding: 8px 12px;
   border-radius: 12px;
   cursor: pointer;
+  transition: transform .05s ease, background .15s ease, border-color .15s ease;
+}
+.svr-btn:hover {
+  background: #eef2f7;
+  border-color: #dfe5ee;
+}
+.svr-btn:active {
+  transform: translateY(1px);
 }
 .svr-btn.ghost {
   background: #f8fafc;
 }
-.svr-btn:hover {
-  filter: brightness(0.98);
+.svr-btn.active {
+  background: #eaf2ff;
+  border-color: #d6e4ff;
 }
-.svr-btn .pd-svg {
-  width: 18px;
-  height: 18px;
+.svr-btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
 }
 
-/* daftar pertanyaan */
+/* ikon di dalam tombol (gambar .png) */
+.svr-btn .pd-icon-img {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+  transition: transform .2s ease;
+}
+.svr-btn:hover .pd-icon-img {
+  transform: scale(1.06);
+}
+
+/* ====== LIST & ITEMS ====== */
 .svr-list {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
 }
+
 .svr-item {
   border: 1px solid #eef0f2;
   border-radius: 14px;
   background: #f7f9fb;
   padding: 14px;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.svr-item:hover {
+  border-color: #e1e7f2;
+  background: #f9fbfe;
+  box-shadow: 0 4px 16px rgba(2, 6, 23, .06);
 }
 
+/* pertanyaan */
 .svr-qtext {
   font-weight: 700;
   color: var(--color-text);
@@ -82,7 +137,7 @@
   margin-left: 6px;
 }
 
-/* opsi */
+/* opsi jawaban */
 .svr-options {
   display: grid;
   grid-template-columns: 1fr;
@@ -96,6 +151,11 @@
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.svr-opt:hover {
+  border-color: #dfe4ea;
+  background: #fafcff;
 }
 .svr-opt input {
   accent-color: var(--color-primary);
@@ -115,22 +175,35 @@
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
+  transition: background .15s ease, border-color .15s ease, transform .05s ease;
+}
+.svr-star:hover {
+  background: #f8fafc;
+}
+.svr-star:active {
+  transform: translateY(1px);
 }
 .svr-star.is-on {
   background: var(--color-primary-bg);
   border-color: #cdeacd;
 }
 
-/* teks jawaban */
+/* jawaban teks */
 .svr-text {
   width: 100%;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 10px 1px;
+  padding: 10px 12px;
   background: #fff;
   color: var(--color-text);
   font: inherit;
   resize: vertical;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.svr-text:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(16, 124, 16, 0.12);
 }
 
 /* submit */
@@ -149,9 +222,13 @@
   padding: 10px 14px;
   border-radius: 12px;
   cursor: pointer;
+  transition: background .15s ease, transform .05s ease;
 }
 .svr-submit:hover {
   background: var(--color-primary-hover);
+}
+.svr-submit:active {
+  transform: translateY(1px);
 }
 .svr-submit .pd-svg {
   width: 18px;
@@ -174,4 +251,68 @@
   color: #b91c1c;
   background: #fee2e2;
   border-color: #fecaca;
+}
+/* ====== RESPONSIVE ====== */
+@media (max-width: 640px) {
+  .svr-wrap {
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .svr-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .svr-header-actions {
+    justify-content: space-between;
+  }
+
+  /* ikon judul (mobile) — dibesarkan sedikit */
+  .svr-title-icon {
+    width: 22px;   /* sebelumnya 18px / 180px (typo) */
+    height: 22px;
+    object-fit: contain;
+    display: block;
+  }
+  /* kalau masih pakai <Icon /> (SVG) sebagai fallback */
+  .svr-title .pd-svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .svr-title-text {
+    font-size: 19px;  /* naik sedikit */
+    top: -1px;
+  }
+}
+
+@media (min-width: 641px) {
+  /* ikon judul (desktop) — dibesarkan sedikit */
+  .svr-title-icon {
+    width: 24px;   /* sebelumnya 20px */
+    height: 24px;
+    object-fit: contain;
+    display: block;
+  }
+  /* fallback SVG */
+  .svr-title .pd-svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .svr-title-text {
+    font-size: 21px; /* naik sedikit */
+    top: -2px;
+  }
+}
+
+/* ====== ACCESSIBILITY HINTS ====== */
+.svr-btn:focus-visible,
+.svr-submit:focus-visible,
+.svr-opt:focus-within,
+.svr-star:focus-visible,
+.svr-text:focus-visible {
+  outline: 2px solid rgba(16, 124, 16, 0.35);
+  outline-offset: 2px;
+  border-radius: 12px;
 }

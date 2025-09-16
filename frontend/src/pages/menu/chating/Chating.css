@@ -301,3 +301,22 @@
 @media (max-width: 560px){
   .chat-composer{ --comp-h: 36px; }
 }
+/* ikon + teks judul chat */
+.chat-title-icon{
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
+.chat-title-text{
+  position: relative;
+  top: -2px;             /* sedikit dinaikkan agar sejajar icon */
+  font-weight: 800;      /* samakan tebalnya dengan gaya judul */
+}
+
+/* responsif */
+@media (max-width: 640px){
+  .chat-title-icon{ width: 22px; height: 22px; }
+  .chat-title-text{ top: -1px; }
+}
