@@ -18,6 +18,7 @@ import {
   deleteSurvey,
   toggleVisibility,
 } from "../../../services/surveyService.js";
+import meetingService from "../../../services/meetingService.js";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
@@ -68,8 +69,7 @@ export default function Survey() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -183,7 +183,7 @@ export default function Survey() {
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
-      userRole={user?.role || 'participant'}
+      userRole={user?.role || "participant"}
       socket={null} // Will be set when socket is integrated
       mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
     >
@@ -204,160 +204,165 @@ export default function Survey() {
                 minute: "2-digit",
               })}
             </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(user?.username || "US").slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <div className="pd-user-name">
-                {user?.username || "Participant"}
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
-              <div className="pd-user-role">{user?.role || "Participant"}</div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* content */}
-      <main className="pd-main">
-        {/* Screen share moved to dedicated page */}
-        
-        <section className="svr-wrap">
-          <div className="svr-header">
-            <div className="svr-title">
-              <Icon slug="survey" iconUrl="/img/survey.svg" size={22} />
-              <span>Form Survey</span>
-            </div>
-            <div className="svr-header-actions">
-              {isHost && !editing && (
-                <button
-                  className="svr-btn"
-                  onClick={() => setManageMode((v) => !v)}
-                >
-                  <Icon slug="settings" />{" "}
-                  <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
-                </button>
-              )}
-              <button
-                className="svr-btn ghost"
-                onClick={reload}
-                disabled={loading}
-                title="Refresh"
-              >
-                <RefreshIcon />
-                <span>Refresh</span>
-              </button>
-            </div>
-          </div>
-
-          {loading && <div className="pd-empty">Memuat survey…</div>}
-          {err && !loading && <div className="pd-error">{err}</div>}
-
-          {!loading && !err && (
-            <>
-              {/* Mode Host: daftar & editor */}
-              {isHost && manageMode && !editing && (
-                <div className="svr-item">
-                  <div className="svr-qtext" style={{ marginBottom: 8 }}>
-                    Daftar Survey di Meeting Ini
-                  </div>
-                  {surveys.length === 0 ? (
-                    <div className="pd-empty" style={{ marginBottom: 8 }}>
-                      Belum ada survey.
-                    </div>
-                  ) : (
-                    <div className="svr-list">
-                      {surveys.map((s) => (
-                        <div className="svr-item" key={s.surveyId}>
-                          <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                            {s.title || "(tanpa judul)"}{" "}
-                            {s.isShow === "Y" ? (
-                              <span style={{ color: "#059669" }}>• aktif</span>
-                            ) : (
-                              <span style={{ color: "#6b7280" }}>• draft</span>
-                            )}
-                          </div>
-                          {s.description && (
-                            <div style={{ marginBottom: 8 }}>
-                              {s.description}
-                            </div>
-                          )}
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 8,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <button
-                              className="svr-btn"
-                              onClick={() => startEdit(s)}
-                            >
-                              <Icon slug="edit" name="edit" /> <span>Edit</span>
-                            </button>
-                            <button
-                              className="svr-btn"
-                              onClick={() => setActive(s, s.isShow !== "Y")}
-                            >
-                              <Icon slug="eye" />{" "}
-                              <span>
-                                {s.isShow === "Y" ? "Sembunyikan" : "Tampilkan"}
-                              </span>
-                            </button>
-                            <button
-                              className="svr-btn"
-                              onClick={() => removeSurvey(s)}
-                            >
-                              <Icon slug="trash" name="trash" />{" "}
-                              <span>Hapus</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={{ marginTop: 10 }}>
-                    <button className="svr-submit" onClick={startCreate}>
-                      <Icon slug="plus" /> <span>Buat Survey</span>
-                    </button>
-                  </div>
+              <div>
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
                 </div>
-              )}
+                <div className="pd-user-role">
+                  {user?.role || "Participant"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
 
-              {isHost && editing && (
-                <SurveyEditor
-                  initialSurvey={editing.surveyId ? editing : null}
-                  meetingId={meetingId}
-                  onCancel={cancelEdit}
-                  onSave={saveSurvey}
-                  saving={saving}
-                />
-              )}
+        {/* content */}
+        <main className="pd-main">
+          {/* Screen share moved to dedicated page */}
 
-              {/* Mode Viewer (semua role) */}
-              {!manageMode && !editing && (
-                <SurveyViewer survey={activeSurvey} meetingId={meetingId} />
-              )}
-            </>
-          )}
-        </section>
-      </main>
+          <section className="svr-wrap">
+            <div className="svr-header">
+              <div className="svr-title">
+                <Icon slug="survey" iconUrl="/img/survey.svg" size={22} />
+                <span>Form Survey</span>
+              </div>
+              <div className="svr-header-actions">
+                {isHost && !editing && (
+                  <button
+                    className="svr-btn"
+                    onClick={() => setManageMode((v) => !v)}
+                  >
+                    <Icon slug="settings" />{" "}
+                    <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
+                  </button>
+                )}
+                <button
+                  className="svr-btn ghost"
+                  onClick={reload}
+                  disabled={loading}
+                  title="Refresh"
+                >
+                  <RefreshIcon />
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
 
-      {/* bottom nav */}
-      {!loadingMenus && !errMenus && (
-        <BottomNav
-          items={visibleMenus}
-          active="survey"
-          onSelect={handleSelectNav}
-        />
-      )}
+            {loading && <div className="pd-empty">Memuat survey…</div>}
+            {err && !loading && <div className="pd-error">{err}</div>}
 
-        <MeetingFooter
-          userRole={user?.role || "participant"}
-        />
+            {!loading && !err && (
+              <>
+                {/* Mode Host: daftar & editor */}
+                {isHost && manageMode && !editing && (
+                  <div className="svr-item">
+                    <div className="svr-qtext" style={{ marginBottom: 8 }}>
+                      Daftar Survey di Meeting Ini
+                    </div>
+                    {surveys.length === 0 ? (
+                      <div className="pd-empty" style={{ marginBottom: 8 }}>
+                        Belum ada survey.
+                      </div>
+                    ) : (
+                      <div className="svr-list">
+                        {surveys.map((s) => (
+                          <div className="svr-item" key={s.surveyId}>
+                            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                              {s.title || "(tanpa judul)"}{" "}
+                              {s.isShow === "Y" ? (
+                                <span style={{ color: "#059669" }}>
+                                  • aktif
+                                </span>
+                              ) : (
+                                <span style={{ color: "#6b7280" }}>
+                                  • draft
+                                </span>
+                              )}
+                            </div>
+                            {s.description && (
+                              <div style={{ marginBottom: 8 }}>
+                                {s.description}
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 8,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <button
+                                className="svr-btn"
+                                onClick={() => startEdit(s)}
+                              >
+                                <Icon slug="edit" name="edit" />{" "}
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                className="svr-btn"
+                                onClick={() => setActive(s, s.isShow !== "Y")}
+                              >
+                                <Icon slug="eye" />{" "}
+                                <span>
+                                  {s.isShow === "Y"
+                                    ? "Sembunyikan"
+                                    : "Tampilkan"}
+                                </span>
+                              </button>
+                              <button
+                                className="svr-btn"
+                                onClick={() => removeSurvey(s)}
+                              >
+                                <Icon slug="trash" name="trash" />{" "}
+                                <span>Hapus</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
+                    <div style={{ marginTop: 10 }}>
+                      <button className="svr-submit" onClick={startCreate}>
+                        <Icon slug="plus" /> <span>Buat Survey</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
+                {isHost && editing && (
+                  <SurveyEditor
+                    initialSurvey={editing.surveyId ? editing : null}
+                    meetingId={meetingId}
+                    onCancel={cancelEdit}
+                    onSave={saveSurvey}
+                    saving={saving}
+                  />
+                )}
+
+                {/* Mode Viewer (semua role) */}
+                {!manageMode && !editing && (
+                  <SurveyViewer survey={activeSurvey} meetingId={meetingId} />
+                )}
+              </>
+            )}
+          </section>
+        </main>
+
+        {/* bottom nav */}
+        {!loadingMenus && !errMenus && (
+          <BottomNav
+            items={visibleMenus}
+            active="survey"
+            onSelect={handleSelectNav}
+          />
+        )}
+
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );

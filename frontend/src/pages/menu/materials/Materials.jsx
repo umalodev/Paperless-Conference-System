@@ -7,6 +7,7 @@ import Icon from "../../../components/Icon.jsx";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import meetingService from "../../../services/meetingService.js";
 
 export default function Materials() {
   const [user, setUser] = useState(null);
@@ -52,24 +53,10 @@ export default function Materials() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Helper header auth (JWT opsional) + cookie session
   const authHeaders = useMemo(() => {
     const token =
       localStorage.getItem("token") || localStorage.getItem("accessToken");
-    const user = localStorage.getItem("user");
-    let headers = {};
-    if (token && user) {
-      try {
-        const userData = JSON.parse(user);
-        headers = {
-          Authorization: `Bearer ${token}`,
-          "x-user-id": userData.id,
-        };
-      } catch (e) {
-        console.error("Error parsing user data:", e);
-      }
-    }
-    return headers;
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
 
   // ===== NAV menus =====
@@ -80,8 +67,7 @@ export default function Materials() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json", ...authHeaders },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();

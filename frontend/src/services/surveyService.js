@@ -1,11 +1,18 @@
 // src/services/surveyService.js
 import { API_URL } from "../config.js";
 
+function authHeader() {
+  const t = localStorage.getItem("token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 async function http(path, { method = "GET", body } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
     method,
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader(),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   let json = null;

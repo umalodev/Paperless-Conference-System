@@ -1,16 +1,29 @@
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
-const session = require("express-session");
+const { verifyToken } = require("./utils/jwt");
 const http = require("http");
 const WebSocket = require("ws");
 const routes = require("./routes");
+const os = require("os");
 
 const app = express();
 const server = http.createServer(app);
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "0.0.0.0";
 
 const UPLOAD_DIR = path.resolve(__dirname, "uploads");
+
+function getLanIPs() {
+  const ifs = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(ifs)) {
+    for (const i of ifs[name] || []) {
+      if (i.family === "IPv4" && !i.internal) ips.push(i.address);
+    }
+  }
+  return ips;
+}
 
 // WebSocket server for meeting rooms
 const wss = new WebSocket.Server({ server });
@@ -67,15 +80,27 @@ const validateMeetingStatus = async (meetingId) => {
 
 // WebSocket connection handling
 wss.on("connection", (ws, req) => {
-  console.log("New WebSocket connection established");
-
-  // Extract meeting ID from URL
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const meetingId = url.pathname.split("/")[2]; // /meeting/{meetingId}
+  const meetingId = url.pathname.split("/")[2];
+  const token = url.searchParams.get("token");
 
   if (!meetingId) {
     console.log("No meeting ID provided, closing connection");
     ws.close();
+    return;
+  }
+
+  try {
+    if (!token) throw new Error("No token");
+    const payload = verifyToken(token);
+    ws.user = {
+      id: payload.id,
+      username: payload.username,
+      role: payload.role,
+    };
+  } catch {
+    console.log("WS auth failed");
+    ws.close(4401, "Unauthorized");
     return;
   }
 
@@ -188,158 +213,207 @@ wss.on("connection", (ws, req) => {
         }
 
         // Handle chat messages
-        if (data.type === 'chat_message') {
-          console.log(`Chat message from ${data.userId} in meeting ${meetingId}:`, data.message);
-          
+        if (data.type === "chat_message") {
+          console.log(
+            `Chat message from ${data.userId} in meeting ${meetingId}:`,
+            data.message
+          );
+
           // Broadcast chat message to all OTHER clients in the same meeting (not to sender)
           wss.clients.forEach((client) => {
-            if (client !== ws && 
-                client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: 'chat_message',
-                messageId: data.messageId,
-                userId: data.userId,
-                username: data.username,
-                message: data.message,
-                messageType: data.messageType,
-                timestamp: data.timestamp,
-                meetingId: meetingId
-              }));
+            if (
+              client !== ws &&
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "chat_message",
+                  messageId: data.messageId,
+                  userId: data.userId,
+                  username: data.username,
+                  message: data.message,
+                  messageType: data.messageType,
+                  timestamp: data.timestamp,
+                  meetingId: meetingId,
+                })
+              );
             }
           });
         }
 
         // Handle typing indicators
-        if (data.type === 'typing_start' || data.type === 'typing_stop') {
-          console.log(`Typing ${data.type} from ${data.userId} in meeting ${meetingId}`);
-          
+        if (data.type === "typing_start" || data.type === "typing_stop") {
+          console.log(
+            `Typing ${data.type} from ${data.userId} in meeting ${meetingId}`
+          );
+
           // Broadcast typing indicator to all other clients in the same meeting
           wss.clients.forEach((client) => {
-            if (client !== ws && 
-                client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: data.type,
-                userId: data.userId,
-                username: data.username,
-                meetingId: meetingId
-              }));
+            if (
+              client !== ws &&
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: data.type,
+                  userId: data.userId,
+                  username: data.username,
+                  meetingId: meetingId,
+                })
+              );
             }
           });
         }
 
         // Handle screen sharing events
-        if (data.type === 'screen-share-start') {
-          console.log(`Screen share started by ${data.userId} in meeting ${meetingId}`);
-          
+        if (data.type === "screen-share-start") {
+          console.log(
+            `Screen share started by ${data.userId} in meeting ${meetingId}`
+          );
+
           // Broadcast screen share start to all other clients in the same meeting
           wss.clients.forEach((client) => {
-            if (client !== ws && 
-                client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: 'screen-share-start',
-                userId: data.userId,
-                username: data.username,
-                meetingId: meetingId,
-                timestamp: data.timestamp
-              }));
+            if (
+              client !== ws &&
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "screen-share-start",
+                  userId: data.userId,
+                  username: data.username,
+                  meetingId: meetingId,
+                  timestamp: data.timestamp,
+                })
+              );
             }
           });
         }
-        
+
         // Handle screen share stream data
-        if (data.type === 'screen-share-stream') {
-          console.log(`Screen share stream from ${data.userId} in meeting ${meetingId}`);
-          
+        if (data.type === "screen-share-stream") {
+          console.log(
+            `Screen share stream from ${data.userId} in meeting ${meetingId}`
+          );
+
           // Broadcast screen share stream to all other clients in the same meeting
           wss.clients.forEach((client) => {
-            if (client !== ws && 
-                client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: 'screen-share-stream',
-                userId: data.userId,
-                meetingId: meetingId,
-                imageData: data.imageData,
-                timestamp: data.timestamp
-              }));
+            if (
+              client !== ws &&
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "screen-share-stream",
+                  userId: data.userId,
+                  meetingId: meetingId,
+                  imageData: data.imageData,
+                  timestamp: data.timestamp,
+                })
+              );
             }
           });
         }
 
-        if (data.type === 'screen-share-stop') {
-          console.log(`Screen share stopped by ${data.userId} in meeting ${meetingId}`);
-          
+        if (data.type === "screen-share-stop") {
+          console.log(
+            `Screen share stopped by ${data.userId} in meeting ${meetingId}`
+          );
+
           // Broadcast screen share stop to all other clients in the same meeting
           wss.clients.forEach((client) => {
-            if (client !== ws && 
-                client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: 'screen-share-stopped',
-                userId: data.userId,
-                username: data.username,
-                meetingId: meetingId,
-                timestamp: data.timestamp
-              }));
+            if (
+              client !== ws &&
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "screen-share-stopped",
+                  userId: data.userId,
+                  username: data.username,
+                  meetingId: meetingId,
+                  timestamp: data.timestamp,
+                })
+              );
             }
           });
         }
 
-        if (data.type === 'screen-share-producer-created') {
-          console.log(`Screen share producer created by ${data.userId} in meeting ${meetingId}`);
-          
+        if (data.type === "screen-share-producer-created") {
+          console.log(
+            `Screen share producer created by ${data.userId} in meeting ${meetingId}`
+          );
+
           // Broadcast producer creation to all other clients in the same meeting
           wss.clients.forEach((client) => {
-            if (client !== ws && 
-                client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: 'screen-share-producer-created',
-                userId: data.userId,
-                producerId: data.producerId,
-                kind: data.kind,
-                meetingId: meetingId
-              }));
+            if (
+              client !== ws &&
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "screen-share-producer-created",
+                  userId: data.userId,
+                  producerId: data.producerId,
+                  kind: data.kind,
+                  meetingId: meetingId,
+                })
+              );
             }
           });
         }
 
-        if (data.type === 'screen-share-producer-closed') {
-          console.log(`Screen share producer closed by ${data.userId} in meeting ${meetingId}`);
-          
+        if (data.type === "screen-share-producer-closed") {
+          console.log(
+            `Screen share producer closed by ${data.userId} in meeting ${meetingId}`
+          );
+
           // Broadcast producer closure to all other clients in the same meeting
           wss.clients.forEach((client) => {
-            if (client !== ws && 
-                client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: 'screen-share-producer-closed',
-                userId: data.userId,
-                producerId: data.producerId,
-                meetingId: meetingId
-              }));
+            if (
+              client !== ws &&
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "screen-share-producer-closed",
+                  userId: data.userId,
+                  producerId: data.producerId,
+                  meetingId: meetingId,
+                })
+              );
             }
           });
         }
 
         // Handle meeting end
-        if (data.type === 'meeting-end') {
-          console.log(`Meeting ended by ${data.userId} in meeting ${meetingId}`);
-          
+        if (data.type === "meeting-end") {
+          console.log(
+            `Meeting ended by ${data.userId} in meeting ${meetingId}`
+          );
+
           // Broadcast meeting end to all clients in the same meeting
           wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN && 
-                client.meetingId === meetingId) {
-              client.send(JSON.stringify({
-                type: 'meeting-ended',
-                userId: data.userId,
-                username: data.username,
-                meetingId: meetingId,
-                timestamp: new Date().toISOString()
-              }));
+            if (
+              client.readyState === WebSocket.OPEN &&
+              client.meetingId === meetingId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "meeting-ended",
+                  userId: data.userId,
+                  username: data.username,
+                  meetingId: meetingId,
+                  timestamp: new Date().toISOString(),
+                })
+              );
             }
           });
         }
@@ -405,35 +479,43 @@ wss.on("close", () => {
 const sequelize = require("./db/db");
 const models = require("./models");
 
-// Middleware
+function buildAllowedOrigins() {
+  const base = new Set([
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ]);
+  const ifs = os.networkInterfaces();
+  for (const name of Object.keys(ifs)) {
+    for (const i of ifs[name] || []) {
+      if (i.family === "IPv4" && !i.internal) {
+        base.add(`http://${i.address}:5173`);
+        base.add(`http://${i.address}:3000`);
+      }
+    }
+  }
+  return base;
+}
+
+const ALLOWED_ORIGINS = buildAllowedOrigins();
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // Frontend URL
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true); // curl/postman
+      if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+      return cb(new Error("CORS not allowed: " + origin), false);
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie", "X-User-Id"],
-    exposedHeaders: ["Set-Cookie"],
+    origin: (origin, cb) => cb(null, true),
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Session configuration
-app.use(
-  session({
-    secret: "paperless-conference-secret-key",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false, // Set to true in production with HTTPS
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: "lax", // Better for cross-origin requests
-      path: "/",
-    },
-    name: "paperless-session", // Custom session name
-  })
-);
 
 // Use routes
 app.use("/api", routes);
@@ -474,12 +556,15 @@ const startServer = async () => {
     console.log("Database synced successfully - tables created/updated");
 
     // Start server
-    server.listen(PORT, () => {
-      console.log(`Backend running at http://localhost:${PORT}`);
-      console.log(`API endpoints available at http://localhost:${PORT}/api`);
-      console.log(
-        `WebSocket server available at ws://localhost:${PORT}/meeting/{meetingId}`
-      );
+    server.listen(PORT, HOST, () => {
+      const lans = getLanIPs();
+      console.log(`Backend listening on ${HOST}:${PORT}`);
+      console.log(`- Local:  http://localhost:${PORT}`);
+      lans.forEach((ip) => {
+        console.log(`- LAN:    http://${ip}:${PORT}`);
+        console.log(`  API:    http://${ip}:${PORT}/api`);
+        console.log(`  WS:     ws://${ip}:${PORT}/meeting/{meetingId}`);
+      });
     });
   } catch (error) {
     console.error("Failed to start server:", error);
