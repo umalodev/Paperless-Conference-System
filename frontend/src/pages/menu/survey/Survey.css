@@ -233,7 +233,7 @@
   width: 100%;
   border: 1px solid var(--svr-border);
   border-radius: 12px;
-  padding: 10px 12px;                 /* fixed: bukan 10px 1px */
+  padding: 10px 1px;                 /* fixed: bukan 10px 1px */
   background: #fff;
   color: var(--svr-ink);
   font: inherit;
@@ -382,3 +382,15 @@
   line-height: 1.1;
 }
 .svr-btn.sm .pd-icon-img { width: 16px; height: 16px; }
+.svr-btn .pd-icon-img{
+  width:18px; height:18px; display:block; object-fit:contain;
+  transition: transform .2s ease;
+}
+.svr-btn:hover .pd-icon-img{ transform: scale(1.06); }
+.svr-submit .pd-icon-img,
+.svr-btn .pd-icon-img {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+}

@@ -405,7 +405,7 @@ export default function SurveyEditor({
             color: "#1d4ed8",
           }}
         >
-          <Icon slug="plus" /> <span>➕ Tambah Pertanyaan</span>
+          <Icon slug="plus" /> <span> Tambah Pertanyaan</span>
         </button>
         <button
           type="button"

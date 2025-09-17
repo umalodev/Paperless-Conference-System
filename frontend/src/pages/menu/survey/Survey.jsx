@@ -232,23 +232,23 @@ export default function Survey() {
             </div>
             <div className="svr-header-actions">
               {isHost && !editing && (
-                <button
-                  className="svr-btn"
-                  onClick={() => setManageMode((v) => !v)}
-                >
-                  <Icon slug="settings" />{" "}
-                  <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
-                </button>
-              )}
               <button
-                className="svr-btn ghost"
-                onClick={reload}
-                disabled={loading}
-                title="Refresh"
+                className="svr-btn"
+                onClick={() => setManageMode((v) => !v)}
               >
-                <RefreshIcon />
-                <span>Refresh</span>
+                <img src="/img/pengaturan.png" alt="Kelola" className="pd-icon-img" />
+                <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
               </button>
+            )}
+              <button
+              className="svr-btn ghost"
+              onClick={reload}
+              disabled={loading}
+              title="Refresh"
+            >
+              <img src="/img/refresh.png" alt="Refresh" className="pd-icon-img" />
+              <span>Refresh</span>
+            </button>
             </div>
           </div>
 
@@ -291,28 +291,20 @@ export default function Survey() {
                               flexWrap: "wrap",
                             }}
                           >
-                            <button
-                              className="svr-btn"
-                              onClick={() => startEdit(s)}
-                            >
-                              <Icon slug="edit" name="edit" /> <span>Edit</span>
-                            </button>
-                            <button
-                              className="svr-btn"
-                              onClick={() => setActive(s, s.isShow !== "Y")}
-                            >
-                              <Icon slug="eye" />{" "}
-                              <span>
-                                {s.isShow === "Y" ? "Sembunyikan" : "Tampilkan"}
-                              </span>
-                            </button>
-                            <button
-                              className="svr-btn"
-                              onClick={() => removeSurvey(s)}
-                            >
-                              <Icon slug="trash" name="trash" />{" "}
-                              <span>Hapus</span>
-                            </button>
+                            <button className="svr-btn" onClick={() => startEdit(s)}>
+                            <img src="/img/edit.png" alt="Edit" className="pd-icon-img" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button className="svr-btn" onClick={() => setActive(s, s.isShow !== "Y")}>
+                            <img src="/img/eye.png" alt="Lihat" className="pd-icon-img" />
+                            <span>{s.isShow === "Y" ? "Sembunyikan" : "Tampilkan"}</span>
+                          </button>
+
+                          <button className="svr-btn" onClick={() => removeSurvey(s)}>
+                            <img src="/img/delete.png" alt="Hapus" className="pd-icon-img" />
+                            <span>Hapus</span>
+                          </button>
                           </div>
                         </div>
                       ))}
