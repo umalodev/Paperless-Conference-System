@@ -381,23 +381,27 @@ export default function Notes() {
                           {n.author ? <span> · {n.author}</span> : null}
                         </div>
                         <div className="note-actions">
-                          <button
-                            className="note-btn"
-                            onClick={() => startEdit(n)}
-                            disabled={saving}
-                          >
-                            <EditIcon />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            className="note-btn danger"
-                            onClick={() => handleDelete(n.id)}
-                            disabled={saving}
-                          >
-                            <TrashIcon />
-                            <span>Hapus</span>
-                          </button>
-                        </div>
+  <button
+    className="note-btn sm"
+    onClick={() => startEdit(n)}
+    disabled={saving}
+    title="Edit catatan"
+  >
+    <img src="/img/edit.png" alt="" className="pd-icon-img" />
+    <span>Edit</span>
+  </button>
+
+  <button
+    className="note-btn sm danger"
+    onClick={() => handleDelete(n.id)}
+    disabled={saving}
+    title="Hapus catatan"
+  >
+    <img src="/img/delete.png" alt="" className="pd-icon-img" />
+    <span>Hapus</span>
+  </button>
+</div>
+
                       </div>
                     )
                   )}

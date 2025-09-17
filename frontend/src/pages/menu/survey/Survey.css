@@ -1,18 +1,39 @@
 @import "../../../themes/variables.css";
 
+/* -------------------------------------------------------
+   VARS (non-breaking tweaks)
+------------------------------------------------------- */
+.svr-wrap{
+  /* local design tokens — aman kalau tidak dipakai komponen lain */
+  --svr-radius: 18px;
+  --svr-pad: 18px;
+  --svr-gap: 12px;
+  --svr-border: #e5e7eb;
+  --svr-border-soft: #eef0f2;
+  --svr-surface: #ffffff;
+  --svr-soft: #f7f9fb;
+  --svr-soft-2: #f9fbfe;
+  --svr-ink: var(--color-text, #0f172a);
+  --svr-accent: var(--color-primary, #10b981);
+  --svr-accent-weak: rgba(16, 124, 16, 0.12);
+  --svr-shadow-1: 0 0 0 2px rgba(16,124,16,.06) inset,
+                  0 10px 28px rgba(16,124,16,.10),
+                  0 2px 8px rgba(0,0,0,.04);
+  --svr-shadow-2: 0 4px 16px rgba(2,6,23,.06);
+  --svr-shadow-3: 0 6px 18px rgba(16,124,16,.12);
+}
+
 /* ====== WRAPPER ====== */
 .svr-wrap {
-  background: linear-gradient(#ffffff, #ffffff) padding-box,
-              linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
   border: 1px solid transparent;
-  border-radius: 18px;
-  padding: 18px;
+  border-radius: var(--svr-radius);
+  padding: var(--svr-pad);
   width: 100%;
   max-width: 1000px;
-  box-shadow:
-    0 0 0 2px rgba(16, 124, 16, 0.06) inset,
-    0 10px 28px rgba(16, 124, 16, 0.1),
-    0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--svr-shadow-1);
 }
 
 /* ====== HEADER ====== */
@@ -20,7 +41,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--svr-gap);
   margin-bottom: 14px;
 }
 
@@ -29,14 +50,11 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: var(--color-text);
+  color: var(--svr-ink);
 }
 
 /* fallback bila masih ada <Icon /> */
-.svr-title .pd-svg {
-  width: 20px;
-  height: 20px;
-}
+.svr-title .pd-svg { width: 20px; height: 20px; }
 
 /* gambar ikon judul */
 .svr-title-icon {
@@ -54,6 +72,7 @@
   margin-left: 4px;
   position: relative;
   top: -1px; /* sedikit dinaikkan biar sejajar ikon */
+  letter-spacing: .2px;
 }
 
 /* header actions */
@@ -67,44 +86,35 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--svr-border);
   background: #f8fafc;
-  color: var(--color-text);
+  color: var(--svr-ink);
   padding: 8px 12px;
   border-radius: 12px;
   cursor: pointer;
-  transition: transform .05s ease, background .15s ease, border-color .15s ease;
+  transition: transform .05s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+  box-shadow: 0 0 0 0 rgba(0,0,0,0);
 }
 .svr-btn:hover {
   background: #eef2f7;
   border-color: #dfe5ee;
+  box-shadow: 0 6px 14px rgba(2,6,23,.06);
 }
-.svr-btn:active {
-  transform: translateY(1px);
-}
-.svr-btn.ghost {
-  background: #f8fafc;
-}
+.svr-btn:active { transform: translateY(1px); }
+.svr-btn.ghost { background: #f8fafc; }
 .svr-btn.active {
   background: #eaf2ff;
   border-color: #d6e4ff;
+  box-shadow: 0 6px 16px rgba(12,86,204,.10);
 }
-.svr-btn:disabled {
-  opacity: .6;
-  cursor: not-allowed;
-}
+.svr-btn:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ikon di dalam tombol (gambar .png) */
 .svr-btn .pd-icon-img {
-  width: 18px;
-  height: 18px;
-  display: block;
-  object-fit: contain;
+  width: 18px; height: 18px; display: block; object-fit: contain;
   transition: transform .2s ease;
 }
-.svr-btn:hover .pd-icon-img {
-  transform: scale(1.06);
-}
+.svr-btn:hover .pd-icon-img { transform: scale(1.06); }
 
 /* ====== LIST & ITEMS ====== */
 .svr-list {
@@ -113,29 +123,47 @@
   gap: 12px;
 }
 
+/* responsif (tanpa ubah HTML): auto-fit jadi kartu 2–4 kolom di layar lebar */
+@media (min-width: 768px){
+  .svr-list{
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+
 .svr-item {
-  border: 1px solid #eef0f2;
+  border: 1px solid var(--svr-border-soft);
   border-radius: 14px;
-  background: #f7f9fb;
+  background: var(--svr-soft);
   padding: 14px;
-  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, transform .12s ease;
+  position: relative;
+  overflow: clip;
 }
 .svr-item:hover {
   border-color: #e1e7f2;
-  background: #f9fbfe;
-  box-shadow: 0 4px 16px rgba(2, 6, 23, .06);
+  background: var(--svr-soft-2);
+  box-shadow: var(--svr-shadow-2);
+  transform: translateY(-1px);
 }
 
-/* pertanyaan */
+/* dekor garis aksen halus di sisi kiri item */
+.svr-item::before{
+  content:"";
+  position:absolute; inset:0 0 0 0;
+  border-left: 3px solid color-mix(in srgb, var(--svr-accent) 30%, transparent);
+  border-radius: inherit;
+  pointer-events:none;
+}
+
+/* pertanyaan / judul blok */
 .svr-qtext {
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--svr-ink);
   margin-bottom: 10px;
+  line-height: 1.25;
+  word-wrap: break-word;
 }
-.svr-required {
-  color: #dc2626;
-  margin-left: 6px;
-}
+.svr-required { color: #dc2626; margin-left: 6px; }
 
 /* opsi jawaban */
 .svr-options {
@@ -143,67 +171,64 @@
   grid-template-columns: 1fr;
   gap: 8px;
 }
+
+/* otomatis jadi 2 kolom bila ruang cukup (aman untuk checkbox/radio) */
+@media (min-width: 720px){
+  .svr-options{
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
 .svr-opt {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--svr-border);
   border-radius: 10px;
   background: #fff;
-  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, transform .08s ease;
 }
 .svr-opt:hover {
   border-color: #dfe4ea;
   background: #fafcff;
+  box-shadow: 0 4px 10px rgba(2,6,23,.05);
 }
-.svr-opt input {
-  accent-color: var(--color-primary);
-}
+.svr-opt:active{ transform: translateY(1px); }
+.svr-opt input { accent-color: var(--svr-accent); }
 
 /* rating */
-.svr-rating {
-  display: inline-flex;
-  gap: 6px;
-}
+.svr-rating { display: inline-flex; gap: 6px; }
 .svr-star {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  transition: background .15s ease, border-color .15s ease, transform .05s ease;
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--svr-border);
+  background: #fff; cursor: pointer; font-size: 16px; line-height: 1;
+  transition: background .15s ease, border-color .15s ease, transform .05s ease, box-shadow .15s ease;
 }
-.svr-star:hover {
-  background: #f8fafc;
-}
-.svr-star:active {
-  transform: translateY(1px);
-}
+.svr-star:hover { background: #f8fafc; box-shadow: 0 3px 8px rgba(2,6,23,.06); }
+.svr-star:active { transform: translateY(1px); }
 .svr-star.is-on {
-  background: var(--color-primary-bg);
+  background: color-mix(in srgb, var(--svr-accent) 12%, #fff);
   border-color: #cdeacd;
 }
 
 /* jawaban teks */
 .svr-text {
   width: 100%;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--svr-border);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 10px 1px;
   background: #fff;
-  color: var(--color-text);
+  color: var(--svr-ink);
   font: inherit;
   resize: vertical;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 .svr-text:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(16, 124, 16, 0.12);
+  border-color: var(--svr-accent);
+  box-shadow: 0 0 0 3px var(--svr-accent-weak);
+  background: #ffffff;
 }
 
 /* submit */
@@ -211,36 +236,35 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .svr-submit {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-primary);
+  background: var(--svr-accent);
   color: #fff;
   border: 0;
   padding: 10px 14px;
   border-radius: 12px;
   cursor: pointer;
-  transition: background .15s ease, transform .05s ease;
+  transition: background .15s ease, transform .05s ease, box-shadow .15s ease;
+  box-shadow: 0 0 0 0 rgba(0,0,0,0);
 }
 .svr-submit:hover {
-  background: var(--color-primary-hover);
+  background: var(--color-primary-hover, #0da471);
+  box-shadow: var(--svr-shadow-3);
 }
-.svr-submit:active {
-  transform: translateY(1px);
-}
-.svr-submit .pd-svg {
-  width: 18px;
-  height: 18px;
-}
+.svr-submit:active { transform: translateY(1px); }
+.svr-submit .pd-svg { width: 18px; height: 18px; }
 
 /* status message */
 .svr-msg {
   margin-top: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--svr-border);
 }
 .svr-msg.ok {
   color: #065f46;
@@ -252,58 +276,33 @@
   background: #fee2e2;
   border-color: #fecaca;
 }
+
 /* ====== RESPONSIVE ====== */
 @media (max-width: 640px) {
-  .svr-wrap {
-    padding: 16px;
-    border-radius: 16px;
-  }
-  .svr-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .svr-header-actions {
-    justify-content: space-between;
-  }
+  .svr-wrap { padding: 16px; border-radius: 16px; }
+  .svr-header { flex-direction: column; align-items: stretch; gap: 10px; }
+  .svr-header-actions { justify-content: space-between; }
 
   /* ikon judul (mobile) — dibesarkan sedikit */
-  .svr-title-icon {
-    width: 22px;   /* sebelumnya 18px / 180px (typo) */
-    height: 22px;
-    object-fit: contain;
-    display: block;
-  }
-  /* kalau masih pakai <Icon /> (SVG) sebagai fallback */
-  .svr-title .pd-svg {
-    width: 22px;
-    height: 22px;
-  }
+  .svr-title-icon { width: 22px; height: 22px; object-fit: contain; display: block; }
 
-  .svr-title-text {
-    font-size: 19px;  /* naik sedikit */
-    top: -1px;
-  }
+  /* kalau masih pakai <Icon /> (SVG) sebagai fallback */
+  .svr-title .pd-svg { width: 22px; height: 22px; }
+
+  .svr-title-text { font-size: 19px; top: -1px; }
+
+  /* spacing konten lebih lapang */
+  .svr-item{ padding: 12px; }
 }
 
 @media (min-width: 641px) {
   /* ikon judul (desktop) — dibesarkan sedikit */
-  .svr-title-icon {
-    width: 24px;   /* sebelumnya 20px */
-    height: 24px;
-    object-fit: contain;
-    display: block;
-  }
-  /* fallback SVG */
-  .svr-title .pd-svg {
-    width: 24px;
-    height: 24px;
-  }
+  .svr-title-icon { width: 24px; height: 24px; object-fit: contain; display: block; }
 
-  .svr-title-text {
-    font-size: 21px; /* naik sedikit */
-    top: -2px;
-  }
+  /* fallback SVG */
+  .svr-title .pd-svg { width: 24px; height: 24px; }
+
+  .svr-title-text { font-size: 21px; top: -2px; }
 }
 
 /* ====== ACCESSIBILITY HINTS ====== */
@@ -315,4 +314,53 @@
   outline: 2px solid rgba(16, 124, 16, 0.35);
   outline-offset: 2px;
   border-radius: 12px;
+}
+
+/* ====== POLISH TAMBAHAN (opsional & aman) ====== */
+
+/* scrollbar halus (WebKit) */
+.svr-wrap *::-webkit-scrollbar{ height:10px; width:10px; }
+.svr-wrap *::-webkit-scrollbar-thumb{
+  background: #d7e7e0; border-radius:10px; border:2px solid #f1f5f4;
+}
+.svr-wrap *::-webkit-scrollbar-thumb:hover{ background:#c9e0d7; }
+
+/* reduced motion — kurangi animasi */
+@media (prefers-reduced-motion: reduce){
+  .svr-btn, .svr-item, .svr-opt, .svr-star, .svr-text, .svr-submit{ transition:none !important; }
+}
+
+/* dark mode lembut */
+@media (prefers-color-scheme: dark){
+  .svr-wrap{
+    background:
+      linear-gradient(#0f1c18, #0f1c18) padding-box,
+      linear-gradient(135deg, #22c792, #0e9f77, #93e6c8) border-box;
+    box-shadow: none;
+  }
+  .svr-title, .svr-title-text, .svr-qtext{ color:#eaf7f2; }
+  .svr-header-actions .svr-btn{ background:#0f201b; border-color:#19362d; color:#dfeee8; }
+  .svr-btn.active{ background:#0b2a22; border-color:#1f4a3d; }
+  .svr-list{ gap: 12px; }
+  .svr-item{
+    background:#0f201b; border-color:#19362d;
+    box-shadow:none;
+  }
+  .svr-item:hover{ background:#10261f; border-color:#1f4a3d; }
+  .svr-opt{ background:#0f1f1a; border-color:#1b3a30; color:#dfeee8; }
+  .svr-text{ background:#10241e; border-color:#1c3d33; color:#eaf7f2; }
+  .svr-msg.ok{ color:#baf7e2; background:#0f2a22; border-color:#1d5a49; }
+  .svr-msg.err{ color:#ffd5d5; background:#2a1414; border-color:#5a1d1d; }
+}
+/* ukuran tombol kecil */
+.svr-btn.sm {
+  padding: 6px 10px;      /* lebih kecil dari default 8px 12px */
+  border-radius: 10px;    /* sedikit lebih ringkas */
+  font-size: 13px;        /* teks lebih kecil */
+  line-height: 1.1;
+}
+
+.svr-btn.sm .pd-icon-img {
+  width: 16px;            /* ikon kecil */
+  height: 16px;
 }

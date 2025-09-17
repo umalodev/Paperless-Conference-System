@@ -176,3 +176,15 @@
   .notes-title-icon{ width: 22px; height: 22px; }
   .notes-title-text{ top: -1px; }
 }
+/* tombol kecil */
+.note-btn.sm {
+  padding: 6px 10px;      /* lebih kecil dari default */
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.note-btn.sm .pd-icon-img {
+  width: 16px;            /* ikon diperkecil */
+  height: 16px;
+}
