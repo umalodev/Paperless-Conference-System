@@ -9,6 +9,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
+
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Notes() {
@@ -189,7 +190,6 @@ export default function Notes() {
       const payload = { title: editTitle.trim(), body: editBody.trim() };
       const res = await fetch(`${API_URL}/api/notes/${editingId}`, {
         method: "PUT",
-
         headers: {
           "Content-Type": "application/json",
           ...meetingService.getAuthHeaders(),
@@ -239,7 +239,7 @@ export default function Notes() {
         {/* Top bar */}
         <header className="pd-topbar">
           <div className="pd-left">
-            <span className="pd-live" aria-hidden />
+            <span className="pd-live" aria-hidden="true" />
             <div>
               <h1 className="pd-title">Notes</h1>
               <div className="pd-sub">Tulis & simpan catatan sesi</div>
@@ -264,7 +264,6 @@ export default function Notes() {
               </div>
             </div>
           </div>
-
         </header>
 
         {/* Content */}
@@ -288,7 +287,6 @@ export default function Notes() {
                 </button>
               </div>
             </div>
-
 
             {/* Composer */}
             <div className="notes-composer">
@@ -408,58 +406,25 @@ export default function Notes() {
                             </button>
                           </div>
                         </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </main>
 
-                        <div className="note-meta">
-                          <span>{formatDate(n.updatedAt)}</span>
-                          {n.author ? <span> · {n.author}</span> : null}
-                        </div>
-                        <div className="note-actions">
-  <button
-    className="note-btn sm"
-    onClick={() => startEdit(n)}
-    disabled={saving}
-    title="Edit catatan"
-  >
-    <img src="/img/edit.png" alt="" className="pd-icon-img" />
-    <span>Edit</span>
-  </button>
+        {/* Bottom nav dari DB */}
+        {!loadingMenus && !errMenus && (
+          <BottomNav
+            items={visibleMenus}
+            active="note"
+            onSelect={handleSelectNav}
+          />
+        )}
 
-  <button
-    className="note-btn sm danger"
-    onClick={() => handleDelete(n.id)}
-    disabled={saving}
-    title="Hapus catatan"
-  >
-    <img src="/img/delete.png" alt="" className="pd-icon-img" />
-    <span>Hapus</span>
-  </button>
-</div>
-
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      </main>
-
-      {/* Bottom nav dari DB */}
-      {!loadingMenus && !errMenus && (
-        <BottomNav
-          items={visibleMenus}
-          active="note"
-          onSelect={handleSelectNav}
-        />
-      )}
-
-        <MeetingFooter
-          userRole={user?.role || "participant"}
-        />
-
-
-
+        <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
   );
@@ -491,7 +456,7 @@ function SaveIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
       <path d="M17 21V9H7v12" />
@@ -509,7 +474,7 @@ function ClearIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M3 6h18" />
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -527,7 +492,7 @@ function EditIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -544,7 +509,7 @@ function TrashIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M3 6h18" />
       <path d="M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" />
@@ -562,7 +527,7 @@ function CancelIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M18 6L6 18M6 6l12 12" />
     </svg>
@@ -578,7 +543,7 @@ function RefreshIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9" />
       <path d="M3 12l3-3 3 3" />
