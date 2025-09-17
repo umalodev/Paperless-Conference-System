@@ -7,10 +7,11 @@ class MeetingService {
 
   // Get auth headers
   getAuthHeaders() {
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${this.token}`,
-    };
+    const h = { "Content-Type": "application/json" };
+    // hanya set Authorization jika token ada
+    const t = this.token || localStorage.getItem("token");
+    if (t) h.Authorization = `Bearer ${t}`;
+    return h;
   }
 
   // Create a new meeting
@@ -23,7 +24,7 @@ class MeetingService {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // Include cookies for session
+
         body: JSON.stringify(meetingData),
       });
 
@@ -62,7 +63,6 @@ class MeetingService {
   async getDefaultMeeting() {
     const res = await fetch(`${API_URL}/api/meeting/default`, {
       headers: this.getAuthHeaders(),
-      credentials: "include",
     });
     return res.json();
   }
@@ -71,7 +71,7 @@ class MeetingService {
     const res = await fetch(`${API_URL}/api/meeting/default/join`, {
       method: "POST",
       headers: this.getAuthHeaders(),
-      credentials: "include",
+
       body: JSON.stringify({}),
     });
     return res.json();
@@ -82,10 +82,7 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/start`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ meetingId }),
       });
 
@@ -115,10 +112,7 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/join`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ meetingId }),
       });
 
@@ -148,10 +142,7 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/auto-join`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ meetingId }),
       });
 
@@ -238,7 +229,7 @@ class MeetingService {
         `${API_URL}/api/meeting/${meetingId}/status`,
         {
           method: "GET",
-          credentials: "include",
+          headers: this.getAuthHeaders(),
         }
       );
 
@@ -267,7 +258,6 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/my-meetings`, {
         headers: this.getAuthHeaders(),
-        credentials: "include",
       });
 
       if (!response.ok) {
@@ -287,7 +277,6 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/scheduled`, {
         headers: this.getAuthHeaders(),
-        credentials: "include",
       });
 
       if (!response.ok) {
@@ -309,7 +298,6 @@ class MeetingService {
     try {
       const response = await fetch(`${API_URL}/api/meeting/all`, {
         headers: this.getAuthHeaders(),
-        credentials: "include",
       });
 
       if (!response.ok) {
@@ -330,7 +318,7 @@ class MeetingService {
       const response = await fetch(`${API_URL}/api/meeting/end`, {
         method: "POST",
         headers: this.getAuthHeaders(),
-        credentials: "include",
+
         body: JSON.stringify({ meetingId }),
       });
 
@@ -363,7 +351,6 @@ class MeetingService {
         {
           method: "GET",
           headers: this.getAuthHeaders(),
-          credentials: "include",
         }
       );
 
@@ -395,7 +382,7 @@ class MeetingService {
       const response = await fetch(`${API_URL}/api/meeting/leave`, {
         method: "POST",
         headers: this.getAuthHeaders(),
-        credentials: "include",
+
         body: JSON.stringify({ meetingId }),
       });
 

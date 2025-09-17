@@ -1,11 +1,18 @@
 // src/services/filesService.js
 import { API_URL } from "../config";
 
+function authHeader() {
+  const t = localStorage.getItem("token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 export async function listFiles(meetingId) {
   const res = await fetch(
     `${API_URL}/api/files?meetingId=${encodeURIComponent(meetingId)}`,
     {
-      credentials: "include",
+      headers: {
+        ...authHeader(),
+      },
     }
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -22,7 +29,9 @@ export async function uploadFile({ meetingId, file, description }) {
   const res = await fetch(`${API_URL}/api/files`, {
     method: "POST",
     body: fd,
-    credentials: "include",
+    headers: {
+      ...authHeader(),
+    },
   });
   if (!res.ok) {
     const t = await res.json().catch(() => ({}));
@@ -35,7 +44,9 @@ export async function uploadFile({ meetingId, file, description }) {
 export async function deleteFile(fileId) {
   const res = await fetch(`${API_URL}/api/files/${fileId}`, {
     method: "DELETE",
-    credentials: "include",
+    headers: {
+      ...authHeader(),
+    },
   });
   if (!res.ok) {
     const t = await res.json().catch(() => ({}));

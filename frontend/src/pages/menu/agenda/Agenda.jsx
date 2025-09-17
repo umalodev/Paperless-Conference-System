@@ -7,6 +7,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import "./Agenda.css";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import meetingService from "../../../services/meetingService.js";
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
@@ -79,8 +80,7 @@ export default function Agenda() {
         setLoading(true);
         setErr("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();

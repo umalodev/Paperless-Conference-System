@@ -1,135 +1,91 @@
-const db = require('../models');
+// middleware/auth.js
+const db = require("../models");
 const { User, UserRole } = db;
+const { verifyToken } = require("../utils/jwt");
 
-const authMiddleware = {
-  // Check if user is authenticated
-  async isAuthenticated(req, res, next) {
-    try {
-      console.log('Auth middleware - Session:', req.session);
-      console.log('Auth middleware - Cookies:', req.headers.cookie);
-      console.log('Auth middleware - Authorization header:', req.headers.authorization);
-      console.log('Auth middleware - X-User-Id header:', req.headers['x-user-id']);
-      
-      // First try session-based authentication
-      if (req.session && req.session.user) {
-        const user = await User.findByPk(req.session.user.id, {
-          include: [{
-            model: UserRole,
-            as: 'UserRole'
-          }]
-        });
-        
-        if (user) {
-          req.user = user;
-          console.log('Auth middleware - User authenticated via session:', user.username);
-          return next();
-        }
-      }
-      
-      // Then try token-based authentication (for backward compatibility)
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        const userId = req.headers['x-user-id'];
-        
-        if (userId) {
-          const user = await User.findByPk(userId, {
-            include: [{
-              model: UserRole,
-              as: 'UserRole'
-            }]
-          });
-          
-          if (user) {
-            req.user = user;
-            console.log('Auth middleware - User authenticated via token:', user.username);
-            return next();
-          }
-        }
-      }
-      
-      console.log('Auth middleware - Authentication failed');
-      return res.status(401).json({
-        success: false,
-        message: "Anda harus login terlebih dahulu"
-      });
-    } catch (error) {
-      console.error('Auth middleware error:', error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error"
-      });
+async function isAuthenticated(req, res, next) {
+  try {
+    const auth = req.headers.authorization || "";
+    if (!auth.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Anda harus login terlebih dahulu" });
     }
-  },
 
-  // Check if user has admin role
-  async isAdmin(req, res, next) {
+    const token = auth.slice(7).trim();
+    let payload;
     try {
-      if (req.user && req.user.UserRole && req.user.UserRole.nama === 'admin') {
-        return next();
-      }
-      
-      return res.status(403).json({
-        success: false,
-        message: "Akses ditolak. Anda harus memiliki role admin"
-      });
-    } catch (error) {
-      console.error('Admin check error:', error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error"
-      });
-    }
-  },
-
-  // Check if user has moderator role or higher
-  async isModerator(req, res, next) {
-    try {
-      if (req.user && req.user.UserRole && 
-          (req.user.UserRole.nama === 'host' || req.user.UserRole.nama === 'admin')) {
-        return next();
-      }
-      
-      return res.status(403).json({
-        success: false,
-        message: "Akses ditolak. Anda harus memiliki role host atau admin"
-      });
-    } catch (error) {
-      console.error('Moderator check error:', error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error"
-      });
-    }
-  },
-
-  // Dynamic role checking method
-  requireRole(roleName) {
-    return async (req, res, next) => {
-      try {
-        if (req.user && req.user.UserRole && req.user.UserRole.nama === roleName) {
-          return next();
-        }
-        
-        return res.status(403).json({
+      payload = verifyToken(token);
+    } catch (e) {
+      return res
+        .status(401)
+        .json({
           success: false,
-          message: `Akses ditolak. Anda harus memiliki role ${roleName}`
+          message: "Token tidak valid atau kedaluwarsa",
         });
-      } catch (error) {
-        console.error('Role check error:', error);
-        return res.status(500).json({
-          success: false,
-          message: "Internal server error"
-        });
-      }
+    }
+
+    // (Opsional) tarik user dari DB agar role/flag terbaru
+    const user = await User.findByPk(payload.id, {
+      include: [{ model: UserRole, as: "UserRole" }],
+    });
+    if (!user) {
+      return res
+        .status(401)
+        .json({ success: false, message: "User tidak ditemukan" });
+    }
+
+    // simpan ke req.user
+    req.user = {
+      id: user.id,
+      username: user.username,
+      role: user.UserRole?.nama || payload.role || "participant",
+      // tambah field lain bila perlu
+      _record: user, // jika controller butuh akses full instance
     };
+
+    return next();
+  } catch (err) {
+    console.error("Auth middleware error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
-};
+}
 
-// Add authenticateToken function for backward compatibility
-const authenticateToken = authMiddleware.isAuthenticated;
+function isAdmin(req, res, next) {
+  const role = req.user?.role;
+  if (role === "admin") return next();
+  return res
+    .status(403)
+    .json({
+      success: false,
+      message: "Akses ditolak. Anda harus memiliki role admin",
+    });
+}
 
-module.exports = {
-  ...authMiddleware,
-  authenticateToken
-};
+function isModerator(req, res, next) {
+  const role = req.user?.role;
+  if (role === "host" || role === "admin") return next();
+  return res
+    .status(403)
+    .json({
+      success: false,
+      message: "Akses ditolak. Anda harus memiliki role host atau admin",
+    });
+}
+
+function requireRole(roleName) {
+  return (req, res, next) => {
+    const role = req.user?.role;
+    if (role === roleName) return next();
+    return res
+      .status(403)
+      .json({
+        success: false,
+        message: `Akses ditolak. Anda harus memiliki role ${roleName}`,
+      });
+  };
+}
+
+module.exports = { isAuthenticated, isAdmin, isModerator, requireRole };

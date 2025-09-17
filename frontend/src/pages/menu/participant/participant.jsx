@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import meetingService from "../../../services/meetingService.js";
 
 export default function ParticipantsPage() {
   const [user, setUser] = useState(null);
@@ -44,8 +45,7 @@ export default function ParticipantsPage() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -78,7 +78,9 @@ export default function ParticipantsPage() {
         setLoadingList(true);
         setErrList("");
 
-        const qs = meetingId ? `?meetingId=${encodeURIComponent(meetingId)}` : "";
+        const qs = meetingId
+          ? `?meetingId=${encodeURIComponent(meetingId)}`
+          : "";
         let res = await fetch(`${API_URL}/api/participants/joined${qs}`, {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -182,14 +184,17 @@ export default function ParticipantsPage() {
       if (updates.isScreenSharing !== undefined)
         dbUpdates.isScreenSharing = updates.isScreenSharing;
 
-      const res = await fetch(`${API_URL}/api/participants/${participantId}/status`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(dbUpdates),
-      });
+      const res = await fetch(
+        `${API_URL}/api/participants/${participantId}/status`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dbUpdates),
+        }
+      );
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
@@ -236,14 +241,19 @@ export default function ParticipantsPage() {
           </div>
           <div className="pd-right">
             <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
                 {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
               <div>
-                <div className="pd-user-name">{user?.username || "Participant"}</div>
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
+                </div>
                 <div className="pd-user-role">Participant</div>
               </div>
             </div>
@@ -279,28 +289,36 @@ export default function ParticipantsPage() {
 
             <div className="prt-summary">
               <div className="prt-card">
-                <div className="prt-card-icon"><Icon slug="users" /></div>
+                <div className="prt-card-icon">
+                  <Icon slug="users" />
+                </div>
                 <div>
                   <div className="prt-card-title">{totals.total}</div>
                   <div className="prt-card-sub">Total</div>
                 </div>
               </div>
               <div className="prt-card">
-                <div className="prt-card-icon"><Icon slug="mic" /></div>
+                <div className="prt-card-icon">
+                  <Icon slug="mic" />
+                </div>
                 <div>
                   <div className="prt-card-title">{totals.micOn}</div>
                   <div className="prt-card-sub">Mic On</div>
                 </div>
               </div>
               <div className="prt-card">
-                <div className="prt-card-icon"><Icon slug="camera" /></div>
+                <div className="prt-card-icon">
+                  <Icon slug="camera" />
+                </div>
                 <div>
                   <div className="prt-card-title">{totals.camOn}</div>
                   <div className="prt-card-sub">Cam On</div>
                 </div>
               </div>
               <div className="prt-card">
-                <div className="prt-card-icon"><Icon slug="hand" /></div>
+                <div className="prt-card-icon">
+                  <Icon slug="hand" />
+                </div>
                 <div>
                   <div className="prt-card-title">{totals.hands}</div>
                   <div className="prt-card-sub">Raised</div>
@@ -309,7 +327,9 @@ export default function ParticipantsPage() {
             </div>
 
             {/* List peserta */}
-            {loadingList && <div className="pd-empty">Loading participants…</div>}
+            {loadingList && (
+              <div className="pd-empty">Loading participants…</div>
+            )}
             {errList && !loadingList && (
               <div className="pd-error">Gagal memuat peserta: {errList}</div>
             )}
@@ -326,7 +346,9 @@ export default function ParticipantsPage() {
                       <div className="prt-meta">
                         <span className="prt-role">{p.role}</span>
                         {p.seat && <span className="prt-sep">•</span>}
-                        {p.seat && <span className="prt-seat">Seat {p.seat}</span>}
+                        {p.seat && (
+                          <span className="prt-seat">Seat {p.seat}</span>
+                        )}
                       </div>
                       {p.joinTime && (
                         <div className="prt-join-time">
@@ -337,14 +359,22 @@ export default function ParticipantsPage() {
                     <div className="prt-status">
                       <button
                         className={`prt-pill ${p.mic ? "on" : "off"}`}
-                        title={p.mic ? "Mic On - Click to turn off" : "Mic Off - Click to turn on"}
+                        title={
+                          p.mic
+                            ? "Mic On - Click to turn off"
+                            : "Mic Off - Click to turn on"
+                        }
                         onClick={() => handleMicToggle(p.id, p.mic)}
                       >
                         <Icon slug="mic" />
                       </button>
                       <button
                         className={`prt-pill ${p.cam ? "on" : "off"}`}
-                        title={p.cam ? "Camera On - Click to turn off" : "Camera Off - Click to turn on"}
+                        title={
+                          p.cam
+                            ? "Camera On - Click to turn off"
+                            : "Camera Off - Click to turn on"
+                        }
                         onClick={() => handleCameraToggle(p.id, p.cam)}
                       >
                         <Icon slug="camera" />
@@ -356,15 +386,20 @@ export default function ParticipantsPage() {
                       )}
                     </div>
                     <div className="prt-actions-right">
-                      <button className="prt-act" title="Pin"><Icon slug="pin" /></button>
-                      <button className="prt-act" title="More"><Icon slug="dots" /></button>
+                      <button className="prt-act" title="Pin">
+                        <Icon slug="pin" />
+                      </button>
+                      <button className="prt-act" title="More">
+                        <Icon slug="dots" />
+                      </button>
                     </div>
                   </div>
                 ))}
 
                 {filtered.length === 0 && participants.length === 0 && (
                   <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
-                    Tidak ada peserta yang sedang bergabung dalam meeting saat ini.
+                    Tidak ada peserta yang sedang bergabung dalam meeting saat
+                    ini.
                   </div>
                 )}
 
