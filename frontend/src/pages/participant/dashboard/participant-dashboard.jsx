@@ -168,7 +168,7 @@ export default function ParticipantDashboard() {
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
   return (
-    <div className="pd-app">
+    <div className="pd-app centered-page">
       <header className="pd-topbar">
         <div className="pd-left">
           <span className="pd-live" aria-hidden />

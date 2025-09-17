@@ -690,14 +690,12 @@ export default function Chat() {
           <section className="chat-wrap">
             <div className="chat-header">
               <div className="chat-title">
-                <Icon slug="chat" iconUrl="/img/chat.svg" size={22} />
-                <span>
-                  {chatMode === "global"
-                    ? "Ruang Chat"
-                    : `Chat dengan ${
-                        selectedParticipant?.name || "Participant"
-                      }`}
-                </span>
+              <img src="/img/Chating1.png" alt="" className="chat-title-icon" />
+              <span className="chat-title-text">
+               {chatMode === "global"
+               ? "Ruang Chat"
+               : `Chat dengan ${selectedParticipant?.name || "Participant"}`}
+              </span>
               </div>
               <div className="chat-mode-buttons">
                 <button

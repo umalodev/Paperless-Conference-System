@@ -8,9 +8,10 @@ import "./Survey.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
-// Removed inline screen share usage; viewing is moved to dedicated page
+
 import SurveyViewer from "./components/SurveyViewer.jsx";
 import SurveyEditor from "./components/SurveyEditor.jsx";
+
 import {
   getSurveysByMeeting,
   createSurvey,
@@ -50,11 +51,7 @@ export default function Survey() {
   const [editing, setEditing] = useState(null); // survey object being edited
   const [saving, setSaving] = useState(false);
 
-  // Screen sharing UI moved to dedicated page
-
   const navigate = useNavigate();
-
-  // Screen sharing controls handled elsewhere
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -114,6 +111,7 @@ export default function Survey() {
   };
   useEffect(() => {
     reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meetingId]);
 
   const visibleMenus = useMemo(
@@ -146,7 +144,7 @@ export default function Survey() {
           questions: payload.questions,
         });
       } else {
-        await createSurvey(payload); // payload termasuk meetingId
+        await createSurvey(payload); // meetingId sudah ada di payload dari Editor
       }
       setEditing(null);
       await reload();
@@ -184,8 +182,10 @@ export default function Survey() {
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
-      socket={null} // Will be set when socket is integrated
-      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+
+      socket={null}
+      mediasoupDevice={null}
+
     >
       <div className="pd-app">
         {/* topbar */}
@@ -212,9 +212,11 @@ export default function Survey() {
                 <div className="pd-user-name">
                   {user?.username || "Participant"}
                 </div>
+
                 <div className="pd-user-role">
                   {user?.role || "Participant"}
                 </div>
+
               </div>
             </div>
           </div>
@@ -222,31 +224,37 @@ export default function Survey() {
 
         {/* content */}
         <main className="pd-main">
-          {/* Screen share moved to dedicated page */}
 
           <section className="svr-wrap">
             <div className="svr-header">
               <div className="svr-title">
-                <Icon slug="survey" iconUrl="/img/survey.svg" size={22} />
-                <span>Form Survey</span>
+                <img src="/img/Survey1.png" alt="" className="svr-title-icon" />
+                <span className="svr-title-text">Form Survey</span>
               </div>
+
               <div className="svr-header-actions">
                 {isHost && !editing && (
                   <button
-                    className="svr-btn"
+                    className={`svr-btn ${manageMode ? "active" : ""}`}
                     onClick={() => setManageMode((v) => !v)}
+                    title={manageMode ? "Tutup Kelola" : "Kelola Survey"}
                   >
-                    <Icon slug="settings" />{" "}
+                    {/* ganti ke ikon gambar */}
+                    <img src="/img/pengaturan.png" alt="" className="pd-icon-img" />
                     <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
                   </button>
                 )}
+
+
                 <button
                   className="svr-btn ghost"
                   onClick={reload}
                   disabled={loading}
                   title="Refresh"
                 >
-                  <RefreshIcon />
+
+                  <img src="/img/refresh.png" alt="" className="pd-icon-img" />
+
                   <span>Refresh</span>
                 </button>
               </div>
@@ -261,8 +269,11 @@ export default function Survey() {
                 {isHost && manageMode && !editing && (
                   <div className="svr-item">
                     <div className="svr-qtext" style={{ marginBottom: 8 }}>
-                      Daftar Survey di Meeting Ini
+
+                      Kelola Survey
                     </div>
+
+
                     {surveys.length === 0 ? (
                       <div className="pd-empty" style={{ marginBottom: 8 }}>
                         Belum ada survey.
@@ -274,53 +285,54 @@ export default function Survey() {
                             <div style={{ fontWeight: 700, marginBottom: 6 }}>
                               {s.title || "(tanpa judul)"}{" "}
                               {s.isShow === "Y" ? (
-                                <span style={{ color: "#059669" }}>
-                                  • aktif
-                                </span>
+
+                                <span style={{ color: "#059669" }}>• aktif</span>
                               ) : (
-                                <span style={{ color: "#6b7280" }}>
-                                  • draft
-                                </span>
+                                <span style={{ color: "#6b7280" }}>• draft</span>
                               )}
                             </div>
+
                             {s.description && (
-                              <div style={{ marginBottom: 8 }}>
-                                {s.description}
-                              </div>
+                              <div style={{ marginBottom: 8 }}>{s.description}</div>
                             )}
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 8,
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <button
-                                className="svr-btn"
-                                onClick={() => startEdit(s)}
-                              >
-                                <Icon slug="edit" name="edit" />{" "}
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                className="svr-btn"
-                                onClick={() => setActive(s, s.isShow !== "Y")}
-                              >
-                                <Icon slug="eye" />{" "}
-                                <span>
-                                  {s.isShow === "Y"
-                                    ? "Sembunyikan"
-                                    : "Tampilkan"}
-                                </span>
-                              </button>
-                              <button
-                                className="svr-btn"
-                                onClick={() => removeSurvey(s)}
-                              >
-                                <Icon slug="trash" name="trash" />{" "}
-                                <span>Hapus</span>
-                              </button>
-                            </div>
+
+                            {/* Aksi per-survey */}
+<div
+  style={{
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+  }}
+>
+  <button
+    className="svr-btn sm"
+    onClick={() => startEdit(s)}
+    title="Edit survey"
+  >
+    <img src="/img/edit.png" alt="" className="pd-icon-img" />
+    <span>Edit</span>
+  </button>
+
+  <button
+    className="svr-btn sm"
+    onClick={() => setActive(s, s.isShow !== "Y")}
+    title={s.isShow === "Y" ? "Sembunyikan dari peserta" : "Tampilkan ke peserta"}
+  >
+    <img src="/img/eye.png" alt="" className="pd-icon-img" />
+    <span>{s.isShow === "Y" ? "Sembunyikan" : "Tampilkan"}</span>
+  </button>
+
+  <button
+    className="svr-btn sm danger"
+    onClick={() => removeSurvey(s)}
+    title="Hapus survey"
+  >
+    <img src="/img/delete.png" alt="" className="pd-icon-img" />
+    <span>Hapus</span>
+  </button>
+</div>
+
+
                           </div>
                         ))}
                       </div>
@@ -328,7 +340,10 @@ export default function Survey() {
 
                     <div style={{ marginTop: 10 }}>
                       <button className="svr-submit" onClick={startCreate}>
-                        <Icon slug="plus" /> <span>Buat Survey</span>
+
+                        <Icon slug="plus" />
+                        <span>Buat Survey</span>
+
                       </button>
                     </div>
                   </div>
@@ -344,6 +359,7 @@ export default function Survey() {
                   />
                 )}
 
+
                 {/* Mode Viewer (semua role) */}
                 {!manageMode && !editing && (
                   <SurveyViewer survey={activeSurvey} meetingId={meetingId} />
@@ -355,34 +371,12 @@ export default function Survey() {
 
         {/* bottom nav */}
         {!loadingMenus && !errMenus && (
-          <BottomNav
-            items={visibleMenus}
-            active="survey"
-            onSelect={handleSelectNav}
-          />
+          <BottomNav items={visibleMenus} active="survey" onSelect={handleSelectNav} />
         )}
+
 
         <MeetingFooter userRole={user?.role || "participant"} />
       </div>
     </MeetingLayout>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg
-      className="pd-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9" />
-      <path d="M3 12l3-3 3 3" />
-      <path d="M21 12l-3 3-3-3" />
-    </svg>
   );
 }

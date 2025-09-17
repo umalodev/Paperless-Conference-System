@@ -264,6 +264,7 @@ export default function Notes() {
               </div>
             </div>
           </div>
+
         </header>
 
         {/* Content */}
@@ -287,6 +288,7 @@ export default function Notes() {
                 </button>
               </div>
             </div>
+
 
             {/* Composer */}
             <div className="notes-composer">
@@ -406,25 +408,58 @@ export default function Notes() {
                             </button>
                           </div>
                         </div>
-                      )
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-        </main>
 
-        {/* Bottom nav dari DB */}
-        {!loadingMenus && !errMenus && (
-          <BottomNav
-            items={visibleMenus}
-            active="note"
-            onSelect={handleSelectNav}
-          />
-        )}
+                        <div className="note-meta">
+                          <span>{formatDate(n.updatedAt)}</span>
+                          {n.author ? <span> · {n.author}</span> : null}
+                        </div>
+                        <div className="note-actions">
+  <button
+    className="note-btn sm"
+    onClick={() => startEdit(n)}
+    disabled={saving}
+    title="Edit catatan"
+  >
+    <img src="/img/edit.png" alt="" className="pd-icon-img" />
+    <span>Edit</span>
+  </button>
 
-        <MeetingFooter userRole={user?.role || "participant"} />
+  <button
+    className="note-btn sm danger"
+    onClick={() => handleDelete(n.id)}
+    disabled={saving}
+    title="Hapus catatan"
+  >
+    <img src="/img/delete.png" alt="" className="pd-icon-img" />
+    <span>Hapus</span>
+  </button>
+</div>
+
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </main>
+
+      {/* Bottom nav dari DB */}
+      {!loadingMenus && !errMenus && (
+        <BottomNav
+          items={visibleMenus}
+          active="note"
+          onSelect={handleSelectNav}
+        />
+      )}
+
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+        />
+
+
+
       </div>
     </MeetingLayout>
   );
