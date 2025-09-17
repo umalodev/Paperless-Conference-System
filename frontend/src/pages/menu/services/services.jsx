@@ -6,6 +6,7 @@ import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import Icon from "../../../components/Icon.jsx";
 import "./services.css";
+import meetingService from "../../../services/meetingService.js";
 
 export default function Services() {
   const [user, setUser] = useState(null);
@@ -41,8 +42,7 @@ export default function Services() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();

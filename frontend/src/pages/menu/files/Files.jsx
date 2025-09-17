@@ -14,6 +14,7 @@ import {
   uploadFile,
   deleteFile,
 } from "../../../services/filesService.js";
+import meetingService from "../../../services/meetingService.js";
 
 const absolutize = (u) => {
   if (!u) return "";
@@ -72,8 +73,7 @@ export default function Files() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -135,8 +135,7 @@ export default function Files() {
       if (qHistory.trim()) url.searchParams.set("q", qHistory.trim());
 
       const res = await fetch(url.toString(), {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: meetingService.getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();

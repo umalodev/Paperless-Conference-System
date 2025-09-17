@@ -4,8 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const router = express.Router();
-
-const { authenticateToken } = require("../middleware/auth");
+const auth = require("../middleware/auth");
 const db = require("../models");
 const filesControllerFactory = require("../controllers/filesController");
 
@@ -29,11 +28,16 @@ const controller = filesControllerFactory(db, {
   uploadBaseUrl: "/uploads/files",
 });
 
-router.get("/history", authenticateToken, controller.history);
+router.get("/history", auth.isAuthenticated, controller.history);
 
 // list + create + delete
-router.get("/", authenticateToken, controller.list); // ?meetingId=...
-router.post("/", authenticateToken, upload.single("file"), controller.create);
-router.delete("/:fileId", authenticateToken, controller.remove);
+router.get("/", auth.isAuthenticated, controller.list); // ?meetingId=...
+router.post(
+  "/",
+  auth.isAuthenticated,
+  upload.single("file"),
+  controller.create
+);
+router.delete("/:fileId", auth.isAuthenticated, controller.remove);
 
 module.exports = router;

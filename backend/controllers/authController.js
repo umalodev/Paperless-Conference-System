@@ -1,215 +1,149 @@
-const bcrypt = require('bcrypt');
-const { User, UserRole } = require('../models');
+// controllers/authController.js
+const bcrypt = require("bcrypt");
+const { User, UserRole } = require("../models");
+const { signUser } = require("../utils/jwt"); // pakai util yang sudah kamu buat
 
 const authController = {
-  // Login user
+  // POST /api/auth/login
   async login(req, res) {
     try {
       const { username, password } = req.body;
-      
-      console.log('Login attempt for username:', username);
-      console.log('Session before login:', req.session);
-      
-      // Validate input
+
       if (!username || !password) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Username dan password harus diisi" 
+        return res.status(400).json({
+          success: false,
+          message: "Username dan password harus diisi",
         });
       }
 
-      // Find user by username with role information
+      // Ambil user + role
       const user = await User.findOne({
-        where: { username: username },
-        include: [{
-          model: UserRole,
-          as: 'UserRole',
-          attributes: ['nama']
-        }]
+        where: { username },
+        include: [{ model: UserRole, as: "UserRole", attributes: ["nama"] }],
       });
 
       if (!user) {
-        console.log('User not found:', username);
-        return res.status(401).json({ 
-          success: false, 
-          message: "Username atau password salah" 
-        });
+        return res
+          .status(401)
+          .json({ success: false, message: "Username atau password salah" });
       }
 
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      
-      if (!isValidPassword) {
-        console.log('Invalid password for user:', username);
-        return res.status(401).json({ 
-          success: false, 
-          message: "Username atau password salah" 
-        });
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return res
+          .status(401)
+          .json({ success: false, message: "Username atau password salah" });
       }
 
-      // Store user data in session
-      req.session.user = {
+      // Buat JWT
+      const token = signUser({
         id: user.id,
         username: user.username,
-        role: user.UserRole ? user.UserRole.nama : 'unknown'
-      };
-      
-      // Save session explicitly
-      req.session.save((err) => {
-        if (err) {
-          console.error('Session save error:', err);
-          return res.status(500).json({ 
-            success: false, 
-            message: "Terjadi kesalahan session" 
-          });
-        }
-        
-        console.log('Session after setting user:', req.session);
-        console.log('User data stored in session:', req.session.user);
-        console.log('Session ID:', req.sessionID);
+        role: user.UserRole?.nama || "participant",
+      });
 
-        // Generate a simple token for frontend use
-        const token = `token_${user.id}_${Date.now()}`;
-        
-        // Login successful
-        res.json({
-          success: true,
-          message: "Login berhasil",
-          token: token,
+      return res.json({
+        success: true,
+        message: "Login berhasil",
+        data: {
+          token,
           user: {
             id: user.id,
             username: user.username,
-            role: user.UserRole ? user.UserRole.nama : 'unknown'
-          }
-        });
+            role: user.UserRole ? user.UserRole.nama : "participant",
+            name: user.name,
+            email: user.email,
+          },
+        },
       });
-
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Terjadi kesalahan server" 
-      });
+    } catch (err) {
+      console.error("Login error:", err);
+      return res
+        .status(500)
+        .json({ success: false, message: "Terjadi kesalahan server" });
     }
   },
 
-  // Get user info
+  // GET /api/auth/user/:id  (opsional, biarkan public/authorized sesuai kebutuhan)
   async getUser(req, res) {
     try {
       const userId = req.params.id;
       const user = await User.findByPk(userId, {
-        include: [{
-          model: UserRole,
-          as: 'UserRole',
-          attributes: ['nama']
-        }],
-        attributes: ['id', 'username', 'created_at']
+        include: [{ model: UserRole, as: "UserRole", attributes: ["nama"] }],
+        attributes: ["id", "username", "created_at", "name", "email"],
       });
 
       if (!user) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "User tidak ditemukan" 
-        });
+        return res
+          .status(404)
+          .json({ success: false, message: "User tidak ditemukan" });
       }
 
-      res.json({
+      return res.json({
         success: true,
         user: {
           id: user.id,
           username: user.username,
-          role: user.UserRole ? user.UserRole.nama : 'unknown',
-          created_at: user.created_at
-        }
+          role: user.UserRole?.nama || "participant",
+          name: user.name,
+          email: user.email,
+          created_at: user.created_at,
+        },
       });
-
-    } catch (error) {
-      console.error("Get user error:", error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Terjadi kesalahan server" 
-      });
+    } catch (err) {
+      console.error("Get user error:", err);
+      return res
+        .status(500)
+        .json({ success: false, message: "Terjadi kesalahan server" });
     }
   },
 
-  // Get current authenticated user
+  // GET /api/auth/me  (protected)
   async getCurrentUser(req, res) {
     try {
-      if (!req.session || !req.session.user) {
-        return res.status(401).json({
-          success: false,
-          message: "User tidak terautentikasi"
-        });
+      // req.user diisi oleh middleware JWT
+      if (!req.user?.id) {
+        return res
+          .status(401)
+          .json({ success: false, message: "User tidak terautentikasi" });
       }
 
-      const user = await User.findByPk(req.session.user.id, {
-        include: [{
-          model: UserRole,
-          as: 'UserRole',
-          attributes: ['nama']
-        }],
-        attributes: ['id', 'username', 'created_at']
+      // Ambil fresh dari DB agar info terbaru
+      const user = await User.findByPk(req.user.id, {
+        include: [{ model: UserRole, as: "UserRole", attributes: ["nama"] }],
+        attributes: ["id", "username", "created_at", "name", "email"],
       });
 
       if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "User tidak ditemukan"
-        });
+        return res
+          .status(404)
+          .json({ success: false, message: "User tidak ditemukan" });
       }
 
-      res.json({
+      return res.json({
         success: true,
         user: {
           id: user.id,
           username: user.username,
-          role: user.UserRole ? user.UserRole.nama : 'unknown',
-          created_at: user.created_at
-        }
+          role: user.UserRole?.nama || "participant",
+          name: user.name,
+          email: user.email,
+          created_at: user.created_at,
+        },
       });
-
-    } catch (error) {
-      console.error("Get current user error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Terjadi kesalahan server"
-      });
+    } catch (err) {
+      console.error("Get current user error:", err);
+      return res
+        .status(500)
+        .json({ success: false, message: "Terjadi kesalahan server" });
     }
   },
 
-  // Logout user
-  async logout(req, res) {
-    try {
-      // Destroy session
-      if (req.session) {
-        req.session.destroy((err) => {
-          if (err) {
-            console.error('Error destroying session:', err);
-            return res.status(500).json({
-              success: false,
-              message: "Gagal logout"
-            });
-          }
-          
-          res.json({
-            success: true,
-            message: "Logout berhasil"
-          });
-        });
-      } else {
-        res.json({
-          success: true,
-          message: "Logout berhasil"
-        });
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Terjadi kesalahan server" 
-      });
-    }
-  }
+  // POST /api/auth/logout  (no-op server-side untuk JWT)
+  async logout(_req, res) {
+    // FE cukup hapus token dari storage
+    return res.json({ success: true, message: "Logout berhasil" });
+  },
 };
 
 module.exports = authController;

@@ -1,41 +1,41 @@
 const express = require("express");
 const router = express.Router();
 const MaterialsController = require("../controllers/materialsController");
-const { authenticateToken } = require("../middleware/auth");
 const auth = require("../middleware/auth");
+
 const { upload } = require("../middleware/upload");
 
 router.get(
   "/history",
-  authenticateToken,
+  auth.isAuthenticated,
   MaterialsController.getMaterialsHistory
 );
 
 // Get materials by meeting ID
 router.get(
   "/meeting/:meetingId",
-  authenticateToken,
+  auth.isAuthenticated,
   MaterialsController.getMaterialsByMeeting
 );
 
 // Download material file - HARUS DI ATAS /:materialId
 router.get(
   "/:materialId/download",
-  authenticateToken,
+  auth.isAuthenticated,
   MaterialsController.downloadMaterial
 );
 
 // Get single material by ID
 router.get(
   "/:materialId",
-  authenticateToken,
+  auth.isAuthenticated,
   MaterialsController.getMaterialById
 );
 
 // Create new material (for file upload) - Only hosts and admins
 router.post(
   "/",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.createMaterial
 );
@@ -43,7 +43,7 @@ router.post(
 // Upload file for material - Only hosts and admins
 router.post(
   "/upload/:meetingId",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   upload.single("file"),
   MaterialsController.uploadFile
@@ -52,7 +52,7 @@ router.post(
 // Bulk create materials for a meeting - Only hosts and admins
 router.post(
   "/bulk",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.bulkCreateMaterials
 );
@@ -60,7 +60,7 @@ router.post(
 // Update material - Only hosts and admins
 router.put(
   "/:materialId",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.updateMaterial
 );
@@ -68,7 +68,7 @@ router.put(
 // Soft delete material - Only hosts and admins
 router.delete(
   "/:materialId",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.deleteMaterial
 );
@@ -76,7 +76,7 @@ router.delete(
 // Restore soft-deleted material - Only hosts and admins
 router.patch(
   "/:materialId/restore",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.restoreMaterial
 );
@@ -84,7 +84,7 @@ router.patch(
 // Clean up duplicate materials for a meeting - Only hosts and admins
 router.post(
   "/cleanup/:meetingId",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.cleanupDuplicateMaterials
 );
@@ -92,7 +92,7 @@ router.post(
 // Delete materials with "undefined" paths - Only hosts and admins
 router.post(
   "/delete-undefined/:meetingId",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.deleteUndefinedMaterials
 );
@@ -100,7 +100,7 @@ router.post(
 // Synchronize file paths for existing materials - Only hosts and admins
 router.post(
   "/synchronize-paths/:meetingId",
-  authenticateToken,
+  auth.isAuthenticated,
   auth.isModerator,
   MaterialsController.synchronizeFilePaths
 );

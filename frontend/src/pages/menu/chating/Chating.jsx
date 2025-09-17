@@ -8,6 +8,7 @@ import "./Chating.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import meetingService from "../../../services/meetingService.js";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Chat() {
@@ -79,8 +80,10 @@ export default function Chat() {
       console.log("Full API URL:", url);
 
       const res = await fetch(url, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
       });
 
       console.log("=== API RESPONSE DEBUG ===");
@@ -180,8 +183,7 @@ export default function Chat() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -228,8 +230,10 @@ export default function Chat() {
       }
 
       const res = await fetch(url, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -281,7 +285,11 @@ export default function Chat() {
         wsRef.current.close();
       }
 
-      const wsUrl = `${API_URL.replace(/^http/, "ws")}/meeting/${meetingId}`;
+      const token = localStorage.getItem("token") || "";
+      const wsUrl = `${API_URL.replace(
+        /^http/,
+        "ws"
+      )}/meeting/${meetingId}?token=${encodeURIComponent(token)}`;
       console.log("Connecting to WebSocket:", wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
@@ -527,8 +535,11 @@ export default function Chat() {
       // Kirim ke backend API
       const res = await fetch(`${API_URL}/api/chat/meeting/${meetingId}/send`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
         body: JSON.stringify(requestBody),
       });
 
@@ -594,7 +605,7 @@ export default function Chat() {
         `${API_URL}/api/chat/meeting/${meetingId}/upload`,
         {
           method: "POST",
-          credentials: "include",
+          headers: meetingService.getAuthHeaders(),
           body: formData,
         }
       );
@@ -883,9 +894,28 @@ export default function Chat() {
 }
 
 function MessageItem({ msg, isMine }) {
-  const handleFileDownload = () => {
-    if (msg.filePath) {
-      window.open(`${API_URL}/api/chat/message/${msg.id}/download`, "_blank");
+  const handleFileDownload = async () => {
+    if (!msg.filePath) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/api/chat/message/${msg.id}/download`,
+        {
+          headers: { ...meetingService.getAuthHeaders() },
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = msg.originalName || `file-${msg.id}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Gagal mengunduh file.");
     }
   };
 

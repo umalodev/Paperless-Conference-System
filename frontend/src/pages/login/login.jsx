@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config.js";
 import "./Login.css"; // pastikan file bernama Login.css (huruf besar L)
+import meetingService from "../../services/meetingService.js";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -19,18 +20,25 @@ export default function Login() {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+
         body: JSON.stringify({ username, password }),
       });
       const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-        if (data.user.role === "admin") navigate("/admin/dashboard");
-        else navigate("/start");
-      } else {
-        setError(data.message || "Login gagal");
+      if (!response.ok || !data?.success) {
+        throw new Error(
+          data?.message || `Login gagal (HTTP ${response.status})`
+        );
       }
+
+      const { token, user } = data.data || {};
+      if (!token) throw new Error("Token tidak ditemukan di response login");
+      localStorage.setItem("token", token);
+      meetingService.updateToken(token);
+      const role = user?.userRole || user?.role;
+      localStorage.setItem("user", JSON.stringify({ ...user, role }));
+
+      if (role === "admin") navigate("/admin/dashboard");
+      else navigate("/start");
     } catch (err) {
       console.error("Login error:", err);
       setError("Terjadi kesalahan koneksi");
@@ -46,7 +54,9 @@ export default function Login() {
           <img src="/img/logo.png" alt="Umalo logo" className="login-logo" />
           <div>
             <h2 className="login-title">Paperless Conference System</h2>
-            <p className="login-subtitle">Login to access the Conference System</p>
+            <p className="login-subtitle">
+              Login to access the Conference System
+            </p>
           </div>
         </div>
 
@@ -54,7 +64,9 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} autoComplete="on">
           <div className="form-group">
-            <label className="label-bold" htmlFor="username">Username</label>
+            <label className="label-bold" htmlFor="username">
+              Username
+            </label>
             <input
               id="username"
               type="text"
@@ -69,7 +81,9 @@ export default function Login() {
           </div>
 
           <div className="form-group">
-            <label className="label-bold" htmlFor="password">Password</label>
+            <label className="label-bold" htmlFor="password">
+              Password
+            </label>
             <input
               id="password"
               type="password"
@@ -91,4 +105,3 @@ export default function Login() {
     </div>
   );
 }
-

@@ -91,8 +91,7 @@ export default function ParticipantDashboard() {
         setLoading(true);
         setErr("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -242,7 +241,7 @@ export default function ParticipantDashboard() {
         // camOn={camOn}
         // onToggleMic={() => setMicOn(v => !v)}
         // onToggleCam={() => setCamOn(v => !v)}
-        
+
         onHelpClick={() => alert("Contact support")}
       />
     </div>

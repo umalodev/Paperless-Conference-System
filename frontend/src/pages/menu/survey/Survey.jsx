@@ -19,6 +19,7 @@ import {
   deleteSurvey,
   toggleVisibility,
 } from "../../../services/surveyService.js";
+import meetingService from "../../../services/meetingService.js";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
@@ -65,8 +66,7 @@ export default function Survey() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -182,8 +182,10 @@ export default function Survey() {
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
+
       socket={null}
       mediasoupDevice={null}
+
     >
       <div className="pd-app">
         {/* topbar */}
@@ -210,7 +212,11 @@ export default function Survey() {
                 <div className="pd-user-name">
                   {user?.username || "Participant"}
                 </div>
-                <div className="pd-user-role">{user?.role || "Participant"}</div>
+
+                <div className="pd-user-role">
+                  {user?.role || "Participant"}
+                </div>
+
               </div>
             </div>
           </div>
@@ -218,6 +224,7 @@ export default function Survey() {
 
         {/* content */}
         <main className="pd-main">
+
           <section className="svr-wrap">
             <div className="svr-header">
               <div className="svr-title">
@@ -238,13 +245,16 @@ export default function Survey() {
                   </button>
                 )}
 
+
                 <button
                   className="svr-btn ghost"
                   onClick={reload}
                   disabled={loading}
                   title="Refresh"
                 >
+
                   <img src="/img/refresh.png" alt="" className="pd-icon-img" />
+
                   <span>Refresh</span>
                 </button>
               </div>
@@ -259,8 +269,10 @@ export default function Survey() {
                 {isHost && manageMode && !editing && (
                   <div className="svr-item">
                     <div className="svr-qtext" style={{ marginBottom: 8 }}>
+
                       Kelola Survey
                     </div>
+
 
                     {surveys.length === 0 ? (
                       <div className="pd-empty" style={{ marginBottom: 8 }}>
@@ -273,6 +285,7 @@ export default function Survey() {
                             <div style={{ fontWeight: 700, marginBottom: 6 }}>
                               {s.title || "(tanpa judul)"}{" "}
                               {s.isShow === "Y" ? (
+
                                 <span style={{ color: "#059669" }}>• aktif</span>
                               ) : (
                                 <span style={{ color: "#6b7280" }}>• draft</span>
@@ -319,6 +332,7 @@ export default function Survey() {
   </button>
 </div>
 
+
                           </div>
                         ))}
                       </div>
@@ -326,8 +340,10 @@ export default function Survey() {
 
                     <div style={{ marginTop: 10 }}>
                       <button className="svr-submit" onClick={startCreate}>
+
                         <Icon slug="plus" />
                         <span>Buat Survey</span>
+
                       </button>
                     </div>
                   </div>
@@ -343,6 +359,7 @@ export default function Survey() {
                   />
                 )}
 
+
                 {/* Mode Viewer (semua role) */}
                 {!manageMode && !editing && (
                   <SurveyViewer survey={activeSurvey} meetingId={meetingId} />
@@ -356,6 +373,7 @@ export default function Survey() {
         {!loadingMenus && !errMenus && (
           <BottomNav items={visibleMenus} active="survey" onSelect={handleSelectNav} />
         )}
+
 
         <MeetingFooter userRole={user?.role || "participant"} />
       </div>
