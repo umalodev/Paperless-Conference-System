@@ -509,7 +509,7 @@ app.use(
     },
     credentials: true,
     origin: (origin, cb) => cb(null, true),
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );

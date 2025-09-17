@@ -1,42 +1,63 @@
 @import "../../../themes/variables.css";
 
-/* -------------------------------------------------------
-   VARS (non-breaking tweaks)
-------------------------------------------------------- */
+/* ======================================================
+   SURVEY VIEWER — Polished, Clean, Responsive, Light-first
+   ====================================================== */
+
+/* ---------- Design Tokens (local-only) ---------- */
 .svr-wrap{
-  /* local design tokens — aman kalau tidak dipakai komponen lain */
   --svr-radius: 18px;
   --svr-pad: 18px;
   --svr-gap: 12px;
-  --svr-border: #e5e7eb;
-  --svr-border-soft: #eef0f2;
-  --svr-surface: #ffffff;
-  --svr-soft: #f7f9fb;
-  --svr-soft-2: #f9fbfe;
+
+  --svr-border: #e5e7eb;        /* neutral border */
+  --svr-border-soft: #eef0f2;   /* softer border */
+  --svr-surface: #ffffff;       /* pure card */
+  --svr-soft: #f8fafc;          /* soft panel */
+  --svr-soft-2: #f3f6fb;        /* hover panel */
+
   --svr-ink: var(--color-text, #0f172a);
+  --svr-ink-weak: #475569;
+  --svr-ink-muted: #64748b;
+  --svr-placeholder: #9aa6b2;
+
   --svr-accent: var(--color-primary, #10b981);
+  --svr-accent-2: #34d399;
   --svr-accent-weak: rgba(16, 124, 16, 0.12);
+
+  --svr-danger: #dc2626;
+  --svr-success-ink: #065f46;
+  --svr-success-bg: #d1fae5;
+  --svr-success-br: #a7f3d0;
+  --svr-error-ink: #b91c1c;
+  --svr-error-bg: #fee2e2;
+  --svr-error-br: #fecaca;
+
   --svr-shadow-1: 0 0 0 2px rgba(16,124,16,.06) inset,
                   0 10px 28px rgba(16,124,16,.10),
                   0 2px 8px rgba(0,0,0,.04);
   --svr-shadow-2: 0 4px 16px rgba(2,6,23,.06);
   --svr-shadow-3: 0 6px 18px rgba(16,124,16,.12);
+
+  /* Layout helpers */
+  --svr-max: 1000px;
 }
 
-/* ====== WRAPPER ====== */
+/* ---------- Wrapper (gradient border, white surface) ---------- */
 .svr-wrap {
   background:
-    linear-gradient(#ffffff, #ffffff) padding-box,
-    linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
+    linear-gradient(var(--svr-surface), var(--svr-surface)) padding-box,
+    linear-gradient(135deg, var(--svr-accent-2), var(--svr-accent), #a7f3d0) border-box;
   border: 1px solid transparent;
   border-radius: var(--svr-radius);
   padding: var(--svr-pad);
   width: 100%;
-  max-width: 1000px;
+  max-width: var(--svr-max);
+  margin-inline: auto;
   box-shadow: var(--svr-shadow-1);
 }
 
-/* ====== HEADER ====== */
+/* ---------- Header ---------- */
 .svr-header {
   display: flex;
   align-items: center;
@@ -45,7 +66,6 @@
   margin-bottom: 14px;
 }
 
-/* Title + icon (pakai Survey1.png) */
 .svr-title {
   display: inline-flex;
   align-items: center;
@@ -53,35 +73,30 @@
   color: var(--svr-ink);
 }
 
-/* fallback bila masih ada <Icon /> */
 .svr-title .pd-svg { width: 20px; height: 20px; }
 
-/* gambar ikon judul */
 .svr-title-icon {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   display: block;
   object-fit: contain;
 }
 
-/* teks judul */
 .svr-title-text {
   font-weight: 800;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.1;
-  margin-left: 4px;
-  position: relative;
-  top: -1px; /* sedikit dinaikkan biar sejajar ikon */
   letter-spacing: .2px;
+  margin-top: -1px;
 }
 
-/* header actions */
 .svr-header-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* ====== BUTTONS ====== */
+/* ---------- Buttons ---------- */
 .svr-btn {
   display: inline-flex;
   align-items: center;
@@ -101,35 +116,30 @@
   box-shadow: 0 6px 14px rgba(2,6,23,.06);
 }
 .svr-btn:active { transform: translateY(1px); }
-.svr-btn.ghost { background: #f8fafc; }
-.svr-btn.active {
-  background: #eaf2ff;
-  border-color: #d6e4ff;
-  box-shadow: 0 6px 16px rgba(12,86,204,.10);
-}
 .svr-btn:disabled { opacity: .6; cursor: not-allowed; }
+.svr-btn.ghost { background: #ffffff; }
 
-/* ikon di dalam tombol (gambar .png) */
 .svr-btn .pd-icon-img {
   width: 18px; height: 18px; display: block; object-fit: contain;
   transition: transform .2s ease;
 }
 .svr-btn:hover .pd-icon-img { transform: scale(1.06); }
 
-/* ====== LIST & ITEMS ====== */
+/* ---------- Content Grid ---------- */
 .svr-list {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
 }
 
-/* responsif (tanpa ubah HTML): auto-fit jadi kartu 2–4 kolom di layar lebar */
+/* Auto-fit ke 2–4 kolom di layar lebar */
 @media (min-width: 768px){
   .svr-list{
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
 }
 
+/* ---------- Card / Item ---------- */
 .svr-item {
   border: 1px solid var(--svr-border-soft);
   border-radius: 14px;
@@ -146,7 +156,7 @@
   transform: translateY(-1px);
 }
 
-/* dekor garis aksen halus di sisi kiri item */
+/* Accent bar halus di kiri */
 .svr-item::before{
   content:"";
   position:absolute; inset:0 0 0 0;
@@ -155,7 +165,7 @@
   pointer-events:none;
 }
 
-/* pertanyaan / judul blok */
+/* ---------- Question Text ---------- */
 .svr-qtext {
   font-weight: 700;
   color: var(--svr-ink);
@@ -163,16 +173,14 @@
   line-height: 1.25;
   word-wrap: break-word;
 }
-.svr-required { color: #dc2626; margin-left: 6px; }
+.svr-required { color: var(--svr-danger); margin-left: 6px; }
 
-/* opsi jawaban */
+/* ---------- Options (radio/checkbox) ---------- */
 .svr-options {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
 }
-
-/* otomatis jadi 2 kolom bila ruang cukup (aman untuk checkbox/radio) */
 @media (min-width: 720px){
   .svr-options{
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -183,10 +191,11 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--svr-border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff;
+  color: var(--svr-ink);
   transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, transform .08s ease;
 }
 .svr-opt:hover {
@@ -197,10 +206,17 @@
 .svr-opt:active{ transform: translateY(1px); }
 .svr-opt input { accent-color: var(--svr-accent); }
 
-/* rating */
+/* Highlight state saat checked (modern browsers) */
+.svr-opt:has(input:checked){
+  border-color: color-mix(in srgb, var(--svr-accent) 42%, #cdeacd);
+  background: color-mix(in srgb, var(--svr-accent) 10%, #ffffff);
+  box-shadow: 0 4px 12px rgba(16,124,16,.10);
+}
+
+/* ---------- Rating (opsional) ---------- */
 .svr-rating { display: inline-flex; gap: 6px; }
 .svr-star {
-  width: 34px; height: 34px; border-radius: 8px;
+  width: 36px; height: 36px; border-radius: 10px;
   border: 1px solid var(--svr-border);
   background: #fff; cursor: pointer; font-size: 16px; line-height: 1;
   transition: background .15s ease, border-color .15s ease, transform .05s ease, box-shadow .15s ease;
@@ -212,18 +228,19 @@
   border-color: #cdeacd;
 }
 
-/* jawaban teks */
+/* ---------- Text Inputs ---------- */
 .svr-text {
   width: 100%;
   border: 1px solid var(--svr-border);
   border-radius: 12px;
-  padding: 10px 1px;
+  padding: 10px 1px;                 /* fixed: bukan 10px 1px */
   background: #fff;
   color: var(--svr-ink);
   font: inherit;
   resize: vertical;
-  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
 }
+.svr-text::placeholder{ color: var(--svr-placeholder); }
 .svr-text:focus {
   outline: none;
   border-color: var(--svr-accent);
@@ -231,7 +248,27 @@
   background: #ffffff;
 }
 
-/* submit */
+/* ---------- Messages ---------- */
+.svr-msg {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--svr-border);
+  background: #fff;
+  color: var(--svr-ink);
+}
+.svr-msg.ok {
+  color: var(--svr-success-ink);
+  background: var(--svr-success-bg);
+  border-color: var(--svr-success-br);
+}
+.svr-msg.err {
+  color: var(--svr-error-ink);
+  background: var(--svr-error-bg);
+  border-color: var(--svr-error-br);
+}
+
+/* ---------- Actions / Submit ---------- */
 .svr-actions {
   display: flex;
   justify-content: flex-end;
@@ -239,6 +276,7 @@
   gap: 10px;
   flex-wrap: wrap;
 }
+
 .svr-submit {
   display: inline-flex;
   align-items: center;
@@ -259,53 +297,39 @@
 .svr-submit:active { transform: translateY(1px); }
 .svr-submit .pd-svg { width: 18px; height: 18px; }
 
-/* status message */
-.svr-msg {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--svr-border);
-}
-.svr-msg.ok {
-  color: #065f46;
-  background: #d1fae5;
-  border-color: #a7f3d0;
-}
-.svr-msg.err {
-  color: #b91c1c;
-  background: #fee2e2;
-  border-color: #fecaca;
+/* Opsional: jadikan sticky di bawah jika perlu (tambahkan class "sticky" di HTML) */
+.svr-actions.sticky{
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0), #fff 40%);
+  padding-top: 10px;
 }
 
-/* ====== RESPONSIVE ====== */
+/* ---------- Empty State (kompatibel dengan .pd-empty) ---------- */
+.pd-empty,
+.svr-empty{
+  display:flex; align-items:center; justify-content:center;
+  min-height: 120px;
+  color: var(--svr-ink-weak);
+  background: var(--svr-soft);
+  border: 1px dashed var(--svr-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* ---------- Responsiveness ---------- */
 @media (max-width: 640px) {
   .svr-wrap { padding: 16px; border-radius: 16px; }
   .svr-header { flex-direction: column; align-items: stretch; gap: 10px; }
   .svr-header-actions { justify-content: space-between; }
-
-  /* ikon judul (mobile) — dibesarkan sedikit */
-  .svr-title-icon { width: 22px; height: 22px; object-fit: contain; display: block; }
-
-  /* kalau masih pakai <Icon /> (SVG) sebagai fallback */
-  .svr-title .pd-svg { width: 22px; height: 22px; }
-
-  .svr-title-text { font-size: 19px; top: -1px; }
-
-  /* spacing konten lebih lapang */
   .svr-item{ padding: 12px; }
+  .svr-title-text { font-size: 19px; }
 }
-
 @media (min-width: 641px) {
-  /* ikon judul (desktop) — dibesarkan sedikit */
-  .svr-title-icon { width: 24px; height: 24px; object-fit: contain; display: block; }
-
-  /* fallback SVG */
-  .svr-title .pd-svg { width: 24px; height: 24px; }
-
-  .svr-title-text { font-size: 21px; top: -2px; }
+  .svr-title-text { font-size: 21px; }
 }
 
-/* ====== ACCESSIBILITY HINTS ====== */
+/* ---------- Accessibility ---------- */
 .svr-btn:focus-visible,
 .svr-submit:focus-visible,
 .svr-opt:focus-within,
@@ -316,51 +340,57 @@
   border-radius: 12px;
 }
 
-/* ====== POLISH TAMBAHAN (opsional & aman) ====== */
-
-/* scrollbar halus (WebKit) */
+/* ---------- Polishing ---------- */
+/* smooth scrollbar (webkit) */
 .svr-wrap *::-webkit-scrollbar{ height:10px; width:10px; }
 .svr-wrap *::-webkit-scrollbar-thumb{
   background: #d7e7e0; border-radius:10px; border:2px solid #f1f5f4;
 }
 .svr-wrap *::-webkit-scrollbar-thumb:hover{ background:#c9e0d7; }
 
-/* reduced motion — kurangi animasi */
+/* reduced motion */
 @media (prefers-reduced-motion: reduce){
   .svr-btn, .svr-item, .svr-opt, .svr-star, .svr-text, .svr-submit{ transition:none !important; }
 }
 
-/* dark mode lembut */
-@media (prefers-color-scheme: dark){
-  .svr-wrap{
-    background:
-      linear-gradient(#0f1c18, #0f1c18) padding-box,
-      linear-gradient(135deg, #22c792, #0e9f77, #93e6c8) border-box;
-    box-shadow: none;
-  }
-  .svr-title, .svr-title-text, .svr-qtext{ color:#eaf7f2; }
-  .svr-header-actions .svr-btn{ background:#0f201b; border-color:#19362d; color:#dfeee8; }
-  .svr-btn.active{ background:#0b2a22; border-color:#1f4a3d; }
-  .svr-list{ gap: 12px; }
-  .svr-item{
-    background:#0f201b; border-color:#19362d;
-    box-shadow:none;
-  }
-  .svr-item:hover{ background:#10261f; border-color:#1f4a3d; }
-  .svr-opt{ background:#0f1f1a; border-color:#1b3a30; color:#dfeee8; }
-  .svr-text{ background:#10241e; border-color:#1c3d33; color:#eaf7f2; }
-  .svr-msg.ok{ color:#baf7e2; background:#0f2a22; border-color:#1d5a49; }
-  .svr-msg.err{ color:#ffd5d5; background:#2a1414; border-color:#5a1d1d; }
+/* ---------- Optional Dark Theme (OPT-IN via .theme-dark on parent)
+   Default-nya TIDAK mengikuti OS. Card tetap putih.
+   Aktifkan hanya jika kamu menambah class .theme-dark di container. ---------- */
+.theme-dark .svr-wrap{
+  background:
+    linear-gradient(#0e1614, #0e1614) padding-box,
+    linear-gradient(135deg, #22c792, #0e9f77, #93e6c8) border-box;
+  box-shadow: none;
 }
-/* ukuran tombol kecil */
+.theme-dark .svr-title,
+.theme-dark .svr-title-text,
+.theme-dark .svr-qtext{ color:#eaf7f2; }
+.theme-dark .svr-item{
+  background:#0f201b; border-color:#19362d;
+}
+.theme-dark .svr-item:hover{ background:#13261f; border-color:#1f4a3d; }
+.theme-dark .svr-opt{ background:#10221c; border-color:#1b3a30; color:#dfeee8; }
+.theme-dark .svr-text{ background:#0f221c; border-color:#1c3d33; color:#eaf7f2; }
+.theme-dark .svr-msg.ok{ color:#baf7e2; background:#0f2a22; border-color:#1d5a49; }
+.theme-dark .svr-msg.err{ color:#ffd5d5; background:#2a1414; border-color:#5a1d1d; }
+
+/* ---------- Small Button Variant ---------- */
 .svr-btn.sm {
-  padding: 6px 10px;      /* lebih kecil dari default 8px 12px */
-  border-radius: 10px;    /* sedikit lebih ringkas */
-  font-size: 13px;        /* teks lebih kecil */
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 13px;
   line-height: 1.1;
 }
-
-.svr-btn.sm .pd-icon-img {
-  width: 16px;            /* ikon kecil */
-  height: 16px;
+.svr-btn.sm .pd-icon-img { width: 16px; height: 16px; }
+.svr-btn .pd-icon-img{
+  width:18px; height:18px; display:block; object-fit:contain;
+  transition: transform .2s ease;
+}
+.svr-btn:hover .pd-icon-img{ transform: scale(1.06); }
+.svr-submit .pd-icon-img,
+.svr-btn .pd-icon-img {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
 }
