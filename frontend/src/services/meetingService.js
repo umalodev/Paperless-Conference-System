@@ -8,7 +8,7 @@ class MeetingService {
   // Get auth headers
   getAuthHeaders() {
     const h = { "Content-Type": "application/json" };
-    // hanya set Authorization jika token ada
+
     const t = this.token || localStorage.getItem("token");
     if (t) h.Authorization = `Bearer ${t}`;
     return h;
@@ -21,9 +21,7 @@ class MeetingService {
 
       const response = await fetch(`${API_URL}/api/meeting/create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: this.getAuthHeaders(),
 
         body: JSON.stringify(meetingData),
       });

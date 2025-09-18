@@ -117,21 +117,19 @@ export default function Agenda() {
   const toDateInputValue = (iso) => {
     const d = new Date(iso);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    };
+  };
   const toTimeInputValue = (iso) => {
     const d = new Date(iso);
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  // ================== LOAD AGENDAS ==================
   const loadAgendas = useCallback(async () => {
     setAgendaLoading(true);
     setAgendaErr("");
     try {
       const qs = meetingId ? `?meetingId=${encodeURIComponent(meetingId)}` : "";
       const res = await fetch(`${API_URL}/api/agendas${qs}`, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: meetingService.getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -156,7 +154,6 @@ export default function Agenda() {
     loadAgendas();
   }, [loadAgendas]);
 
-  // ================== LOAD HISTORY ==================
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     setHistoryErr("");
@@ -164,11 +161,10 @@ export default function Agenda() {
       const url = new URL(`${API_URL}/api/agendas/history`);
       if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
       url.searchParams.set("limit", "30");
-      url.searchParams.set("withAgendasOnly", "1");
+      url.searchParams.set("withAgendasOnly", "0");
 
       const res = await fetch(url.toString(), {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: meetingService.getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -189,6 +185,12 @@ export default function Agenda() {
             })),
           }))
         : [];
+
+      groups.sort((a, b) => {
+        const da = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const db = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return db - da;
+      });
       setHistoryGroups(groups);
     } catch (e) {
       setHistoryErr(String(e.message || e));
@@ -201,7 +203,6 @@ export default function Agenda() {
     if (showHistory) loadHistory();
   }, [showHistory, loadHistory]);
 
-  // ================== ADD ==================
   const openAdd = () => {
     setEditing(null);
     setFormErr("");
@@ -244,8 +245,10 @@ export default function Agenda() {
       };
       const res = await fetch(`${API_URL}/api/agendas`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -261,7 +264,6 @@ export default function Agenda() {
     }
   };
 
-  // ================== EDIT ==================
   const openEdit = (a) => {
     setShowAdd(false);
     setFormErr("");
@@ -305,9 +307,12 @@ export default function Agenda() {
       const res = await fetch(
         `${API_URL}/api/agendas/${encodeURIComponent(editing.id)}`,
         {
-          method: "PUT", // ganti ke PATCH jika backend memakai PATCH
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          method: "PUT",
+
+          headers: {
+            "Content-Type": "application/json",
+            ...meetingService.getAuthHeaders(),
+          },
           body: JSON.stringify(body),
         }
       );
@@ -324,7 +329,6 @@ export default function Agenda() {
     }
   };
 
-  // ================== DELETE ==================
   const handleDeleteAgenda = async (id) => {
     if (!id) return;
     if (!confirm("Hapus agenda ini?")) return;
@@ -333,8 +337,7 @@ export default function Agenda() {
         `${API_URL}/api/agendas/${encodeURIComponent(id)}`,
         {
           method: "DELETE",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         }
       );
       if (!res.ok) {
@@ -383,7 +386,9 @@ export default function Agenda() {
                 <div className="pd-user-name">
                   {displayName || user?.username || "Participant"}
                 </div>
-                <div className="pd-user-role">{user?.role || "Participant"}</div>
+                <div className="pd-user-role">
+                  {user?.role || "Participant"}
+                </div>
               </div>
             </div>
           </div>
@@ -393,27 +398,36 @@ export default function Agenda() {
         <main className="pd-main">
           <section className="agenda-wrap">
             <div className="agenda-header">
-<div className="agenda-title">
-  <img src="/img/Agenda1.png" alt="" aria-hidden="true" className="ag-title-icon" />
-  <span className="ag-title-text">Agenda</span>
-</div>
+              <div className="agenda-title">
+                <img
+                  src="/img/Agenda1.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="ag-title-icon"
+                />
+                <span className="ag-title-text">Agenda</span>
+              </div>
 
-  <div className="agenda-actions">
-    <button
-      className={`ag-btn ${showHistory ? "active" : ""}`}
-      onClick={() => setShowHistory((s) => !s)}
-    >
-      <img src="/img/history.png" alt="" className="history-icon" />
-      {showHistory ? "Tutup Riwayat" : "Riwayat"}
-    </button>
+              <div className="agenda-actions">
+                <button
+                  className={`ag-btn ${showHistory ? "active" : ""}`}
+                  onClick={() => setShowHistory((s) => !s)}
+                >
+                  <img src="/img/history.png" alt="" className="history-icon" />
+                  {showHistory ? "Tutup Riwayat" : "Riwayat"}
+                </button>
 
-    {isHost && (
-      <button className="agenda-add" title="Tambah agenda" onClick={openAdd}>
-        <Icon slug="plus" />
-      </button>
-    )}
-  </div>
-</div>
+                {isHost && (
+                  <button
+                    className="agenda-add"
+                    title="Tambah agenda"
+                    onClick={openAdd}
+                  >
+                    <Icon slug="plus" />
+                  </button>
+                )}
+              </div>
+            </div>
 
             {/* ADD FORM */}
             {showAdd && (
@@ -577,15 +591,14 @@ export default function Agenda() {
             )}
 
             {!agendaLoading && !agendaErr && agendas.length === 0 && (
-  <div className="ag-empty">
-    <div className="ag-empty-icon">🗒️</div>
-    <div className="ag-empty-copy">
-      <div className="ag-empty-title">Belum ada agenda</div>
-    </div>
-    {/* ag-empty-actions dihapus agar tombol merah tidak muncul */}
-  </div>
-)}
-
+              <div className="ag-empty">
+                <div className="ag-empty-icon">🗒️</div>
+                <div className="ag-empty-copy">
+                  <div className="ag-empty-title">Belum ada agenda</div>
+                </div>
+                {/* ag-empty-actions dihapus agar tombol merah tidak muncul */}
+              </div>
+            )}
 
             {!agendaLoading && !agendaErr && agendas.length > 0 && (
               <div className="agenda-list">
@@ -610,7 +623,11 @@ export default function Agenda() {
                 <div className="ag-divider" />
                 <section className="ag-history">
                   <h3 className="ag-history-title">
-                    <img src="/img/history.png" alt="" className="history-icon" />
+                    <img
+                      src="/img/history.png"
+                      alt=""
+                      className="history-icon"
+                    />
                     Riwayat Agenda
                     <span className="ag-chip ghost">
                       {historyGroups.length} meeting
@@ -654,7 +671,11 @@ export default function Agenda() {
 
         {/* Bottom nav */}
         {!loadingMenus && !errMenus && (
-          <BottomNav items={visibleMenus} active="agenda" onSelect={handleSelect} />
+          <BottomNav
+            items={visibleMenus}
+            active="agenda"
+            onSelect={handleSelect}
+          />
         )}
 
         <MeetingFooter userRole={user?.role || "participant"} />
@@ -677,7 +698,9 @@ function AgendaHistoryGroup({ group }) {
             {title || `Meeting #${meetingId}`}
             {status && <span className={`ag-chip ${status}`}>{status}</span>}
           </div>
-          <div className="ag-acc-meta">{formatDateRange(startTime, endTime)}</div>
+          <div className="ag-acc-meta">
+            {formatDateRange(startTime, endTime)}
+          </div>
         </div>
         <div className="ag-acc-count">
           <Icon slug="calendar" />
@@ -774,7 +797,9 @@ function AgendaItem({ id, title, time, desc, canEdit, onEdit, onDelete }) {
             <button
               type="button"
               className={`agenda-caret-btn ${open ? "is-open" : ""}`}
-              aria-label={open ? "Sembunyikan deskripsi" : "Tampilkan deskripsi"}
+              aria-label={
+                open ? "Sembunyikan deskripsi" : "Tampilkan deskripsi"
+              }
               onClick={toggle}
             >
               ▾

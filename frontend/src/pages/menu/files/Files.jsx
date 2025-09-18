@@ -130,8 +130,7 @@ export default function Files() {
     try {
       const url = new URL(`${API_URL}/api/files/history`);
       if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
-      url.searchParams.set("limit", "30");
-      url.searchParams.set("withFilesOnly", "1");
+      url.searchParams.set("withFilesOnly", "0");
       if (qHistory.trim()) url.searchParams.set("q", qHistory.trim());
 
       const res = await fetch(url.toString(), {
@@ -153,6 +152,12 @@ export default function Files() {
             })),
           }))
         : [];
+
+      groups.sort((a, b) => {
+        const da = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const db = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return db - da;
+      });
       setHistoryGroups(groups);
     } catch (e) {
       setErrHistory(String(e.message || e));
@@ -192,9 +197,9 @@ export default function Files() {
     try {
       setUploading(true);
       const created = await uploadFile({
-  meetingId,
-  file: pick,
-});
+        meetingId,
+        file: pick,
+      });
       setFiles((prev) => [created, ...prev]);
       setPick(null);
       (document.getElementById("file-input") || {}).value = "";
@@ -269,8 +274,12 @@ export default function Files() {
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
-              <img src="/img/Files1.png" alt="" className="files-title-icon" />
-              <span className="files-title-text">Daftar File</span>
+                <img
+                  src="/img/Files1.png"
+                  alt=""
+                  className="files-title-icon"
+                />
+                <span className="files-title-text">Daftar File</span>
               </div>
               <div className="files-actions">
                 <div className="files-search">
@@ -286,17 +295,17 @@ export default function Files() {
                   onClick={() => setShowHistory((s) => !s)}
                   title="Riwayat file meeting sebelumnya"
                 >
-                 <Icon iconUrl="/img/history.png" size={18} />
+                  <Icon iconUrl="/img/history.png" size={18} />
                   <span>{showHistory ? "Tutup Riwayat" : "Riwayat"}</span>
                 </button>
                 <button
-  className="files-btn ghost"
-  onClick={() => window.location.reload()}
-  title="Refresh"
->
-  <Icon iconUrl="/img/refresh.png" size={18} />
-  <span>Refresh</span>
-</button>
+                  className="files-btn ghost"
+                  onClick={() => window.location.reload()}
+                  title="Refresh"
+                >
+                  <Icon iconUrl="/img/refresh.png" size={18} />
+                  <span>Refresh</span>
+                </button>
               </div>
             </div>
 
@@ -353,8 +362,9 @@ export default function Files() {
                 <section className="files-history">
                   <div className="files-history-head">
                     <h3 className="files-history-title">
-  <Icon iconUrl="/img/history.png" size={18} /> Riwayat Files
-</h3>
+                      <Icon iconUrl="/img/history.png" size={18} /> Riwayat
+                      Files
+                    </h3>
                     <div className="files-history-actions">
                       <input
                         className="files-history-search"
@@ -502,25 +512,25 @@ function FileCard({ file, me, onDelete }) {
         </div>
       </div>
       <div className="fcard-actions">
-  <button className="files-btn icon" onClick={onOpen} title="Buka">
-    <OpenIcon />
-    <span>Buka</span>
-  </button>
-  <button className="files-btn icon" onClick={onDownload} title="Unduh">
-    <Icon slug="download" size={16} />
-    <span>Unduh</span>
-  </button>
-  {canDelete && (
-    <button
-      className="files-btn danger icon"
-      onClick={() => onDelete(fileId)}
-      title="Hapus"
-    >
-      <Icon slug="trash" size={16} />
-      <span>Hapus</span>
-    </button>
-  )}
-</div>
+        <button className="files-btn icon" onClick={onOpen} title="Buka">
+          <OpenIcon />
+          <span>Buka</span>
+        </button>
+        <button className="files-btn icon" onClick={onDownload} title="Unduh">
+          <Icon slug="download" size={16} />
+          <span>Unduh</span>
+        </button>
+        {canDelete && (
+          <button
+            className="files-btn danger icon"
+            onClick={() => onDelete(fileId)}
+            title="Hapus"
+          >
+            <Icon slug="trash" size={16} />
+            <span>Hapus</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

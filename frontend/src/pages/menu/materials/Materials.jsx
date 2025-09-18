@@ -54,12 +54,10 @@ export default function Materials() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
-
   const authHeaders = useMemo(() => {
     const token =
       localStorage.getItem("token") || localStorage.getItem("accessToken");
     return token ? { Authorization: `Bearer ${token}` } : {};
-
   }, []);
 
   const absolutize = (u) => {
@@ -158,11 +156,10 @@ export default function Materials() {
       const url = new URL(`${API_URL}/api/materials/history`);
       if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
       url.searchParams.set("limit", "30");
-      url.searchParams.set("withMaterialsOnly", "1");
+      url.searchParams.set("withMaterialsOnly", "0");
 
       const res = await fetch(url.toString(), {
-        credentials: "include",
-        headers: { ...authHeaders },
+        headers: meetingService.getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -182,6 +179,11 @@ export default function Materials() {
           createdAt: x.created_at || x.createdAt,
         })),
       }));
+      groups.sort((a, b) => {
+        const da = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const db = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return db - da;
+      });
       setHistoryGroups(groups);
     } catch (e) {
       setErrHistory(String(e.message || e));
@@ -311,7 +313,11 @@ export default function Materials() {
           <section className="mtl-wrap">
             <div className="mtl-header">
               <div className="mtl-title">
-                <img src="/img/Materials1.png" alt="" className="mtl-title-icon" />
+                <img
+                  src="/img/Materials1.png"
+                  alt=""
+                  className="mtl-title-icon"
+                />
                 <span className="mtl-title-text">Materials</span>
               </div>
 
@@ -465,7 +471,9 @@ function HistoryGroup({ group, onPreview, onDownload }) {
             {title || `Meeting #${meetingId}`}
             {status && <span className={`mtl-chip ${status}`}>{status}</span>}
           </div>
-          <div className="mtl-acc-meta">{formatDateRange(startTime, endTime)}</div>
+          <div className="mtl-acc-meta">
+            {formatDateRange(startTime, endTime)}
+          </div>
         </div>
         <div className="mtl-acc-count">
           <Icon slug="file" />
@@ -499,7 +507,15 @@ function HistoryGroup({ group, onPreview, onDownload }) {
   );
 }
 
-function MaterialCard({ name, meta, ext, onPreview, onDownload, onDelete, canDelete }) {
+function MaterialCard({
+  name,
+  meta,
+  ext,
+  onPreview,
+  onDownload,
+  onDelete,
+  canDelete,
+}) {
   return (
     <div className="mtl-card">
       <div className={`mtl-fileicon ${ext}`}>
@@ -507,7 +523,9 @@ function MaterialCard({ name, meta, ext, onPreview, onDownload, onDelete, canDel
         <Icon slug="file" />
       </div>
       <div className="mtl-info">
-        <div className="mtl-name" title={name}>{name}</div>
+        <div className="mtl-name" title={name}>
+          {name}
+        </div>
         <div className="mtl-meta">{meta}</div>
       </div>
       <div className="mtl-actions-right">

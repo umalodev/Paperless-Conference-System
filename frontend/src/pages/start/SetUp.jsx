@@ -3,6 +3,7 @@ import "./SetUp.css";
 import { useNavigate } from "react-router-dom";
 import meetingService from "../../services/meetingService.js";
 import MeetingWizardModal from "./components/MeetingWizardModal.jsx";
+import { API_URL } from "../../config.js";
 
 export default function SetUp() {
   const [user, setUser] = useState(null);
@@ -139,13 +140,16 @@ export default function SetUp() {
         const formData = new FormData();
         formData.append("file", material);
 
-        const response = await fetch(`/api/materials/upload/${meetingId}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
+        const response = await fetch(
+          `${API_URL}/api/materials/upload/${meetingId}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          }
+        );
 
         if (!response.ok) {
           throw new Error(
