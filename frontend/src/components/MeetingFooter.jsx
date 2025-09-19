@@ -15,8 +15,6 @@ export default function MeetingFooter({
   camOn,
   onToggleMic,
   onToggleCam,
-  screenShareOn,
-  onToggleScreenShare,
 }) {
   const navigate = useNavigate();
 
