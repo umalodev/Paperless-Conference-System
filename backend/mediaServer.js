@@ -60,7 +60,7 @@ const config = {
       listenIps: [
         {
           ip: "0.0.0.0",
-          announcedIp: "192.168.1.6",
+          announcedIp: "192.168.1.8",
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
@@ -216,6 +216,38 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("pause-producer", async ({ producerId }, cb = () => {}) => {
+    try {
+      const room = findRoomByProducerId(producerId);
+      if (!room) return cb({ ok: false, error: "room or producer not found" });
+      const producer = room.producers.get(producerId);
+      if (!producer) return cb({ ok: false, error: "producer not found" });
+
+      await producer.pause();
+      logger.info("Producer paused by client", { producerId });
+      cb({ ok: true });
+    } catch (e) {
+      logger.error("pause-producer failed", e);
+      cb({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
+  socket.on("resume-producer", async ({ producerId }, cb = () => {}) => {
+    try {
+      const room = findRoomByProducerId(producerId);
+      if (!room) return cb({ ok: false, error: "room or producer not found" });
+      const producer = room.producers.get(producerId);
+      if (!producer) return cb({ ok: false, error: "producer not found" });
+
+      await producer.resume();
+      logger.info("Producer resumed by client", { producerId });
+      cb({ ok: true });
+    } catch (e) {
+      logger.error("resume-producer failed", e);
+      cb({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
   socket.on("connect-transport", async (data) => {
     try {
       const { transportId, dtlsParameters } = data;
@@ -295,9 +327,20 @@ io.on("connection", (socket) => {
       }
 
       if (!room.router.canConsume({ producerId, rtpCapabilities })) {
+        logger.warn("canConsume=false", {
+          roomId,
+          producerId,
+          producerKind: producer.kind,
+          // sedikit konteks codec
+          producerCodecs: producer.rtpParameters?.codecs?.map(
+            (c) => c.mimeType
+          ),
+          consumerCodecs: (rtpCapabilities?.codecs || []).map(
+            (c) => c.mimeType
+          ),
+        });
         throw new Error("Cannot consume this producer");
       }
-
       const consumer = await transport.consume({
         producerId,
         rtpCapabilities,
@@ -372,6 +415,66 @@ io.on("connection", (socket) => {
       socket.emit("error", { message: "Failed to pause consumer" });
     }
   });
+
+  socket.on("get-producers", ({ roomId, rtpCapabilities }, cb = () => {}) => {
+    try {
+      const room = rooms.get(roomId);
+
+      const list = [];
+      if (room) {
+        for (const p of room.producers.values()) {
+          // skip producer milik diri sendiri (opsional, tapi rapi)
+          const myPeer = room.peers.get(socket.id);
+          if (p.appData?.peerId && myPeer?.id && p.appData.peerId === myPeer.id)
+            continue;
+          // hanya kirim yang benar2 bisa di-consume oleh device ini
+          if (room.router.canConsume({ producerId: p.id, rtpCapabilities })) {
+            list.push({
+              producerId: p.id,
+              kind: p.kind,
+              peerId: p.appData?.peerId || null,
+            });
+          }
+        }
+      }
+      cb({ ok: true, producers: list });
+    } catch (err) {
+      cb({ ok: false, error: err?.message || String(err) });
+    }
+  });
+
+  socket.on(
+    "host-mute-all",
+    async ({ roomId, exceptPeerId }, cb = () => {}) => {
+      try {
+        const room = rooms.get(roomId);
+        if (!room) return cb({ ok: false, error: "room not found" });
+
+        let mutedCount = 0;
+        // pause semua audio producer
+        for (const producer of room.producers.values()) {
+          if (producer.kind !== "audio") continue;
+          const ownerPeerId = producer.appData?.peerId;
+          if (exceptPeerId && ownerPeerId === exceptPeerId) continue;
+
+          try {
+            await producer.pause();
+          } catch {}
+          mutedCount++;
+
+          // info ke pemilik mic bahwa dia di-mute host (opsional tapi bikin UI sinkron)
+          const ownerPeer = [...room.peers.values()].find(
+            (p) => p.id === ownerPeerId
+          );
+          ownerPeer?.socket?.emit("muted-by-host", { kind: "audio" });
+        }
+
+        cb({ ok: true, muted: mutedCount });
+      } catch (e) {
+        cb({ ok: false, error: e?.message || String(e) });
+      }
+    }
+  );
 
   socket.on("disconnect", () => {
     logger.info("Client disconnected", { socketId: socket.id });
@@ -469,3 +572,10 @@ process.on("SIGTERM", () => {
 
 // Start the server
 startServer();
+
+function findRoomByProducerId(producerId) {
+  for (const room of rooms.values()) {
+    if (room.producers.has(producerId)) return room;
+  }
+  return null;
+}

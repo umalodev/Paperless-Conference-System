@@ -15,402 +15,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
-
-// NEW: mediasoup & socket.io
-import * as mediasoupClient from "mediasoup-client";
-import { io as socketIO } from "socket.io-client";
-
-/**
- * useMediasoupRoom – hook untuk:
- * - connect ke media server (socket.io)
- * - load device
- * - create send/recv transports
- * - produce local mic/cam
- * - consume semua producer participant lain
- */
-function useMediasoupRoom({ roomId, peerId }) {
-  const socketRef = useRef(null);
-  const deviceRef = useRef(null);
-  const sendTransportRef = useRef(null);
-  const recvTransportRef = useRef(null);
-  const audioProducerRef = useRef(null);
-  const videoProducerRef = useRef(null);
-  const [localStream, setLocalStream] = useState(null);
-
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-
-  // peerId -> { stream, consumers:Set, name? }
-  const [remotePeers, setRemotePeers] = useState(new Map());
-  // local states
-  const [micOn, setMicOn] = useState(false);
-  const [camOn, setCamOn] = useState(false);
-
-  const updateRemotePeer = useCallback((pid, updater) => {
-    setRemotePeers((prev) => {
-      const next = new Map(prev);
-      const cur = next.get(pid) || {
-        stream: new MediaStream(),
-        consumers: new Set(),
-        name: "",
-      };
-      const updated = updater(cur);
-      next.set(pid, updated);
-      return next;
-    });
-  }, []);
-
-  const removeConsumer = useCallback((peerId, consumerId) => {
-    setRemotePeers((prev) => {
-      const next = new Map(prev);
-      const cur = next.get(peerId);
-      if (!cur) return prev;
-      // no direct track handle here; track will end when consumer closed
-      cur.consumers.delete(consumerId);
-      next.set(peerId, cur);
-      return next;
-    });
-  }, []);
-
-  // Connect & join room
-  useEffect(() => {
-    let cancelled = false;
-
-    async function init() {
-      try {
-        if (!roomId || !peerId) return;
-        setError("");
-        setReady(false);
-
-        // 1) connect socket
-        const socket = socketIO(MEDIA_URL, {
-          // biarkan default transports (polling -> upgrade WS)
-          timeout: 10000, // built-in connect timeout
-          path: "/socket.io", // eksplisit (aman kalau ada proxy)
-          withCredentials: false,
-        });
-        socketRef.current = socket;
-
-        // log semua event penting supaya ketahuan akar masalahnya
-        socket.io.on("error", (err) => {
-          console.error("[socket.io manager error]", err);
-        });
-        +socket.io.on("reconnect_attempt", (n) => {
-          console.warn("[socket.io reconnect_attempt]", n);
-        });
-        socket.on("connect_error", (err) => {
-          console.error("[socket connect_error]", {
-            message: err?.message,
-            description: err?.description,
-            context: err?.context,
-          });
-        });
-        await new Promise((resolve, reject) => {
-          const onConnect = () => {
-            socket.off("connect_error", onErr);
-            resolve();
-          };
-          const onErr = (err) => {
-            socket.off("connect", onConnect);
-            reject(err || new Error("Socket connect timeout"));
-          };
-          socket.once("connect", onConnect);
-          socket.once("connect_error", onErr);
-        });
-
-        // 2) join room
-        socket.emit("join-room", {
-          roomId,
-          roomName: `room-${roomId}`,
-          peerId,
-        });
-
-        // 3) get router rtpCapabilities
-        const rtpCaps = await new Promise((resolve, reject) => {
-          const onCaps = (payload) => {
-            resolve(payload?.rtpCapabilities);
-            socket.off("router-rtp-capabilities", onCaps);
-          };
-          socket.on("router-rtp-capabilities", onCaps);
-          setTimeout(() => reject(new Error("No rtpCapabilities")), 10000);
-        });
-
-        // 4) load device
-        const device = new mediasoupClient.Device();
-        await device.load({ routerRtpCapabilities: rtpCaps });
-        deviceRef.current = device;
-
-        // 5) create send transport (producer)
-        const sendTransport = await createTransport(socket, {
-          direction: "send",
-          roomId,
-        });
-        sendTransportRef.current = sendTransport;
-
-        // hookup connect/produce events
-        sendTransport.on("connect", ({ dtlsParameters }, cb, errb) => {
-          socket.emit("connect-transport", {
-            transportId: sendTransport.id,
-            dtlsParameters,
-          });
-          cb();
-        });
-        sendTransport.on(
-          "produce",
-          ({ kind, rtpParameters, appData }, cb, errb) => {
-            socket.emit("produce", {
-              roomId,
-              transportId: sendTransport.id,
-              kind,
-              rtpParameters,
-              appData,
-            });
-            const onProduced = (payload) => {
-              cb({ id: payload.id });
-              socket.off("produced", onProduced);
-            };
-            socket.on("produced", onProduced);
-          }
-        );
-
-        // 6) create recv transport (consumer)
-        const recvTransport = await createTransport(socket, {
-          direction: "recv",
-          roomId,
-        });
-        recvTransportRef.current = recvTransport;
-        recvTransport.on("connect", ({ dtlsParameters }, cb, errb) => {
-          socket.emit("connect-transport", {
-            transportId: recvTransport.id,
-            dtlsParameters,
-          });
-          cb();
-        });
-
-        // 7) handle new producers from others
-        socket.on(
-          "new-producer",
-          async ({ producerId, kind, peerId: ownerPeerId }) => {
-            try {
-              await consumeOne({
-                socket,
-                device,
-                recvTransport,
-                producerId,
-                ownerPeerId,
-              });
-            } catch (e) {
-              console.error("consume error", e);
-            }
-          }
-        );
-
-        socket.on("existing-producers", async (list) => {
-          for (const item of list || []) {
-            try {
-              await consumeOne({
-                socket,
-                device,
-                recvTransport,
-                producerId: item.producerId,
-                ownerPeerId: item.peerId || "unknown",
-              });
-            } catch (e) {
-              console.error("consume existing error", e);
-            }
-          }
-        });
-
-        // 8) clean-up when someone leaves (server already handles consumer close by transport close)
-        socket.on("peer-left", ({ peerId: leftPeerId }) => {
-          setRemotePeers((prev) => {
-            const next = new Map(prev);
-            next.delete(leftPeerId);
-            return next;
-          });
-        });
-
-        setReady(true);
-      } catch (e) {
-        console.error(e);
-        setError(e.message || String(e));
-      }
-    }
-
-    init();
-
-    return () => {
-      cancelled = true;
-      try {
-        // close producers
-        audioProducerRef.current?.close();
-        videoProducerRef.current?.close();
-        // close transports
-        sendTransportRef.current?.close();
-        recvTransportRef.current?.close();
-        // close socket
-        socketRef.current?.disconnect();
-      } catch {}
-      deviceRef.current = null;
-      sendTransportRef.current = null;
-      recvTransportRef.current = null;
-    };
-  }, [roomId, peerId]);
-
-  // helpers
-  async function createTransport(socket, { direction, roomId }) {
-    return new Promise((resolve, reject) => {
-      socket.emit("create-transport", { direction, roomId });
-      const onCreated = async (payload) => {
-        try {
-          // payload: id, iceParameters, iceCandidates, dtlsParameters, sctpParameters
-          const device = deviceRef.current;
-          const transport =
-            direction === "send"
-              ? device.createSendTransport(payload)
-              : device.createRecvTransport(payload);
-          resolve(transport);
-        } catch (e) {
-          reject(e);
-        } finally {
-          socket.off("transport-created", onCreated);
-        }
-      };
-      socket.on("transport-created", onCreated);
-      setTimeout(() => reject(new Error("create-transport timeout")), 10000);
-    });
-  }
-
-  async function consumeOne({
-    socket,
-    device,
-    recvTransport,
-    producerId,
-    ownerPeerId,
-  }) {
-    return new Promise((resolve, reject) => {
-      socket.emit("consume", {
-        roomId,
-        transportId: recvTransport.id,
-        producerId,
-        rtpCapabilities: device.rtpCapabilities,
-        paused: false,
-      });
-
-      const onConsumed = async (payload) => {
-        // payload: { id, producerId, kind, rtpParameters, type, producerPaused }
-        try {
-          const consumer = await recvTransport.consume({
-            id: payload.id,
-            producerId: payload.producerId,
-            kind: payload.kind,
-            rtpParameters: payload.rtpParameters,
-          });
-
-          // add track to that peer’s stream
-          updateRemotePeer(ownerPeerId, (cur) => {
-            const stream = cur.stream || new MediaStream();
-            stream.addTrack(consumer.track);
-            cur.stream = stream;
-            cur.consumers.add(consumer.id);
-            return { ...cur };
-          });
-
-          // when consumer ends/transport closes
-          consumer.on("transportclose", () =>
-            removeConsumer(ownerPeerId, consumer.id)
-          );
-          consumer.on("producerclose", () =>
-            removeConsumer(ownerPeerId, consumer.id)
-          );
-
-          resolve();
-        } catch (e) {
-          reject(e);
-        } finally {
-          socket.off("consumed", onConsumed);
-        }
-      };
-
-      socket.on("consumed", onConsumed);
-      setTimeout(() => reject(new Error("consume timeout")), 10000);
-    });
-  }
-
-  // PUBLIC: toggle mic
-  const startMic = useCallback(async () => {
-    if (audioProducerRef.current || !sendTransportRef.current) return;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    });
-    const track = stream.getAudioTracks()[0];
-    const p = await sendTransportRef.current.produce({
-      track,
-      appData: { type: "mic", peerId },
-    });
-    audioProducerRef.current = p;
-    setMicOn(true);
-
-    p.on("trackended", () => stopMic());
-    p.on("transportclose", () => setMicOn(false));
-  }, [peerId]);
-
-  const stopMic = useCallback(() => {
-    if (!audioProducerRef.current) return;
-    try {
-      audioProducerRef.current.close();
-    } catch {}
-    audioProducerRef.current = null;
-    setMicOn(false);
-  }, []);
-
-  // PUBLIC: toggle cam
-  const startCam = useCallback(async () => {
-    if (videoProducerRef.current || !sendTransportRef.current) return;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { width: 1280, height: 720 },
-    });
-    const track = stream.getVideoTracks()[0];
-    const p = await sendTransportRef.current.produce({
-      track,
-      appData: { type: "cam", peerId },
-    });
-    videoProducerRef.current = p;
-    setLocalStream(stream);
-    setCamOn(true);
-
-    p.on("trackended", () => stopCam());
-    p.on("transportclose", () => setCamOn(false));
-  }, [peerId]);
-
-  const stopCam = useCallback(() => {
-    if (!videoProducerRef.current) return;
-    try {
-      videoProducerRef.current.close();
-    } catch {}
-    videoProducerRef.current = null;
-    try {
-      localStream?.getTracks().forEach((t) => t.stop());
-    } catch {}
-    setLocalStream(null);
-    setCamOn(false);
-  }, []);
-
-  return {
-    ready,
-    error,
-    remotePeers, // Map<peerId, {stream, consumers}>
-    micOn,
-    camOn,
-    startMic,
-    stopMic,
-    startCam,
-    stopCam,
-    localStream,
-  };
-}
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 
 export default function ParticipantsPage() {
   const [user, setUser] = useState(null);
@@ -556,13 +161,6 @@ export default function ParticipantsPage() {
     );
   }, [participants, query]);
 
-  const totals = useMemo(() => {
-    const total = participants.length;
-    const micOn = participants.filter((p) => p.mic).length;
-    const camOn = participants.filter((p) => p.cam).length;
-    return { total, micOn, camOn };
-  }, [participants]);
-
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
 
   // Update status mic/cam (ke DB) — tetap
@@ -605,7 +203,6 @@ export default function ParticipantsPage() {
   };
 
   // ====== NEW: hook mediasoup
-  const myPeerId = user?.id || localStorage.getItem("userId") || "me";
   const {
     ready: mediaReady,
     error: mediaError,
@@ -617,8 +214,26 @@ export default function ParticipantsPage() {
     startCam,
     stopCam,
     localStream,
-  } = useMediasoupRoom({ roomId: meetingId, peerId: String(myPeerId) });
+    muteAllOthers,
+    myPeerId,
+  } = useMediaRoom();
+  const liveFlagsFor = useLiveFlags(
+    remotePeers,
+    String(myPeerId),
+    micOn,
+    camOn
+  );
 
+  const totals = useMemo(() => {
+    const total = participants.length;
+    const liveMic =
+      (micOn ? 1 : 0) +
+      Array.from(remotePeers.values()).filter((v) => v.audioActive).length;
+    const liveCam =
+      (camOn ? 1 : 0) +
+      Array.from(remotePeers.values()).filter((v) => v.videoActive).length;
+    return { total, micOn: liveMic, camOn: liveCam };
+  }, [participants.length, remotePeers, micOn, camOn]);
   // wiring tombol footer -> media produce/close + update DB flag utk current user
   const onToggleMic = useCallback(() => {
     if (!mediaReady) return;
@@ -714,14 +329,21 @@ export default function ParticipantsPage() {
                     />
                   </div>
                   <div className="prt-actions">
-                    <button className="prt-btn" title="Invite">
-                      <Icon slug="invite" />
-                      <span>Invite</span>
-                    </button>
-                    <button className="prt-btn ghost" title="Sort">
-                      <Icon slug="sort" />
-                      <span>Sort</span>
-                    </button>
+                    {(user?.role === "host" || user?.role === "Host") && (
+                      <button
+                        className="prt-btn danger"
+                        title="Mute all microphones"
+                        onClick={async () => {
+                          const res = await muteAllOthers();
+                          if (!res?.ok) {
+                            console.warn("mute-all failed:", res?.error);
+                          }
+                        }}
+                      >
+                        <Icon slug="mic-off" />
+                        <span>Mute all</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -766,58 +388,75 @@ export default function ParticipantsPage() {
 
                 {!loadingList && !errList && (
                   <div className="prt-grid">
-                    {filtered.map((p) => (
-                      <div key={p.id} className="prt-item">
-                        <div className="prt-avatar">
-                          {(p.name || "?").slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="prt-info">
-                          <div className="prt-name">{p.name}</div>
-                          <div className="prt-meta">
-                            <span className="prt-role">{p.role}</span>
+                    {filtered.map((p) => {
+                      const live = liveFlagsFor(p);
+                      return (
+                        <div key={p.id} className="prt-item">
+                          <div className="prt-avatar">
+                            {(p.name || "?").slice(0, 2).toUpperCase()}
                           </div>
-                          {p.joinTime && (
-                            <div className="prt-join-time">
-                              Joined:{" "}
-                              {new Date(p.joinTime).toLocaleTimeString()}
+                          <div className="prt-info">
+                            <div className="prt-name">{p.name}</div>
+                            <div className="prt-meta">
+                              <span className="prt-role">{p.role}</span>
                             </div>
-                          )}
+                            {p.joinTime && (
+                              <div className="prt-join-time">
+                                Joined:{" "}
+                                {new Date(p.joinTime).toLocaleTimeString()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="prt-status">
+                            <button
+                              className={`prt-pill ${live.mic ? "on" : "off"}`}
+                              title={
+                                p.mic
+                                  ? "Mic On - Click to turn off"
+                                  : "Mic Off - Click to turn on"
+                              }
+                              onClick={() => {
+                                if (String(p.id) === String(myPeerId)) {
+                                  // kontrol mic sendiri biar sinkron dengan mediasoup
+                                  live.mic ? stopMic() : startMic();
+                                } else {
+                                  // opsional: tetap update DB kalau butuh
+                                  updateParticipantStatus(p.id, {
+                                    mic: !live.mic,
+                                  });
+                                }
+                              }}
+                            >
+                              <Icon slug="mic" />
+                            </button>
+                            <button
+                              className={`prt-pill ${live.cam ? "on" : "off"}`}
+                              title={
+                                p.cam
+                                  ? "Camera On - Click to turn off"
+                                  : "Camera Off - Click to turn on"
+                              }
+                              onClick={() => {
+                                if (String(p.id) === String(myPeerId)) {
+                                  live.cam ? stopCam() : startCam();
+                                } else {
+                                  updateParticipantStatus(p.id, {
+                                    cam: !live.cam,
+                                  });
+                                }
+                              }}
+                            >
+                              <Icon slug="camera" />
+                            </button>
+                          </div>
+                          <div className="prt-actions-right">
+                            <button className="prt-act" title="More">
+                              <Icon slug="dots" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="prt-status">
-                          <button
-                            className={`prt-pill ${p.mic ? "on" : "off"}`}
-                            title={
-                              p.mic
-                                ? "Mic On - Click to turn off"
-                                : "Mic Off - Click to turn on"
-                            }
-                            onClick={() =>
-                              updateParticipantStatus(p.id, { mic: !p.mic })
-                            }
-                          >
-                            <Icon slug="mic" />
-                          </button>
-                          <button
-                            className={`prt-pill ${p.cam ? "on" : "off"}`}
-                            title={
-                              p.cam
-                                ? "Camera On - Click to turn off"
-                                : "Camera Off - Click to turn on"
-                            }
-                            onClick={() =>
-                              updateParticipantStatus(p.id, { cam: !p.cam })
-                            }
-                          >
-                            <Icon slug="camera" />
-                          </button>
-                        </div>
-                        <div className="prt-actions-right">
-                          <button className="prt-act" title="More">
-                            <Icon slug="dots" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {filtered.length === 0 && participants.length === 0 && (
                       <div
@@ -913,7 +552,6 @@ export default function ParticipantsPage() {
   );
 }
 
-/** VideoTile: render satu kotak video */
 function VideoTile({
   name,
   stream,
@@ -952,7 +590,70 @@ function VideoTile({
           className="video-el"
         />
       )}
+
+      <AudioSink stream={stream} muted={true} />
       <div className="video-name">{name}</div>
     </div>
+  );
+}
+
+function AudioSink({ stream, muted, hideButton = false, unlockedSignal }) {
+  const ref = useRef(null);
+  const [needUnlock, setNeedUnlock] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // hanya attach kalau ada audio track
+    const hasAudio = !!stream && stream.getAudioTracks().length > 0;
+    el.srcObject = hasAudio ? stream : null;
+
+    if (hasAudio && !muted) {
+      el.play()
+        .then(() => setNeedUnlock(false))
+        .catch(() => setNeedUnlock(true));
+    }
+  }, [stream, muted, unlockedSignal]);
+
+  const unlock = () => {
+    const el = ref.current;
+    el?.play()
+      ?.then(() => setNeedUnlock(false))
+      .catch(() => {});
+  };
+
+  return (
+    <>
+      {!muted && needUnlock && !hideButton && (
+        <button className="pd-audio-unlock" onClick={unlock}>
+          Enable audio
+        </button>
+      )}
+      {/* hidden audio sink */}
+      <audio
+        ref={ref}
+        autoPlay
+        playsInline
+        muted={muted}
+        style={{ display: "none" }}
+      />
+    </>
+  );
+}
+
+function useLiveFlags(remotePeers, myPeerId, micOn, camOn) {
+  return useCallback(
+    (participant) => {
+      const pid = String(participant.id);
+      if (pid === String(myPeerId)) {
+        return { mic: !!micOn, cam: !!camOn };
+      }
+      const r = remotePeers.get(pid);
+      return {
+        mic: r?.audioActive ?? false,
+        cam: r?.videoActive ?? false,
+      };
+    },
+    [remotePeers, myPeerId, micOn, camOn]
   );
 }
