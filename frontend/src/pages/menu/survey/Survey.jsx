@@ -1,5 +1,11 @@
 // src/pages/menu/survey/Survey.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
@@ -19,6 +25,7 @@ import {
   toggleVisibility,
 } from "../../../services/surveyService.js";
 import meetingService from "../../../services/meetingService.js";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
@@ -51,6 +58,28 @@ export default function Survey() {
   const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -279,9 +308,13 @@ export default function Survey() {
                             <div style={{ fontWeight: 700, marginBottom: 6 }}>
                               {s.title || "(tanpa judul)"}{" "}
                               {s.isShow === "Y" ? (
-                                <span style={{ color: "#059669" }}>• aktif</span>
+                                <span style={{ color: "#059669" }}>
+                                  • aktif
+                                </span>
                               ) : (
-                                <span style={{ color: "#6b7280" }}>• draft</span>
+                                <span style={{ color: "#6b7280" }}>
+                                  • draft
+                                </span>
                               )}
                             </div>
 
@@ -314,9 +347,7 @@ export default function Survey() {
 
                               <button
                                 className="svr-btn"
-                                onClick={() =>
-                                  setActive(s, s.isShow !== "Y")
-                                }
+                                onClick={() => setActive(s, s.isShow !== "Y")}
                               >
                                 <img
                                   src="/img/eye.png"
@@ -385,7 +416,13 @@ export default function Survey() {
           />
         )}
 
-        <MeetingFooter userRole={user?.role || "participant"} />
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+        />
       </div>
     </MeetingLayout>
   );

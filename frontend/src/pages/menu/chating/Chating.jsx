@@ -1,5 +1,11 @@
 // src/pages/menu/chat/Chat.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
@@ -9,6 +15,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Chat() {
@@ -39,6 +46,28 @@ export default function Chat() {
   const listRef = useRef(null);
   const wsRef = useRef(null);
   const navigate = useNavigate();
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
 
   // Helper function to get meeting ID
   const getMeetingId = () => {
@@ -690,12 +719,18 @@ export default function Chat() {
           <section className="chat-wrap">
             <div className="chat-header">
               <div className="chat-title">
-              <img src="/img/Chating1.png" alt="" className="chat-title-icon" />
-              <span className="chat-title-text">
-               {chatMode === "global"
-               ? "Ruang Chat"
-               : `Chat dengan ${selectedParticipant?.name || "Participant"}`}
-              </span>
+                <img
+                  src="/img/Chating1.png"
+                  alt=""
+                  className="chat-title-icon"
+                />
+                <span className="chat-title-text">
+                  {chatMode === "global"
+                    ? "Ruang Chat"
+                    : `Chat dengan ${
+                        selectedParticipant?.name || "Participant"
+                      }`}
+                </span>
               </div>
               <div className="chat-mode-buttons">
                 <button
@@ -887,7 +922,13 @@ export default function Chat() {
           />
         )}
 
-        <MeetingFooter userRole={user?.role || "participant"} />
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+        />
       </div>
     </MeetingLayout>
   );

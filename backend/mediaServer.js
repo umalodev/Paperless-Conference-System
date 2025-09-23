@@ -60,7 +60,7 @@ const config = {
       listenIps: [
         {
           ip: "0.0.0.0",
-          announcedIp: "192.168.1.8",
+          announcedIp: "10.91.8.66",
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
