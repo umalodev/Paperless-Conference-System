@@ -171,3 +171,52 @@
     display: none;
   }
 }
+
+.svc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.svc-actions {
+  display: flex;
+  gap: 8px;
+}
+.svc-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+}
+.svc-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.svc-btn--danger {
+  border-color: #f3c;
+  background: #ffe9ee;
+}
+
+.svc-status {
+  font-style: normal;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.svc-status--pending {
+  background: #fff7e6;
+  border-color: #ffd591;
+}
+.svc-status--accepted {
+  background: #e6f7ff;
+  border-color: #91d5ff;
+}
+.svc-status--done {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+.svc-status--cancelled {
+  background: #fff1f0;
+  border-color: #ffa39e;
+}

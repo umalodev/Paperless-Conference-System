@@ -14,7 +14,7 @@ const chatRoutes = require("./chat");
 const SurveyRoutes = require("./survey");
 const filesRoutes = require("./files");
 const dashboardRoutes = require("./dashboard");
-
+const serviceRoutes = require("./services");
 
 // Use route modules
 router.use("/auth", authRoutes);
@@ -27,10 +27,9 @@ router.use("/notes", notesRoutes);
 router.use("/materials", materialsRoutes);
 router.use("/participants", participantRoutes);
 router.use("/chat", chatRoutes);
-
 router.use("/files", filesRoutes);
 router.use("/dashboard", dashboardRoutes);
-
+router.use("/services", serviceRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {

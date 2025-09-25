@@ -1,16 +1,9 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import BottomNav from "../../../components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../config";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
-import Icon from "../../../components/Icon.jsx";
 import "./services.css";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
@@ -22,22 +15,21 @@ export default function Services() {
   const [errMenus, setErrMenus] = useState("");
   const navigate = useNavigate();
 
-  // Services UI state
-  const [selectedService, setSelectedService] = useState(null); // { key, label, icon }
-  const [seat, setSeat] = useState("");
+  // Services state
+  const [selectedService, setSelectedService] = useState(null);
+  const [name, setName] = useState("");
   const [priority, setPriority] = useState("Normal");
   const [note, setNote] = useState("");
-  const [recent, setRecent] = useState(() => {
-    try {
-      const raw = localStorage.getItem("pconf.services.recent");
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
 
+  // Backend data
+  const [myRequests, setMyRequests] = useState([]);
+  const [teamRequests, setTeamRequests] = useState([]);
+  const [loadingReq, setLoadingReq] = useState(false);
+  const [errReq, setErrReq] = useState("");
+  const [busyId, setBusyId] = useState(null); // track in-flight action per row
+
+  // Load user + menus
   useEffect(() => {
-    // Load basic user info for top bar consistency
     try {
       const raw = localStorage.getItem("user");
       if (raw) setUser(JSON.parse(raw));
@@ -76,14 +68,12 @@ export default function Services() {
 
   const {
     ready: mediaReady,
-    error: mediaError,
     micOn,
     camOn,
     startMic,
     stopMic,
     startCam,
     stopCam,
-    muteAllOthers,
   } = useMediaRoom();
 
   const onToggleMic = useCallback(() => {
@@ -112,35 +102,181 @@ export default function Services() {
     { key: "clean", label: "Clean Up", icon: "🧹" },
   ];
 
-  const onQuickSelect = (opt) => {
-    setSelectedService(opt);
+  const onQuickSelect = (opt) => setSelectedService(opt);
+  const canSend = !!selectedService && name.trim().length > 0;
+
+  // meetingId: sesuaikan
+  const resolveMeetingId = () => {
+    const fromLS = Number(localStorage.getItem("currentMeetingId") || 0);
+    return fromLS || 1000;
   };
 
-  const canSend = !!selectedService && seat.trim().length > 0;
+  const isAssist = String(user?.role || "").toLowerCase() === "assist";
 
-  const onSend = () => {
-    if (!canSend) return;
-    const item = {
-      id: Date.now(),
+  // Load requests
+  const loadRequests = useCallback(async () => {
+    if (!user) return;
+    setLoadingReq(true);
+    setErrReq("");
+    try {
+      const headers = meetingService.getAuthHeaders();
+      const meetingId = resolveMeetingId();
+
+      if (isAssist) {
+        const res = await fetch(
+          `${API_URL}/api/services/meeting/${meetingId}`,
+          {
+            headers,
+          }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const rows = Array.isArray(json?.data) ? json.data : [];
+        const others = rows.filter(
+          (r) => r.requesterUserId !== (user?.id || user?.userId)
+        );
+        setTeamRequests(others);
+        setMyRequests([]);
+      } else {
+        const me = user?.id || user?.userId;
+        if (me) {
+          const res = await fetch(
+            `${API_URL}/api/services?requesterUserId=${me}&sortBy=created_at&sortDir=DESC`,
+            { headers }
+          );
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          setMyRequests(Array.isArray(json?.data) ? json.data : []);
+        } else {
+          setMyRequests([]);
+        }
+        setTeamRequests([]);
+      }
+    } catch (e) {
+      setErrReq(String(e.message || e));
+    } finally {
+      setLoadingReq(false);
+    }
+  }, [user, isAssist]);
+
+  useEffect(() => {
+    loadRequests();
+    // Polling untuk sinkron status di kedua sisi
+    const intervalMs = 10000;
+    const t = setInterval(loadRequests, intervalMs);
+    return () => clearInterval(t);
+  }, [loadRequests]);
+
+  // Create request
+  const onSend = async () => {
+    if (!canSend || !user) return;
+    const meetingId = resolveMeetingId();
+    const body = {
+      meetingId,
       serviceKey: selectedService.key,
       serviceLabel: selectedService.label,
-      icon: selectedService.icon,
-      seat: seat.trim(),
+      name: name.trim(),
       priority,
       note: note.trim() || null,
-      time: new Date().toISOString(),
     };
-    setRecent((prev) => {
-      const next = [item, ...prev].slice(0, 6);
-      localStorage.setItem("pconf.services.recent", JSON.stringify(next));
-      return next;
-    });
-    setSeat("");
-    setNote("");
+    try {
+      const res = await fetch(`${API_URL}/api/services`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await res.json();
+      setName("");
+      setNote("");
+      setSelectedService(null);
+      await loadRequests();
+    } catch (e) {
+      alert(`Failed to send request: ${String(e.message || e)}`);
+    }
   };
 
+  // ---- Assist actions ----
+  const doAssign = async (id) => {
+    setBusyId(id);
+    try {
+      const res = await fetch(`${API_URL}/api/services/${id}/assign`, {
+        method: "POST",
+        headers: meetingService.getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await res.json();
+      await loadRequests();
+    } catch (e) {
+      alert(`Assign failed: ${String(e.message || e)}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const doUpdateStatus = async (id, status) => {
+    setBusyId(id);
+    try {
+      const res = await fetch(`${API_URL}/api/services/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await res.json();
+      await loadRequests();
+    } catch (e) {
+      alert(`Update failed: ${String(e.message || e)}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const doCancel = async (id) => {
+    setBusyId(id);
+    try {
+      const res = await fetch(`${API_URL}/api/services/${id}/cancel`, {
+        method: "POST",
+        headers: meetingService.getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await res.json();
+      await loadRequests();
+    } catch (e) {
+      alert(`Cancel failed: ${String(e.message || e)}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // UI helpers
+  const iconFor = (key) =>
+    key === "coffee"
+      ? "☕"
+      : key === "mineral"
+      ? "🥤"
+      : key === "clean"
+      ? "🧹"
+      : key === "staff_assist"
+      ? "🧑‍💼"
+      : "🔔";
+
+  const StatusBadge = ({ status }) => (
+    <em className={`svc-status svc-status--${status}`}>{status}</em>
+  );
+
   return (
-    <MeetingLayout meetingId={null} userId={null} userRole={"participant"}>
+    <MeetingLayout
+      meetingId={resolveMeetingId()}
+      userId={user?.id || user?.userId || null}
+      userRole={user?.role || "participant"}
+    >
       <div className="pd-app">
         <header className="pd-topbar">
           <div className="pd-left">
@@ -148,7 +284,9 @@ export default function Services() {
             <div>
               <h1 className="pd-title">Services</h1>
               <div className="pd-sub">
-                Request assistance during the session
+                {isAssist
+                  ? "Assist console — handle participants' requests"
+                  : "Request assistance during the session"}
               </div>
             </div>
           </div>
@@ -167,7 +305,9 @@ export default function Services() {
                 <div className="pd-user-name">
                   {user?.username || "Participant"}
                 </div>
-                <div className="pd-user-role">Participant</div>
+                <div className="pd-user-role">
+                  {user?.role || "Participant"}
+                </div>
               </div>
             </div>
           </div>
@@ -175,119 +315,199 @@ export default function Services() {
 
         <main className="pd-main">
           <div className="svc-grid">
-            {/* Recent requests (left) */}
+            {/* LEFT COLUMN */}
             <section className="svc-card svc-recent">
-              <div className="svc-card-title">Recent request</div>
-              {(recent || []).length === 0 && (
-                <div className="pd-empty" style={{ padding: 12 }}>
-                  No recent request
-                </div>
+              {isAssist ? (
+                <>
+                  <div className="svc-card-title">All requests (others)</div>
+                  {loadingReq && <div className="pd-empty">Loading...</div>}
+                  {errReq && <div className="pd-empty">Error: {errReq}</div>}
+                  {!loadingReq && !errReq && teamRequests.length === 0 && (
+                    <div className="pd-empty" style={{ padding: 12 }}>
+                      No requests
+                    </div>
+                  )}
+                  {!loadingReq &&
+                    !errReq &&
+                    teamRequests.map((r) => (
+                      <div key={r.serviceRequestId} className="svc-row">
+                        <div
+                          className="svc-recent-item"
+                          title={r.note || undefined}
+                        >
+                          <span className="svc-recent-icon" aria-hidden>
+                            {iconFor(r.serviceKey)}
+                          </span>
+                          <span className="svc-recent-text">
+                            <strong>{r.serviceLabel}</strong>
+                            <span>
+                              {r.name} — {r.priority} —{" "}
+                              <StatusBadge status={r.status} />
+                            </span>
+                          </span>
+                        </div>
+                        <div className="svc-actions">
+                          {(!r.handledByUserId || r.status === "pending") && (
+                            <button
+                              className="svc-btn"
+                              disabled={busyId === r.serviceRequestId}
+                              onClick={() => doAssign(r.serviceRequestId)}
+                              title="Assign to me"
+                            >
+                              Assign
+                            </button>
+                          )}
+                          {r.status === "pending" && (
+                            <button
+                              className="svc-btn"
+                              disabled={busyId === r.serviceRequestId}
+                              onClick={() =>
+                                doUpdateStatus(r.serviceRequestId, "accepted")
+                              }
+                              title="Accept"
+                            >
+                              Accept
+                            </button>
+                          )}
+                          {r.status === "accepted" && (
+                            <button
+                              className="svc-btn"
+                              disabled={busyId === r.serviceRequestId}
+                              onClick={() =>
+                                doUpdateStatus(r.serviceRequestId, "done")
+                              }
+                              title="Mark as done"
+                            >
+                              Done
+                            </button>
+                          )}
+                          {r.status !== "done" && r.status !== "cancelled" && (
+                            <button
+                              className="svc-btn svc-btn--danger"
+                              disabled={busyId === r.serviceRequestId}
+                              onClick={() => doCancel(r.serviceRequestId)}
+                              title="Cancel request"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </>
+              ) : (
+                <>
+                  <div className="svc-card-title">My Requests</div>
+                  {loadingReq && <div className="pd-empty">Loading...</div>}
+                  {errReq && <div className="pd-empty">Error: {errReq}</div>}
+                  {!loadingReq && !errReq && myRequests.length === 0 && (
+                    <div className="pd-empty" style={{ padding: 12 }}>
+                      No requests
+                    </div>
+                  )}
+                  {!loadingReq &&
+                    !errReq &&
+                    myRequests.map((r) => (
+                      <div
+                        key={r.serviceRequestId}
+                        className="svc-recent-item"
+                        title={r.note || undefined}
+                      >
+                        <span className="svc-recent-icon" aria-hidden>
+                          {iconFor(r.serviceKey)}
+                        </span>
+                        <span className="svc-recent-text">
+                          <strong>{r.serviceLabel}</strong>
+                          <span>
+                            {r.name} — {r.priority} —{" "}
+                            <StatusBadge status={r.status} />
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                </>
               )}
-              {(recent || []).map((r) => (
-                <button
-                  key={r.id}
-                  className="svc-recent-item"
-                  title={r.note || undefined}
-                >
-                  <span className="svc-recent-icon" aria-hidden>
-                    {r.icon}
-                  </span>
-                  <span className="svc-recent-text">
-                    <strong>{r.serviceLabel}</strong>
-                    <span>
-                      {r.seat} — {r.priority}
-                    </span>
-                  </span>
-                </button>
-              ))}
             </section>
 
-            {/* Main services (right) */}
-            <section className="svc-card svc-main">
-              <div className="svc-card-title">Quick services</div>
-              <div className="svc-quick">
-                {quickOptions.map((q) => (
-                  <button
-                    key={q.key}
-                    className={`svc-quick-btn ${
-                      selectedService?.key === q.key ? "is-active" : ""
-                    }`}
-                    onClick={() => onQuickSelect(q)}
-                    title={q.label}
-                  >
-                    <span className="svc-quick-icon">{q.icon}</span>
-                    <span className="svc-quick-label">{q.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="svc-form">
-                <div className="svc-form-title">Request</div>
-                <div className="svc-form-field">
-                  <label>Service</label>
-                  <input
-                    className="svc-input"
-                    placeholder="Select service from quick menu"
-                    readOnly
-                    value={selectedService ? selectedService.label : ""}
-                  />
+            {/* RIGHT COLUMN */}
+            {!isAssist && (
+              <section className="svc-card svc-main">
+                <div className="svc-card-title">Quick services</div>
+                <div className="svc-quick">
+                  {quickOptions.map((q) => (
+                    <button
+                      key={q.key}
+                      className={`svc-quick-btn ${
+                        selectedService?.key === q.key ? "is-active" : ""
+                      }`}
+                      onClick={() => onQuickSelect(q)}
+                      title={q.label}
+                    >
+                      <span className="svc-quick-icon">{q.icon}</span>
+                      <span className="svc-quick-label">{q.label}</span>
+                    </button>
+                  ))}
                 </div>
-                <div className="svc-form-row">
-                  <div className="svc-form-field flex-1">
-                    <label>Location / Seat (required)</label>
+
+                <div className="svc-form">
+                  <div className="svc-form-title">Request</div>
+                  <div className="svc-form-field">
+                    <label>Service</label>
                     <input
                       className="svc-input"
-                      placeholder="Seat 12"
-                      value={seat}
-                      onChange={(e) => setSeat(e.target.value)}
+                      readOnly
+                      value={selectedService ? selectedService.label : ""}
+                      placeholder="Select service from quick menu"
+                    />
+                  </div>
+                  <div className="svc-form-row">
+                    <div className="svc-form-field flex-1">
+                      <label>Name (required)</label>
+                      <input
+                        className="svc-input"
+                        placeholder="e.g., Seat 12"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        disabled={!selectedService}
+                      />
+                    </div>
+                    <div className="svc-form-field svc-priority">
+                      <label>Priority</label>
+                      <select
+                        className="svc-input"
+                        value={priority}
+                        onChange={(e) => setPriority(e.target.value)}
+                        disabled={!selectedService}
+                      >
+                        <option value="Low">Low</option>
+                        <option value="Normal">Normal</option>
+                        <option value="High">High</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="svc-form-field">
+                    <label>Note</label>
+                    <textarea
+                      className="svc-textarea"
+                      rows={2}
+                      placeholder="Additional note"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
                       disabled={!selectedService}
                     />
                   </div>
-                  <div className="svc-form-field svc-priority">
-                    <label>Priority</label>
-                    <select
-                      className="svc-input"
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value)}
-                      disabled={!selectedService}
+                  <div className="svc-form-actions">
+                    <button
+                      className="svc-send"
+                      disabled={!canSend}
+                      onClick={onSend}
                     >
-                      <option value="Low">Low</option>
-                      <option value="Normal">Normal</option>
-                      <option value="High">High</option>
-                    </select>
+                      Send
+                    </button>
                   </div>
                 </div>
-                <div className="svc-form-field">
-                  <label>Note</label>
-                  <textarea
-                    className="svc-textarea"
-                    rows={2}
-                    placeholder="Additional note"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    disabled={!selectedService}
-                  />
-                </div>
-                <div className="svc-form-actions">
-                  <button
-                    className="svc-send"
-                    disabled={!canSend}
-                    onClick={onSend}
-                    title={canSend ? "Send" : "Select service and seat first"}
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <button
-              className="svc-fab"
-              title="Open grid"
-              aria-label="Open grid"
-            >
-              ◻︎◻︎
-            </button>
+              </section>
+            )}
           </div>
         </main>
 
