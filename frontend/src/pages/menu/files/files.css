@@ -1,5 +1,6 @@
 @import "../../../themes/variables.css";
 
+/* wrapper + card (ambil style Materials) */
 .files-wrap {
   background: linear-gradient(#ffffff, #ffffff) padding-box,
     linear-gradient(135deg, #34d399, #10b981, #a7f3d0) border-box;
@@ -28,27 +29,17 @@
   font-size: 18px;
   color: var(--color-text);
 }
-/* ikon & teks judul Files */
-.files-title-icon{
+.files-title-icon {
   width: 24px;
   height: 24px;
-  display: block;
   object-fit: contain;
 }
-
-.files-title-text{
-  /* optional nudge, biar sejajar cantik sama ikon */
+.files-title-text {
   position: relative;
   top: -2px;
 }
 
-/* responsive: sedikit lebih kecil di mobile */
-@media (max-width: 640px){
-  .files-title-icon{ width: 22px; height: 22px; }
-  .files-title-text{ top: -1px; }
-}
-
-
+/* actions & search */
 .files-actions {
   display: flex;
   align-items: center;
@@ -80,356 +71,146 @@
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  transition: all 0.16s ease;
 }
-
-.files-btn::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
-  transition: left 0.5s;
-}
-
-.files-btn:hover::before {
-  left: 100%;
-}
-
 .files-btn.ghost {
   background: #f8fafc;
   border-color: #cbd5e1;
 }
-
 .files-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--color-primary);
-  background: #f0f9ff;
-  color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.06);
 }
 
-.files-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.files-btn .pd-svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.2s ease;
-}
-
-.files-btn:hover .pd-svg {
-  transform: scale(1.1);
-}
-
-/* grid */
-.files-grid {
+/* grid reuse material-like grid */
+.mtl-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin-top: 8px;
 }
-
-@media (min-width: 640px) {
-  .files-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+@media (max-width: 800px) {
+  .mtl-grid {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (min-width: 1024px) {
-  .files-grid {
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 24px;
-  }
+/* card (mtl-card) */
+.mtl-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #eef0f2;
+  border-radius: 14px;
+  background: #f7f9fb;
+  transition: box-shadow .12s ease, transform .08s ease;
+}
+.mtl-card:hover {
+  box-shadow: 0 8px 20px rgba(2,6,23,0.06);
 }
 
-/* card */
-.fcard {
-  border: 1px solid #e8f2ff;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* file icon */
+.mtl-fileicon {
   position: relative;
-  overflow: hidden;
-}
-
-.fcard::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-primary), #60a5fa);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.fcard:hover::before {
-  opacity: 1;
-}
-
-.fcard-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-  flex: 1;
-}
-
-.fcard-icon {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 1px solid #bae6fd;
-  transition: all 0.3s ease;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #0b0b0f;
+}
+.mtl-fileicon .pd-svg {
+  width: 22px;
+  height: 22px;
 }
 
-.fcard-icon .pd-svg {
-  width: 24px;
-  height: 24px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+/* small ext pill on corner */
+.mtl-fileext {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.fcard-meta {
-  flex: 1;
-  min-width: 0;
-}
+/* icon color per kind */
+.mtl-fileicon.img { background: #0ea5e9; }
+.mtl-fileicon.pdf { background: #ef4444; }
+.mtl-fileicon.doc { background: #3b82f6; }
+.mtl-fileicon.xls { background: #22c55e; }
+.mtl-fileicon.ppt { background: #f97316; }
+.mtl-fileicon.zip { background: #a855f7; }
+.mtl-fileicon.txt { background: #64748b; }
+.mtl-fileicon.oth { background: #0b0b0f; }
+.mtl-fileicon.vid { background: #7c3aed; }
 
-.fcard-name {
-  font-weight: 600;
-  font-size: 15px;
+/* info */
+.mtl-info { min-width: 0; }
+.mtl-name {
+  font-weight: 700;
   color: var(--color-text);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-bottom: 4px;
-  line-height: 1.4;
+}
+.mtl-meta {
+  font-size: 12px;
+  color: var(--color-subtext);
+  margin-top: 4px;
 }
 
-.fcard-sub {
-  font-size: 13px;
-  color: #64748b;
-  display: flex;
-  align-items: center;
+/* actions right */
+.mtl-actions-right {
+  display: inline-flex;
   gap: 8px;
-  flex-wrap: wrap;
-}
-
-.fcard-sub span {
-  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  background: #f1f5f9;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
 }
-
-.fcard-actions {
-  display: inline-flex;
-  gap: 6px;
-  opacity: 0;
-  transform: translateX(10px);
-  transition: all 0.3s ease;
+.mtl-act {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
+.mtl-act:hover { background: #f0f4f8; }
+.mtl-act.danger:hover { background: #fee2e2; }
 
-.fcard:hover .fcard-actions {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* ikon img konsisten */
-.pd-icon-img {
-  display: block;
+/* .action-icon should be visible and sized */
+.action-icon {
+  width: 18px;
+  height: 18px;
   object-fit: contain;
 }
-.fcard-icon .pd-icon-img {
-  width: 24px;
-  height: 24px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-}
 
-/* File type specific styling */
-.fcard-icon[data-file-type="pdf"] {
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-  border-color: #fca5a5;
-}
-
-.fcard-icon[data-file-type="doc"],
-.fcard-icon[data-file-type="docx"] {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border-color: #93c5fd;
-}
-
-.fcard-icon[data-file-type="xls"],
-.fcard-icon[data-file-type="xlsx"] {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border-color: #86efac;
-}
-
-.fcard-icon[data-file-type="ppt"],
-.fcard-icon[data-file-type="pptx"] {
-  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
-  border-color: #fde047;
-}
-
-.fcard-icon[data-file-type="image"] {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-color: #7dd3fc;
-}
-
-.fcard-icon[data-file-type="video"] {
-  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
-  border-color: #c4b5fd;
-}
-
-.fcard-icon[data-file-type="zip"] {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-color: #94a3b8;
-}
-
+/* file uploader */
 .file-uploader {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
-.files-btn.danger {
-  border-color: #fecaca;
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  color: #dc2626;
-  position: relative;
-}
+.file-uploader .files-btn { margin-left: auto; }
 
-.files-btn.danger:hover {
-  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
-  border-color: #f87171;
-  color: #b91c1c;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
-}
-.file-uploader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  flex-wrap: nowrap; /* biar tidak turun baris */
-}
-
-.file-uploader .files-btn {
-  margin-left: auto; /* <<< dorong tombol ke kanan */
-}
-
-/* Mobile responsiveness */
-@media (max-width: 640px) {
-  .files-wrap {
-    padding: 16px;
-    border-radius: 16px;
-  }
-
-  .files-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-  }
-
-  .files-actions {
-    justify-content: space-between;
-  }
-
-  .files-search input {
-    min-width: 180px;
-    flex: 1;
-  }
-
-  .fcard {
-    padding: 16px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .fcard-left {
-    gap: 12px;
-  }
-
-  .fcard-actions {
-    opacity: 1;
-    transform: none;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .files-btn {
-    flex: 1;
-    min-width: 0;
-    justify-content: center;
-  }
-
-  .file-uploader {
-    flex-wrap: wrap;
-  }
-
-  .file-uploader .files-btn {
-    margin-left: 0;
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .fcard-sub {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .fcard-sub span {
-    font-size: 10px;
-  }
-}
-
-/* Toggle & divider */
-.files-btn.active {
-  background: #eaf2ff;
-  border-color: #d6e4ff;
-}
+/* divider */
 .files-divider {
   height: 1px;
   background: #eef0f3;
   margin: 18px 0 12px;
 }
 
-/* ===== FILES — History (compact, creative, responsive) ===== */
-
-/* Header "Riwayat Files" lebih ringkas */
-.files-history {
-  margin-top: 6px;
-}
+/* HISTORY: reuse earlier classes but keep compact */
+.files-history { margin-top: 6px; }
 .files-history-head {
   display: flex;
   align-items: center;
@@ -442,7 +223,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 800;
-  font-size: 15px;     /* <— lebih kecil */
+  font-size: 15px;
   color: #0f172a;
 }
 .files-history-actions {
@@ -453,197 +234,67 @@
 .files-history-search {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 6px 8px;    /* <— lebih kecil */
+  padding: 6px 8px;
   min-width: 200px;
 }
 
-/* List accordion riwayat */
-.files-accordion {
-  display: grid;
-  gap: 10px;
-}
+/* accordion */
+.files-accordion { display: grid; gap: 10px; }
 
-/* Card tiap meeting - compact & ada hover */
-.facc{
+.facc {
   border:1px solid #e6eef0;
   background:#fff;
   border-radius:14px;
-  overflow:visible;                /* <— biar pseudo-divider tidak kepotong */
+  overflow:visible;
   box-shadow:0 3px 10px rgba(2, 6, 23, .04);
-  transition: box-shadow .15s ease, border-color .15s ease, transform .08s ease;
+  transition: box-shadow .15s ease, border-color .15s ease;
 }
-.facc:hover{ box-shadow:0 8px 20px rgba(2, 6, 23, .08); transform:translateY(-1px); }
-.facc.open{ border-color:#c7d2fe; box-shadow:0 10px 24px rgba(37, 99, 235, .12); }
-
-/* Header card – tanpa border penuh, pakai divider inset agar tak "nabrak ujung" */
+.facc.open { border-color:#c7d2fe; box-shadow:0 10px 24px rgba(37, 99, 235, .08); }
 .facc-head{
   width:100%;
   display:flex; align-items:center; justify-content:space-between;
   gap:10px;
-  padding:10px 12px;              /* <— lebih kecil */
+  padding:10px 12px;
   background:linear-gradient(0deg, #fff, #f9fbff);
   cursor:pointer;
-  border-bottom:0 !important;
-  position:relative;              /* untuk ::after */
+  position:relative;
+  border-bottom:0;
 }
 .facc-head::after{
   content:"";
   position:absolute;
-  left:10px; right:10px; bottom:0;    /* <— inset kiri/kanan biar tidak kepotong sudut */
-  height:1px;
-  background:#cbd5e1;                 /* garis lembut */
-  border-radius:999px;
-  opacity:.9;
+  left:10px; right:10px; bottom:0;
+  height:1px; background:#e6eef0; border-radius:999px;
 }
-
 .facc-info{ min-width:0; }
-.facc-title{
-  display:flex; align-items:center; gap:8px;
-  font-weight:700; color:#0f172a; font-size:14px;
-}
-.facc-meta{
-  margin-top:3px;
-  font-size:12px; color:#64748b;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  max-width:60vw;                    /* jaga supaya tidak makan tempat */
-}
+.facc-title{ font-weight:700; color:#0f172a; font-size:14px; display:flex; gap:8px; align-items:center; }
+.facc-meta{ margin-top:3px; font-size:12px; color:#64748b; max-width:60vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.facc-count{ display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border-radius:10px; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; font-weight:700; font-size:12px; }
+.facc-body{ padding:10px 12px; background:#fafcff; position:relative; }
+.facc-body::before{ content:""; position:absolute; left:10px; right:10px; top:0; height:1px; background:#e2e8f0; opacity:.6; border-radius:999px; }
 
-/* Pill jumlah file di kanan */
-.facc-count{
-  display:inline-flex; align-items:center; gap:6px;
-  padding:5px 9px;                   /* <— lebih kecil */
-  border-radius:10px;
-  background:#f1f5f9; color:#334155;
-  border:1px solid #e2e8f0;
-  font-weight:700; font-size:12px;
-}
-/* Kalau mau pakai emoji kecil sebagai indikator, aktifkan ini dan sembunyikan ikon bawaan: */
-/* .facc-count .pd-svg{ display:none; }
-.facc-count::before{ content:"📁"; font-size:14px; line-height:1; } */
-
-/* Body card – pakai divider inset juga (matching header) */
-.facc-body{
-  padding:10px 12px;                /* <— lebih kecil */
-  background:#fafcff;
-  border-top:0; position:relative;
-}
-.facc-body::before{
-  content:"";
-  position:absolute;
-  left:10px; right:10px; top:0;
-  height:1px; background:#e2e8f0; opacity:.6; border-radius:999px;
-}
-
-/* Status chip kecil (started/ended/scheduled) */
-.fchip{
-  margin-left:6px;
-  font-size:11px; line-height:1;
-  padding:5px 7px;
-  border-radius:999px;
-  background:#f5f7fb; color:#666; border:1px solid #eaeef5;
-}
+/* small chips */
+.fchip{ margin-left:6px; font-size:11px; padding:5px 7px; border-radius:999px; background:#f5f7fb; color:#666; border:1px solid #eaeef5; }
 .fchip.started{ background:#ecfdf5; color:#047857; border-color:#d1fae5; }
 .fchip.ended{ background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
 .fchip.scheduled{ background:#fef9c3; color:#854d0e; border-color:#fde68a; }
 
-/* Responsif */
-@media (max-width: 640px){
-  .files-history-head{ flex-direction:column; align-items:stretch; gap:8px; }
-  .files-history-actions{ justify-content:space-between; }
-  .files-history-search{ min-width: 0; flex:1; }
-
-  .facc-head{ align-items:flex-start; }
-  .facc-meta{ white-space:normal; max-width:100%; }
-  .facc-count{ margin-left:auto; }
+/* responsiveness */
+@media (max-width: 640px) {
+  .files-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .files-actions { justify-content: space-between; }
+  .files-search input { min-width: 160px; flex: 1; }
+  .mtl-grid { grid-template-columns: 1fr; }
+  .mtl-card { grid-template-columns: auto 1fr auto; gap: 10px; padding: 10px; }
+  .mtl-fileicon { width: 40px; height: 40px; }
+  .mtl-actions-right .mtl-act { width: 34px; height: 34px; }
 }
-/* ===== COMPACT LIST + ALWAYS-VISIBLE ICON ACTIONS ===== */
-
-/* Grid lebih rapat & kartu lebih kecil */
-.files-grid { gap: 12px; }
-@media (min-width: 640px){
-  .files-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-}
-@media (min-width: 1024px){
-  .files-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.icon-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 8px; /* kalau mau jarak ke teks */
 }
 
-/* Kartu diperkecil */
-.fcard{
-  padding: 12px 14px;
-  border-radius: 12px;
-  gap: 10px;
-}
-.fcard-left{ gap: 12px; }
-
-/* Ikon file diperkecil */
-.fcard-icon{
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-}
-.fcard-icon .pd-svg{ width: 20px; height: 20px; }
-
-/* Teks ringkas */
-.fcard-name{ font-size: 14px; margin-bottom: 2px; }
-.fcard-sub{ font-size: 12px; gap: 6px; }
-
-/* Aksi SELALU terlihat (tanpa hover) dan compact */
-.fcard-actions{
-  opacity: 1;                 /* <- bukan hover-only lagi */
-  transform: none;
-  gap: 4px;
-}
-
-/* Mode icon-only untuk tombol di dalam kartu */
-.files-btn.icon{
-  padding: 6px;               /* kecil */
-  border-radius: 8px;
-  min-width: auto;
-}
-.files-btn.icon .pd-svg{ width: 16px; height: 16px; }
-.files-btn.icon span{ display: none; }      /* sembunyikan label, ikon tetap nampak */
-
-/* Danger kecil tetap jelas */
-.files-btn.danger.icon{
-  padding: 6px;
-}
-/* ====== KEEP CARD SIZE STABLE (no grow on hover/click) ====== */
-
-/* Selalu tampilkan tombol aksi, bahkan saat tidak hover */
-.fcard-actions{
-  opacity: 1 !important;
-  transform: none !important;
-}
-
-/* Hapus efek nge-zoom/geser saat hover/focus */
-.fcard{
-  transition: box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
-}
-.fcard:hover,
-.fcard:active,
-.fcard:focus-within{
-  transform: none !important;                     /* <— kunci: tidak membesar/geser */
-  box-shadow: 0 4px 14px rgba(2,6,23,.06);        /* efek halus saja */
-  border-color: #e8f2ff;                          /* tetap konsisten */
-  background: linear-gradient(135deg,#ffffff 0%,#f8fbff 100%);
-}
-
-/* Ikon file jangan ikut nge-zoom */
-.fcard:hover .fcard-icon,
-.fcard:focus-within .fcard-icon{
-  transform: none !important;
-}
-
-/* (opsional) garis tipis di bagian atas tetap muncul, tapi tanpa efek membesar */
-.fcard:hover::before,
-.fcard:focus-within::before{
-  opacity: .6;
-}
-
-/* History cards juga jangan “melompat” saat hover */
-.facc:hover{
-  transform: none !important;
-  box-shadow: 0 6px 16px rgba(2,6,23,.08);
-}
-
-
+.mtl-act img.action-icon { display: inline-block; width: 18px; height: 18px; }

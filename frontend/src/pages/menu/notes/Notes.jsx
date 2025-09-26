@@ -300,17 +300,22 @@ export default function Notes() {
 
           <section className="notes-wrap">
             <div className="notes-header">
-              <div className="notes-title">
-                <Icon slug="note" iconUrl="/img/note.svg" size={22} />
-                <span>Catatan</span>
-              </div>
+            <div className="notes-title">
+              <img 
+                src="/img/notebook.png" 
+                alt="Catatan" 
+                className="action-icon" 
+              />
+              <span>Catatan</span>
+            </div>
               <div className="notes-actions">
                 <button
                   className="note-btn ghost"
                   onClick={() => window.location.reload()}
                   title="Refresh"
+                  aria-label="Refresh"
                 >
-                  <RefreshIcon />
+                  <img src="/img/refresh.png" alt="Refresh" className="action-icon" />
                   <span>Refresh</span>
                 </button>
               </div>
@@ -415,24 +420,27 @@ export default function Notes() {
                             <span>{formatDate(n.updatedAt)}</span>
                             {n.author ? <span> · {n.author}</span> : null}
                           </div>
-                          <div className="note-actions">
-                            <button
-                              className="note-btn"
-                              onClick={() => startEdit(n)}
-                              disabled={saving}
-                            >
-                              <EditIcon />
-                              <span>Edit</span>
-                            </button>
-                            <button
-                              className="note-btn danger"
-                              onClick={() => handleDelete(n.id)}
-                              disabled={saving}
-                            >
-                              <TrashIcon />
-                              <span>Hapus</span>
-                            </button>
-                          </div>
+                        <div className="note-actions">
+                          <button
+                            className="note-btn"
+                            onClick={() => startEdit(n)}
+                            disabled={saving}
+                            aria-label="Edit"
+                          >
+                            <img src="/img/edit.png" alt="Edit" className="action-icon" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            className="note-btn danger"
+                            onClick={() => handleDelete(n.id)}
+                            disabled={saving}
+                            aria-label="Hapus"
+                          >
+                            <img src="/img/delete.png" alt="Hapus" className="action-icon" />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
                         </div>
                       )
                     )}

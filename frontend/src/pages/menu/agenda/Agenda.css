@@ -703,5 +703,12 @@
 @media (max-width: 560px){
   .ag-title-icon{ width: 22px; height: 22px; }
 }
+.action-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
 
 

@@ -340,8 +340,17 @@ export default function ParticipantsPage() {
                           }
                         }}
                       >
-                        <Icon slug="mic-off" />
-                        <span>Mute all</span>
+                        {/* Hapus baris di bawah ini untuk menghilangkan kotak */}
+                        {/* <Icon slug="mic-off" /> */}
+
+                        {/* Gunakan hanya gambar yang sudah kamu tambahkan */}
+                        <img
+                          src="/img/mute.png"
+                          alt="Mute icon"
+                          className="mute-img"
+                          aria-hidden="true"
+                        />
+                        <span className="prt-btn-label">Mute all</span>
                       </button>
                     )}
                   </div>
@@ -450,9 +459,6 @@ export default function ParticipantsPage() {
                             </button>
                           </div>
                           <div className="prt-actions-right">
-                            <button className="prt-act" title="More">
-                              <Icon slug="dots" />
-                            </button>
                           </div>
                         </div>
                       );

@@ -83,7 +83,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -230,7 +230,7 @@
   text-align: center;
 }
 
-.users-table th:nth-child(5), 
+.users-table th:nth-child(5),
 .users-table td:nth-child(5) {
   width: 25%;
   text-align: center;
@@ -262,6 +262,11 @@
 
 .role-participant {
   background: #f39c12;
+  color: white;
+}
+
+.role-assist {
+  background: #16a085;
   color: white;
 }
 
@@ -394,30 +399,30 @@
   .user-management {
     padding: 20px;
   }
-  
+
   .section-header {
     flex-direction: column;
     gap: 15px;
     text-align: center;
   }
-  
+
   .users-table {
     overflow-x: auto;
   }
-  
+
   .users-table th,
   .users-table td {
     padding: 10px;
     font-size: 0.9rem;
   }
-  
+
   .action-buttons {
     flex-direction: row;
     gap: 5px;
     justify-content: center;
     align-items: center;
   }
-  
+
   .btn-edit,
   .btn-delete {
     width: 35px;
@@ -425,23 +430,23 @@
     font-size: 0.9rem;
     flex-shrink: 0;
   }
-  
+
   .user-stats {
     grid-template-columns: repeat(2, 1fr);
     gap: 15px;
   }
-  
+
   .form-modal {
     padding: 30px 25px;
     margin: 10px;
     max-width: calc(100% - 20px);
   }
-  
+
   .form-actions {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .form-actions .btn-primary,
   .form-actions .btn-secondary {
     max-width: none;
@@ -453,28 +458,28 @@
   .user-stats {
     grid-template-columns: 1fr;
   }
-  
+
   .users-table th,
   .users-table td {
     padding: 8px;
     font-size: 0.8rem;
   }
-  
+
   .form-modal {
     padding: 25px 20px;
     margin: 5px;
     max-width: calc(100% - 10px);
   }
-  
+
   .form-modal h3 {
     font-size: 1.4rem;
     margin-bottom: 25px;
   }
-  
+
   .form-group {
     margin-bottom: 20px;
   }
-  
+
   .form-group input,
   .form-group select {
     padding: 12px 14px;

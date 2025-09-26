@@ -47,6 +47,7 @@ export default function Files() {
   // upload UI
   const [pick, setPick] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   // HISTORY UI
   const [showHistory, setShowHistory] = useState(false);
@@ -231,7 +232,7 @@ export default function Files() {
       });
       setFiles((prev) => [created, ...prev]);
       setPick(null);
-      (document.getElementById("file-input") || {}).value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (e) {
       alert(`Gagal upload: ${e.message || e}`);
     } finally {
@@ -259,16 +260,31 @@ export default function Files() {
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
+  // open & download helpers
+  const openFile = (f) => {
+    const abs = absolutize(f.url || f.path || f.urlAbs);
+    if (!abs) return;
+    // open in new tab (browser will handle pdf/image/video preview if supported)
+    window.open(abs, "_blank", "noopener,noreferrer");
+  };
+  const downloadFile = (f) => {
+    const abs = absolutize(f.url || f.path || f.urlAbs);
+    if (!abs) return;
+    const a = document.createElement("a");
+    a.href = abs;
+    a.download = f.name || guessName(f.url || f.path);
+    a.rel = "noopener";
+    a.click();
+  };
+
   return (
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
-      socket={null}
-      mediasoupDevice={null}
     >
       <div className="pd-app">
-        {/* Top bar */}
+        {/* Topbar */}
         <header className="pd-topbar">
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
@@ -303,11 +319,7 @@ export default function Files() {
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
-                <img
-                  src="/img/Files1.png"
-                  alt=""
-                  className="files-title-icon"
-                />
+                <img src="/img/Files1.png" alt="" className="files-title-icon" />
                 <span className="files-title-text">Daftar File</span>
               </div>
               <div className="files-actions">
@@ -346,6 +358,7 @@ export default function Files() {
             >
               <input
                 id="file-input"
+                ref={fileInputRef}
                 type="file"
                 onChange={(e) => setPick(e.target.files?.[0] || null)}
                 style={{ marginRight: 8 }}
@@ -355,10 +368,15 @@ export default function Files() {
                 type="submit"
                 disabled={!pick || uploading || !meetingId}
               >
-                <Icon slug="upload" size={18} />
-                <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
-              </button>
-            </form>
+                <img
+                src="/img/upload1.png"
+                alt="Unggah"
+                style={{ width: 18, height: 18, objectFit: "contain" }}
+                className="icon-img"
+              />
+              <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
+            </button>
+          </form>
 
             {loadingFiles && <div className="pd-empty">Memuat file…</div>}
             {errFiles && !loadingFiles && (
@@ -370,13 +388,15 @@ export default function Files() {
                 {filtered.length === 0 ? (
                   <div className="pd-empty">Belum ada file.</div>
                 ) : (
-                  <div className="files-grid">
+                  <div className="mtl-grid files-grid">
                     {filtered.map((f) => (
                       <FileCard
                         key={f.fileId || f.url}
                         file={f}
                         me={user}
-                        onDelete={handleDelete}
+                        onOpen={() => openFile(f)}
+                        onDownload={() => downloadFile(f)}
+                        onDelete={() => handleDelete(f.fileId)}
                       />
                     ))}
                   </div>
@@ -410,13 +430,9 @@ export default function Files() {
                     </div>
                   </div>
 
-                  {loadingHistory && (
-                    <div className="pd-empty">Memuat riwayat…</div>
-                  )}
+                  {loadingHistory && <div className="pd-empty">Memuat riwayat…</div>}
                   {errHistory && !loadingHistory && (
-                    <div className="pd-error">
-                      Gagal memuat riwayat: {errHistory}
-                    </div>
+                    <div className="pd-error">Gagal memuat riwayat: {errHistory}</div>
                   )}
                   {!loadingHistory &&
                     !errHistory &&
@@ -433,7 +449,9 @@ export default function Files() {
                             key={g.meetingId}
                             group={g}
                             me={user}
-                            onDelete={handleDelete}
+                            onOpen={(f) => openFile(f)}
+                            onDownload={(f) => downloadFile(f)}
+                            onDelete={(id) => handleDelete(id)}
                           />
                         ))}
                       </div>
@@ -464,7 +482,9 @@ export default function Files() {
   );
 }
 
-function FilesHistoryGroup({ group, me, onDelete }) {
+/* ================= Subcomponents ================= */
+
+function FilesHistoryGroup({ group, me, onOpen, onDownload, onDelete }) {
   const [open, setOpen] = useState(false);
   const { meetingId, title, startTime, endTime, status, files } = group || {};
 
@@ -486,13 +506,18 @@ function FilesHistoryGroup({ group, me, onDelete }) {
 
       {open && (
         <div className="facc-body">
-          {(!files || files.length === 0) && (
-            <div className="pd-empty">Tidak ada file.</div>
-          )}
+          {(!files || files.length === 0) && <div className="pd-empty">Tidak ada file.</div>}
           {files && files.length > 0 && (
-            <div className="files-grid">
+            <div className="mtl-grid files-grid">
               {files.map((f) => (
-                <FileCard key={f.fileId} file={f} me={me} onDelete={onDelete} />
+                <FileCard
+                  key={f.fileId || f.url}
+                  file={f}
+                  me={me}
+                  onOpen={() => onOpen(f)}
+                  onDownload={() => onDownload(f)}
+                  onDelete={() => onDelete && onDelete(f.fileId)}
+                />
               ))}
             </div>
           )}
@@ -502,7 +527,7 @@ function FilesHistoryGroup({ group, me, onDelete }) {
   );
 }
 
-function FileCard({ file, me, onDelete }) {
+function FileCard({ file, me, onOpen, onDownload, onDelete }) {
   const {
     fileId,
     name = "Untitled",
@@ -513,56 +538,47 @@ function FileCard({ file, me, onDelete }) {
     uploaderId,
     mimeType,
   } = file || {};
+
   const ext = getExt(name);
-  const iconUrl = file.iconUrl || mapExtToIcon(ext);
-  const absUrl = absolutize(url);
-  const onOpen = () => window.open(absUrl, "_blank");
-  const onDownload = () => {
-    const a = document.createElement("a");
-    a.href = absUrl;
-    a.download = name;
-    a.rel = "noopener";
-    a.click();
-  };
+  const kind = extKind(name);
   const canDelete =
     me &&
     (Number(me.id) === Number(uploaderId) ||
       ["admin", "host"].includes(me?.role));
 
+  const absUrl = absolutize(url);
+
   return (
-    <div className="fcard">
-      <div className="fcard-left">
-        <span className="fcard-icon">
-          <Icon slug={ext || "file"} iconUrl={iconUrl} size={32} />
-        </span>
-        <div className="fcard-meta">
-          <div className="fcard-name" title={name}>
-            {name}
-          </div>
-          <div className="fcard-sub">
-            {uploaderName ? `oleh ${uploaderName}` : "—"}
-            {size ? ` · ${formatSize(size)}` : ""}
-            {createdAt ? ` · ${formatDate(createdAt)}` : ""}
-          </div>
+    <div className="mtl-card">
+      <div className={`mtl-fileicon ${kind}`} title={ext.toUpperCase()}>
+        <div className="mtl-fileext">{extLabel(kind)}</div>
+        {/* optionally show icon from Icon component */}
+        <Icon slug="file" />
+      </div>
+
+      <div className="mtl-info">
+        <div className="mtl-name" title={name} onClick={onOpen} style={{ cursor: "pointer" }}>
+          {name}
+        </div>
+        <div className="mtl-meta">
+          {uploaderName ? `oleh ${uploaderName}` : "—"}
+          {size ? ` · ${formatSize(size)}` : ""}
+          {createdAt ? ` · ${formatDate(createdAt)}` : ""}
         </div>
       </div>
-      <div className="fcard-actions">
-        <button className="files-btn icon" onClick={onOpen} title="Buka">
-          <OpenIcon />
-          <span>Buka</span>
+
+      <div className="mtl-actions-right">
+        <button className="mtl-act" onClick={onOpen} title="Buka">
+          <img src="/img/buka.png" alt="Buka" className="action-icon" />
         </button>
-        <button className="files-btn icon" onClick={onDownload} title="Unduh">
-          <Icon slug="download" size={16} />
-          <span>Unduh</span>
+
+        <button className="mtl-act" onClick={onDownload} title="Unduh">
+          <img src="/img/download1.png" alt="Unduh" className="action-icon" />
         </button>
+
         {canDelete && (
-          <button
-            className="files-btn danger icon"
-            onClick={() => onDelete(fileId)}
-            title="Hapus"
-          >
-            <Icon slug="trash" size={16} />
-            <span>Hapus</span>
+          <button className="mtl-act danger" onClick={() => onDelete && onDelete(fileId)} title="Hapus">
+            <img src="/img/hapus1.png" alt="Hapus" className="action-icon" />
           </button>
         )}
       </div>
@@ -570,38 +586,51 @@ function FileCard({ file, me, onDelete }) {
   );
 }
 
-/* utils */
+/* ================= utils ================= */
+
 function getExt(name = "") {
-  const m = name.toLowerCase().match(/\.([a-z0-9]+)$/);
-  return m ? m[1] : "";
+  if (!name) return "";
+  const parts = name.toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() : "";
 }
-function mapExtToIcon(ext = "") {
-  const base = "/img/filetypes";
+
+function extKind(name = "") {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  if (["png", "jpg", "jpeg", "gif", "webp", "heic"].includes(ext)) return "img";
+  if (["pdf"].includes(ext)) return "pdf";
+  if (["doc", "docx", "rtf"].includes(ext)) return "doc";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "xls";
+  if (["ppt", "pptx", "key"].includes(ext)) return "ppt";
+  if (["zip", "rar", "7z"].includes(ext)) return "zip";
+  if (["mp4", "mov", "mkv", "webm", "avi"].includes(ext)) return "vid";
+  if (["txt", "md"].includes(ext)) return "txt";
+  return "oth";
+}
+
+function extLabel(kind) {
   const map = {
-    pdf: `${base}/pdf.svg`,
-    doc: `${base}/doc.svg`,
-    docx: `${base}/doc.svg`,
-    xls: `${base}/xls.svg`,
-    xlsx: `${base}/xls.svg`,
-    csv: `${base}/xls.svg`,
-    ppt: `${base}/ppt.svg`,
-    pptx: `${base}/ppt.svg`,
-    jpg: `${base}/image.svg`,
-    jpeg: `${base}/image.svg`,
-    png: `${base}/image.svg`,
-    gif: `${base}/image.svg`,
-    webp: `${base}/image.svg`,
-    mp4: `${base}/video.svg`,
-    mov: `${base}/video.svg`,
-    mkv: `${base}/video.svg`,
-    zip: `${base}/zip.svg`,
-    rar: `${base}/zip.svg`,
-    "7z": `${base}/zip.svg`,
-    txt: `${base}/txt.svg`,
-    md: `${base}/txt.svg`,
+    img: "IMG",
+    pdf: "PDF",
+    doc: "DOC",
+    xls: "XLS",
+    ppt: "PPT",
+    zip: "ZIP",
+    vid: "VID",
+    txt: "TXT",
+    oth: "FILE",
   };
-  return map[ext] || `${base}/file.svg`;
+  return map[kind] || "FILE";
 }
+
+function guessName(p = "") {
+  try {
+    const s = p.split("?")[0];
+    return s.split("/").pop() || "file";
+  } catch {
+    return "file";
+  }
+}
+
 function formatSize(bytes = 0) {
   if (!bytes) return "—";
   const u = ["B", "KB", "MB", "GB", "TB"];
@@ -613,6 +642,7 @@ function formatSize(bytes = 0) {
   }
   return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
 }
+
 function formatDate(iso) {
   try {
     const d = new Date(iso);
@@ -626,6 +656,7 @@ function formatDate(iso) {
     return "";
   }
 }
+
 function formatDateRange(a, b) {
   try {
     const s = a ? new Date(a) : null;
@@ -645,24 +676,4 @@ function formatDateRange(a, b) {
   } catch {
     return "—";
   }
-}
-
-/* ikon kecil */
-function OpenIcon() {
-  return (
-    <svg
-      className="pd-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M14 3h7v7" />
-      <path d="M21 3l-9 9" />
-      <path d="M10 7H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
-    </svg>
-  );
 }

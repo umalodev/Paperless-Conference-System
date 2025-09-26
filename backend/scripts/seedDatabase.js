@@ -1,194 +1,182 @@
+// seeders/seed.js
 const { Menu, UserRole, UserRoleMenu, User, Meeting } = require("../models");
 const sequelize = require("../db/db");
 const bcrypt = require("bcrypt");
+
+async function ensureRole(name) {
+  const [role] = await UserRole.findOrCreate({
+    where: { nama: name },
+    defaults: { nama: name, flag: "Y" },
+  });
+  return role;
+}
+
+async function ensureUser({ username, password, roleId }) {
+  const existing = await User.findOne({ where: { username } });
+  if (existing) return existing;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  return User.create({
+    username,
+    password: hashedPassword,
+    userRoleId: roleId,
+  });
+}
+
+async function ensureRoleMenu(userRoleId, menuId) {
+  await UserRoleMenu.findOrCreate({
+    where: { userRoleId, menuId },
+    defaults: { userRoleId, menuId, flag: "Y" },
+  });
+}
 
 async function seedDatabase() {
   try {
     console.log("Starting database seeding...");
 
-    // Create user roles
-    console.log("Creating user roles...");
-    const roles = await UserRole.bulkCreate(
-      [
-        { nama: "participant", flag: "Y" },
-        { nama: "host", flag: "Y" },
-        { nama: "admin", flag: "Y" },
-      ],
-      { ignoreDuplicates: true }
-    );
+    // --- ROLES ---
+    console.log("Ensuring user roles (participant, host, admin, assist)...");
+    const roleNames = ["participant", "host", "admin", "assist"];
+    const roleMap = {};
+    for (const rn of roleNames) {
+      const r = await ensureRole(rn);
+      roleMap[rn] = r.userRoleId;
+    }
+    console.log("Roles:", roleMap);
 
-    console.log("User roles created:", roles.length);
-    console.log(
-      "Roles:",
-      roles.map((r) => ({ id: r.userRoleId, name: r.nama }))
-    );
-
-    // Create menus
-    console.log("\nCreating menus...");
-    const menus = await Menu.bulkCreate(
-      [
-        {
-          displayLabel: "Participant",
-          iconMenu: "/img/participant.png",
-          sequenceMenu: 1,
-          parentMenu: null,
-          slug: "participant",
-          flag: "Y",
-        },
-        {
-          displayLabel: "Agenda",
-          iconMenu: "/img/agenda.png",
-          sequenceMenu: 2,
-          parentMenu: null,
-          slug: "agenda",
-          flag: "Y",
-        },
-        {
-          displayLabel: "Materials",
-          iconMenu: "/img/materials.png",
-          sequenceMenu: 3,
-          parentMenu: null,
-          slug: "materials",
-          flag: "Y",
-        },
-        {
-          displayLabel: "Survey",
-          iconMenu: "/img/survey.png",
-          sequenceMenu: 4,
-          parentMenu: null,
-          slug: "survey",
-          flag: "Y",
-        },
-        {
-          displayLabel: "Files",
-          iconMenu: "/img/files.png",
-          sequenceMenu: 5,
-          parentMenu: null,
-          slug: "files",
-          flag: "Y",
-        },
-        {
-          displayLabel: "Chating",
-          iconMenu: "/img/chating.png",
-          sequenceMenu: 6,
-          parentMenu: null,
-          slug: "chating",
-          flag: "Y",
-        },
-        {
-          displayLabel: "Notes",
-          iconMenu: "/img/notes.png",
-          sequenceMenu: 7,
-          parentMenu: null,
-          slug: "notes",
-          flag: "Y",
-        },
-        {
-          displayLabel: "Services",
-          iconMenu: "/img/services.png",
-          sequenceMenu: 8,
-          parentMenu: null,
-          slug: "services",
-          flag: "Y",
-        },
-      ],
-      { ignoreDuplicates: true }
-    );
-
-    console.log("Menus created:", menus.length);
-    console.log(
-      "Menus:",
-      menus.map((m) => ({ id: m.menuId, label: m.displayLabel, slug: m.slug }))
-    );
-
-    // Create role-menu relationships
-    console.log("\nCreating role-menu relationships...");
-    const roleMenuRelations = [
-      // Participant can access basic features
-      { userRoleId: 1, menuId: 1, flag: "Y" }, // Participant
-      { userRoleId: 1, menuId: 2, flag: "Y" }, // Agenda
-      { userRoleId: 1, menuId: 3, flag: "Y" }, // Materials
-      { userRoleId: 1, menuId: 4, flag: "Y" }, // Survey
-      { userRoleId: 1, menuId: 5, flag: "Y" }, // Files
-      { userRoleId: 1, menuId: 6, flag: "Y" }, // Chating
-      { userRoleId: 1, menuId: 7, flag: "Y" }, // Notes
-      { userRoleId: 1, menuId: 8, flag: "Y" }, // Services
-
-      // Host can access most features
-      { userRoleId: 2, menuId: 1, flag: "Y" }, // Participant
-      { userRoleId: 2, menuId: 2, flag: "Y" }, // Agenda
-      { userRoleId: 2, menuId: 3, flag: "Y" }, // Materials
-      { userRoleId: 2, menuId: 4, flag: "Y" }, // Survey
-      { userRoleId: 2, menuId: 5, flag: "Y" }, // Files
-      { userRoleId: 2, menuId: 6, flag: "Y" }, // Chating
-      { userRoleId: 2, menuId: 7, flag: "Y" }, // Notes
-      { userRoleId: 2, menuId: 8, flag: "Y" }, // Services
-
-      // Admin can access everything
-      { userRoleId: 3, menuId: 1, flag: "Y" }, // Participant
-      { userRoleId: 3, menuId: 2, flag: "Y" }, // Agenda
-      { userRoleId: 3, menuId: 3, flag: "Y" }, // Materials
-      { userRoleId: 3, menuId: 4, flag: "Y" }, // Survey
-      { userRoleId: 3, menuId: 5, flag: "Y" }, // Files
-      { userRoleId: 3, menuId: 6, flag: "Y" }, // Chating
-      { userRoleId: 3, menuId: 7, flag: "Y" }, // Notes
-      { userRoleId: 3, menuId: 8, flag: "Y" }, // Services
+    // --- MENUS ---
+    console.log("\nCreating menus (if not exist)...");
+    const menuPayloads = [
+      {
+        displayLabel: "Participant",
+        iconMenu: "/img/participant.png",
+        sequenceMenu: 1,
+        parentMenu: null,
+        slug: "participant",
+        flag: "Y",
+      },
+      {
+        displayLabel: "Agenda",
+        iconMenu: "/img/agenda.png",
+        sequenceMenu: 2,
+        parentMenu: null,
+        slug: "agenda",
+        flag: "Y",
+      },
+      {
+        displayLabel: "Materials",
+        iconMenu: "/img/materials.png",
+        sequenceMenu: 3,
+        parentMenu: null,
+        slug: "materials",
+        flag: "Y",
+      },
+      {
+        displayLabel: "Survey",
+        iconMenu: "/img/survey.png",
+        sequenceMenu: 4,
+        parentMenu: null,
+        slug: "survey",
+        flag: "Y",
+      },
+      {
+        displayLabel: "Files",
+        iconMenu: "/img/files.png",
+        sequenceMenu: 5,
+        parentMenu: null,
+        slug: "files",
+        flag: "Y",
+      },
+      {
+        displayLabel: "Chating",
+        iconMenu: "/img/chating.png",
+        sequenceMenu: 6,
+        parentMenu: null,
+        slug: "chating",
+        flag: "Y",
+      },
+      {
+        displayLabel: "Notes",
+        iconMenu: "/img/notes.png",
+        sequenceMenu: 7,
+        parentMenu: null,
+        slug: "notes",
+        flag: "Y",
+      },
+      {
+        displayLabel: "Services",
+        iconMenu: "/img/services.png",
+        sequenceMenu: 8,
+        parentMenu: null,
+        slug: "services",
+        flag: "Y",
+      },
     ];
 
-    await UserRoleMenu.bulkCreate(roleMenuRelations, {
-      ignoreDuplicates: true,
+    // upsert menus one by one to keep IDs stable
+    for (const m of menuPayloads) {
+      await Menu.findOrCreate({
+        where: { slug: m.slug },
+        defaults: m,
+      });
+    }
+
+    const menus = await Menu.findAll({ where: { flag: "Y" } });
+    const menuIdBySlug = Object.fromEntries(
+      menus.map((m) => [m.slug, m.menuId])
+    );
+    const allMenuIds = Object.values(menuIdBySlug);
+    console.log(
+      "Menus:",
+      menus.map((m) => ({ id: m.menuId, slug: m.slug }))
+    );
+
+    // --- ROLE-MENU RELATIONS ---
+    console.log("\nEnsuring role-menu relationships...");
+    // Participant: akses semua seperti semula
+    for (const menuId of allMenuIds) {
+      await ensureRoleMenu(roleMap["participant"], menuId);
+    }
+    // Host: akses semua
+    for (const menuId of allMenuIds) {
+      await ensureRoleMenu(roleMap["host"], menuId);
+    }
+    // Admin: akses semua
+    for (const menuId of allMenuIds) {
+      await ensureRoleMenu(roleMap["admin"], menuId);
+    }
+    // Assist: samakan dengan host (akses semua)
+    for (const menuId of allMenuIds) {
+      await ensureRoleMenu(roleMap["assist"], menuId);
+    }
+    console.log("Role-menu relations ensured for all roles.");
+
+    // --- USERS ---
+    console.log("\nEnsuring users for each role...");
+    await ensureUser({
+      username: "participant1",
+      password: "password123",
+      roleId: roleMap["participant"],
     });
-    console.log("Role-menu relationships created");
-
-    // Create users for each role
-    console.log("\nCreating users for each role...");
-
-    // Check if users already exist
-    const existingUsers = await User.findAll({
-      where: {
-        username: ["participant1", "host1", "admin1"],
-      },
+    await ensureUser({
+      username: "host1",
+      password: "password123",
+      roleId: roleMap["host"],
+    });
+    await ensureUser({
+      username: "admin1",
+      password: "password123",
+      roleId: roleMap["admin"],
+    });
+    // NEW: assist user
+    await ensureUser({
+      username: "assist1",
+      password: "password123",
+      roleId: roleMap["assist"],
     });
 
-    const existingUsernames = existingUsers.map((u) => u.username);
-    const usersToCreate = [];
-
-    if (!existingUsernames.includes("participant1")) {
-      const hashedPassword = await bcrypt.hash("password123", 10);
-      usersToCreate.push({
-        username: "participant1",
-        password: hashedPassword,
-        userRoleId: 1,
-      });
-    }
-
-    if (!existingUsernames.includes("host1")) {
-      const hashedPassword = await bcrypt.hash("password123", 10);
-      usersToCreate.push({
-        username: "host1",
-        password: hashedPassword,
-        userRoleId: 2,
-      });
-    }
-
-    if (!existingUsernames.includes("admin1")) {
-      const hashedPassword = await bcrypt.hash("password123", 10);
-      usersToCreate.push({
-        username: "admin1",
-        password: hashedPassword,
-        userRoleId: 3,
-      });
-    }
-
-    if (usersToCreate.length > 0) {
-      const newUsers = await User.bulkCreate(usersToCreate);
-      console.log("New users created:", newUsers.length);
-    } else {
-      console.log("All users already exist");
-    }
-
-    console.log("\nCreating default meeting...");
-    // cari admin1 untuk jadi owner (model Meeting butuh userId != null)
+    // --- DEFAULT MEETING ---
+    console.log("\nEnsuring default meeting...");
     const adminUser = await User.findOne({ where: { username: "admin1" } });
     if (!adminUser) {
       throw new Error(
@@ -196,27 +184,23 @@ async function seedDatabase() {
       );
     }
 
-    // cek apakah sudah ada default meeting
     let defaultMeeting = await Meeting.findOne({
       where: { isDefault: true, flag: "Y" },
     });
-
-    // kalau belum, buat meeting_id 1000 (atau pakai yang tersedia)
     if (!defaultMeeting) {
-      // cek collision
       const existing1000 = await Meeting.findByPk(1000);
       const meetingId = existing1000
         ? Math.floor(Math.random() * 900000) + 100000
         : 1000;
 
       defaultMeeting = await Meeting.create({
-        meetingId, // pk kamu adalah meeting_id (auto inc). Di sini kita set manual supaya mudah diingat
+        meetingId,
         title: "UP-CONNECT Default Room",
         description: "Lobby selalu aktif saat tidak ada meeting lain.",
         startTime: new Date(),
         endTime: new Date("2099-12-31T23:59:59Z"),
-        userId: adminUser.userId || adminUser.id, // tergantung pk model User kamu
-        status: "started", // langsung started
+        userId: adminUser.userId || adminUser.id,
+        status: "started",
         maxParticipants: 200,
         currentParticipants: 0,
         flag: "Y",
@@ -230,7 +214,6 @@ async function seedDatabase() {
         isDefault: defaultMeeting.isDefault,
       });
     } else {
-      // pastikan tetap started
       if (defaultMeeting.status !== "started") {
         await defaultMeeting.update({ status: "started" });
       }
@@ -242,9 +225,7 @@ async function seedDatabase() {
 
     console.log("\nDatabase seeding completed successfully!");
 
-    // Display the created data
-    console.log("\n--- Created Data Summary ---");
-
+    // --- SUMMARY ---
     const allRoles = await UserRole.findAll({ where: { flag: "Y" } });
     console.log(
       "User Roles:",
@@ -278,33 +259,19 @@ async function seedDatabase() {
 
     console.log("\n--- Login Credentials ---");
     console.log("Participant: username=participant1, password=password123");
-    console.log("Host: username=host1, password=password123");
-    console.log("Admin: username=admin1, password=password123");
+    console.log("Host:        username=host1,        password=password123");
+    console.log("Admin:       username=admin1,       password=password123");
+    console.log("Assist:      username=assist1,      password=password123");
 
-    console.log("\n--- Database Tables Created ---");
-    console.log("✅ m_user_role - Contains 3 roles (participant, host, admin)");
+    console.log("\n--- Database Tables Updated ---");
     console.log(
-      "✅ m_menu - Contains 8 menus (Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services)"
+      "✅ m_user_role - Contains 4 roles (participant, host, admin, assist)"
     );
-    console.log("✅ m_user_role_menu - Contains role-menu access rules");
-    console.log("✅ users - Contains 3 users with different roles");
-    console.log("✅ Foreign key relationships established");
-
-    console.log("\n--- Menu Access by Role ---");
+    console.log("✅ m_menu - Contains 8 menus");
     console.log(
-      "👤 Participant: Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services"
+      "✅ m_user_role_menu - Role-menu access rules (now includes assist)"
     );
-    console.log(
-      "🎯 Host: Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services"
-    );
-    console.log(
-      "👑 Admin: All 8 menus (Participant, Agenda, Materials, Survey, Files, Chating, Notes, Services)"
-    );
-
-    console.log("\n--- Next Steps ---");
-    console.log("1. Test login with these credentials");
-    console.log("2. Check if role-based access works");
-    console.log("3. Test menu endpoints with different roles");
+    console.log("✅ users - Contains 4 users with different roles");
   } catch (error) {
     console.error("Error seeding database:", error);
     throw error;

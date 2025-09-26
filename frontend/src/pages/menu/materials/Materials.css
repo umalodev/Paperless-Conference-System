@@ -370,3 +370,33 @@
   .mtl-title-icon{ width: 22px; height: 22px; }
   .mtl-title-text{ font-size: 18px; top: -1px; }
 }
+/* ukuran & spacing ikon aksi */
+.action-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0; /* spacing diatur oleh tombol */
+}
+
+/* tombol aksi supaya icon & hit area rapi */
+.mtl-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px; /* sesuaikan */
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.mtl-act:hover {
+  background: rgba(0,0,0,0.03);
+}
+
+.mtl-act.danger { /* gaya untuk tombol hapus */
+  /* optional diferensiasi */
+}
+
