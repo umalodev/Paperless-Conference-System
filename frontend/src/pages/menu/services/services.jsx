@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import BottomNav from "../../../components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../config";
@@ -6,6 +12,8 @@ import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import Icon from "../../../components/Icon.jsx";
 import "./services.css";
+import meetingService from "../../../services/meetingService.js";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 
 export default function Services() {
   const [user, setUser] = useState(null);
@@ -41,8 +49,7 @@ export default function Services() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -66,6 +73,28 @@ export default function Services() {
       cancel = true;
     };
   }, []);
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
 
   const visibleMenus = useMemo(
     () =>
@@ -270,7 +299,13 @@ export default function Services() {
           />
         )}
 
-        <MeetingFooter userRole={user?.role || "participant"} />
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+        />
       </div>
     </MeetingLayout>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "./RoleAccessManagement.css";
 import { API_URL } from "../../../config";
+import meetingService from '../../../services/meetingService';
 
 const RoleAccessManagement = () => {
   const [roles, setRoles] = useState([]);
@@ -21,7 +22,7 @@ const RoleAccessManagement = () => {
 
       // roles
       const rolesRes = await fetch(`${API_URL}/api/users/roles`, {
-        credentials: "include",
+        headers: meetingService.getAuthHeaders(),
       });
       if (!rolesRes.ok) throw new Error(`Roles HTTP ${rolesRes.status}`);
       const rolesJson = await rolesRes.json();
@@ -29,7 +30,7 @@ const RoleAccessManagement = () => {
 
       // menus (aktif)
       const menusRes = await fetch(`${API_URL}/api/menu`, {
-        credentials: "include",
+        headers: meetingService.getAuthHeaders(),
       });
       if (!menusRes.ok) throw new Error(`Menus HTTP ${menusRes.status}`);
       const menusJson = await menusRes.json();
@@ -37,7 +38,7 @@ const RoleAccessManagement = () => {
 
       // role-menu (relasi akses)
       const rmRes = await fetch(`${API_URL}/api/menu/role-access`, {
-        credentials: "include",
+        headers: meetingService.getAuthHeaders(),
       });
       if (!rmRes.ok) throw new Error(`RoleMenus HTTP ${rmRes.status}`);
       const rmJson = await rmRes.json();
@@ -85,8 +86,10 @@ const RoleAccessManagement = () => {
 
       const res = await fetch(url, {
         method,
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        
+        headers: { "Content-Type": "application/json" ,
+          ...meetingService.getAuthHeaders()
+        },
         body:
           method === "POST"
             ? JSON.stringify({
@@ -115,8 +118,9 @@ const RoleAccessManagement = () => {
       if (missing.length) {
         const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json",
+            ...meetingService.getAuthHeaders()
+           },
           body: JSON.stringify({
             userRoleId: roleId,
             menuIds: missing,
@@ -139,8 +143,10 @@ const RoleAccessManagement = () => {
       if (granted.length) {
         const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          
+          headers: { "Content-Type": "application/json",
+            ...meetingService.getAuthHeaders()
+           },
           body: JSON.stringify({
             userRoleId: roleId,
             menuIds: granted.map((x) => Number(x)),

@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import "./participant-dashboard.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +12,7 @@ import Icon from "../../../components/Icon.jsx";
 import meetingService from "../../../services/meetingService.js";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
@@ -91,8 +98,7 @@ export default function ParticipantDashboard() {
         setLoading(true);
         setErr("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -120,6 +126,28 @@ export default function ParticipantDashboard() {
       cancel = true;
     };
   }, [API_URL]);
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
 
   const visibleMenus = useMemo(
     () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
@@ -169,7 +197,7 @@ export default function ParticipantDashboard() {
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
   return (
-    <div className="pd-app">
+    <div className="pd-app centered-page">
       <header className="pd-topbar">
         <div className="pd-left">
           <span className="pd-live" aria-hidden />
@@ -237,12 +265,10 @@ export default function ParticipantDashboard() {
       <MeetingFooter
         userRole={user?.role || "participant"}
         onLeaveMeeting={handleLeaveMeeting}
-        // contoh toggle kalau nanti ada state mic/cam:
-        // micOn={micOn}
-        // camOn={camOn}
-        // onToggleMic={() => setMicOn(v => !v)}
-        // onToggleCam={() => setCamOn(v => !v)}
-        
+        micOn={micOn}
+        camOn={camOn}
+        onToggleMic={onToggleMic}
+        onToggleCam={onToggleCam}
         onHelpClick={() => alert("Contact support")}
       />
     </div>

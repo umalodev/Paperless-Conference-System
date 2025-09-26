@@ -1,12 +1,21 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// src/pages/menu/materials/Materials.jsx
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
+import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../components/BottomNav.jsx";
+import Icon from "../../../components/Icon.jsx";
 import "./materials.css";
 import { API_URL } from "../../../config.js";
-import { useNavigate } from "react-router-dom";
-import Icon from "../../../components/Icon.jsx";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import meetingService from "../../../services/meetingService.js";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 
 export default function Materials() {
   const [user, setUser] = useState(null);
@@ -31,12 +40,34 @@ export default function Materials() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [errHistory, setErrHistory] = useState("");
 
-  // Check if user is host/admin (can add materials)
-  const isHost = /^(host|admin)$/i.test(user?.role || "");
-
   const navigate = useNavigate();
 
-  // Ambil meetingId dari localStorage
+  // role
+  const isHost = /^(host|admin)$/i.test(user?.role || "");
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
+
+  // meeting id
   const meetingId = useMemo(() => {
     try {
       const raw = localStorage.getItem("currentMeeting");
@@ -52,27 +83,21 @@ export default function Materials() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Helper header auth (JWT opsional) + cookie session
   const authHeaders = useMemo(() => {
     const token =
       localStorage.getItem("token") || localStorage.getItem("accessToken");
-    const user = localStorage.getItem("user");
-    let headers = {};
-    if (token && user) {
-      try {
-        const userData = JSON.parse(user);
-        headers = {
-          Authorization: `Bearer ${token}`,
-          "x-user-id": userData.id,
-        };
-      } catch (e) {
-        console.error("Error parsing user data:", e);
-      }
-    }
-    return headers;
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
 
-  // ===== NAV menus =====
+  const absolutize = (u) => {
+    if (!u) return "";
+    if (/^https?:\/\//i.test(u)) return u;
+    const base = String(API_URL || "").replace(/\/+$/, "");
+    const p = `/${String(u).replace(/^\/+/, "")}`;
+    return `${base}${p}`;
+  };
+
+  // ====== menus ======
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -80,8 +105,7 @@ export default function Materials() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json", ...authHeaders },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -91,6 +115,7 @@ export default function Materials() {
               label: m.displayLabel,
               iconUrl: m.iconMenu || null,
               flag: m.flag ?? "Y",
+              seq: m.sequenceMenu,
             }))
           : [];
         if (!cancel) setMenus(list);
@@ -106,12 +131,15 @@ export default function Materials() {
   }, [authHeaders]);
 
   const visibleMenus = useMemo(
-    () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
+    () =>
+      (menus || [])
+        .filter((m) => (m?.flag ?? "Y") === "Y")
+        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
     [menus]
   );
   const handleSelect = (item) => navigate(`/menu/${item.slug}`);
 
-  // ===== Materials (current meeting) =====
+  // ====== load materials ======
   const loadMaterials = async () => {
     if (!meetingId) {
       setItems([]);
@@ -124,19 +152,15 @@ export default function Materials() {
     try {
       const res = await fetch(
         `${API_URL}/api/materials/meeting/${encodeURIComponent(meetingId)}`,
-        {
-          credentials: "include",
-          headers: { ...authHeaders },
-        }
+        { credentials: "include", headers: { ...authHeaders } }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const arr = Array.isArray(json?.data) ? json.data : [];
-
       const list = arr.map((x) => ({
         id: x.id,
         path: x.path,
-        url: x.url || toAbsolute(API_URL, x.path),
+        url: absolutize(x.url || x.path),
         name: guessName(x.path),
         createdAt: x.createdAt || x.created_at,
       }));
@@ -153,7 +177,7 @@ export default function Materials() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meetingId]);
 
-  // ===== Materials History (group by meeting) =====
+  // ====== history ======
   const loadHistory = async () => {
     setLoadingHistory(true);
     setErrHistory("");
@@ -161,11 +185,10 @@ export default function Materials() {
       const url = new URL(`${API_URL}/api/materials/history`);
       if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
       url.searchParams.set("limit", "30");
-      url.searchParams.set("withMaterialsOnly", "1");
+      url.searchParams.set("withMaterialsOnly", "0");
 
       const res = await fetch(url.toString(), {
-        credentials: "include",
-        headers: { ...authHeaders },
+        headers: meetingService.getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -180,11 +203,16 @@ export default function Materials() {
         materials: (g.materials || []).map((x) => ({
           id: x.id,
           path: x.path,
-          url: toAbsolute(API_URL, x.path),
+          url: absolutize(x.url || x.path),
           name: guessName(x.path),
           createdAt: x.created_at || x.createdAt,
         })),
       }));
+      groups.sort((a, b) => {
+        const da = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const db = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return db - da;
+      });
       setHistoryGroups(groups);
     } catch (e) {
       setErrHistory(String(e.message || e));
@@ -198,7 +226,7 @@ export default function Materials() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHistory]);
 
-  // Upload
+  // ====== upload ======
   const onClickUpload = () => fileRef.current?.click();
 
   const onFilesSelected = async (e) => {
@@ -228,37 +256,28 @@ export default function Materials() {
       alert(err.message || String(err));
     } finally {
       setUploading(false);
-      e.target.value = ""; // reset file input
+      e.target.value = ""; // reset input
     }
   };
 
-  // Preview & Download
-  const handlePreview = async (it) => {
-    try {
-      const blob = await fetchBlobWithAuth(
-        `${API_URL}/api/materials/${it.id}/download`,
-        authHeaders
-      );
-      openBlobInNewTab(blob, it.name);
-    } catch {
-      try {
-        window.open(it.url, "_blank", "noopener,noreferrer");
-      } catch {}
-    }
-  };
-  const handleDownload = async (it) => {
-    try {
-      const blob = await fetchBlobWithAuth(
-        `${API_URL}/api/materials/${it.id}/download`,
-        authHeaders
-      );
-      downloadBlob(blob, it.name);
-    } catch (e) {
-      alert(`Gagal download: ${e.message || e}`);
-    }
+  // ====== preview & download (ALA Files.jsx) ======
+  const handlePreview = (it) => {
+    const abs = it?.url || absolutize(it?.path);
+    if (!abs) return;
+    window.open(abs, "_blank", "noopener,noreferrer");
   };
 
-  // Delete (soft)
+  const handleDownload = (it) => {
+    const abs = it?.url || absolutize(it?.path);
+    if (!abs) return;
+    const a = document.createElement("a");
+    a.href = abs;
+    a.download = it?.name || "file";
+    a.rel = "noopener";
+    a.click();
+  };
+
+  // ====== delete ======
   const handleDelete = async (it) => {
     if (!confirm(`Hapus material "${it.name}"?`)) return;
     try {
@@ -323,7 +342,12 @@ export default function Materials() {
           <section className="mtl-wrap">
             <div className="mtl-header">
               <div className="mtl-title">
-                <Icon slug="materials" /> <span>Materials</span>
+                <img
+                  src="/img/Materials1.png"
+                  alt=""
+                  className="mtl-title-icon"
+                />
+                <span className="mtl-title-text">Materials</span>
               </div>
 
               {/* Actions */}
@@ -333,18 +357,31 @@ export default function Materials() {
                     className="mtl-btn"
                     onClick={onClickUpload}
                     disabled={!meetingId || uploading}
+                    title="Upload material"
                   >
-                    <Icon slug="upload" />{" "}
+                    <Icon slug="upload" />
                     <span>{uploading ? "Uploading…" : "Upload"}</span>
                   </button>
                 )}
+
                 <button
                   className={`mtl-btn ${showHistory ? "active" : ""}`}
                   onClick={() => setShowHistory((s) => !s)}
+                  title="Riwayat materials"
                 >
-                  <Icon slug="history" />{" "}
+                  <Icon iconUrl="/img/history.png" size={18} />
                   <span>{showHistory ? "Tutup Riwayat" : "Riwayat"}</span>
                 </button>
+
+                <button
+                  className="mtl-btn ghost"
+                  onClick={loadMaterials}
+                  title="Refresh"
+                >
+                  <Icon iconUrl="/img/refresh.png" size={18} />
+                  <span>Refresh</span>
+                </button>
+
                 {isHost && (
                   <input
                     ref={fileRef}
@@ -357,7 +394,7 @@ export default function Materials() {
               </div>
             </div>
 
-            {/* Current meeting materials */}
+            {/* Current materials */}
             {loadingItems && <SkeletonGrid />}
             {errItems && !loadingItems && (
               <div className="pd-error">Gagal memuat materials: {errItems}</div>
@@ -365,7 +402,6 @@ export default function Materials() {
             {!loadingItems && !errItems && items.length === 0 && (
               <div className="pd-empty">Belum ada materials.</div>
             )}
-
             {!loadingItems && !errItems && items.length > 0 && (
               <div className="mtl-grid">
                 {items.map((it) => (
@@ -383,7 +419,7 @@ export default function Materials() {
               </div>
             )}
 
-            {/* History panel */}
+            {/* History */}
             {showHistory && (
               <>
                 <div className="mtl-divider" />
@@ -427,7 +463,7 @@ export default function Materials() {
               </>
             )}
 
-            {/* error menu nav bila ada */}
+            {/* err menus */}
             {errMenus && (
               <div className="pd-error" style={{ marginTop: 12 }}>
                 Gagal memuat menu: {errMenus}
@@ -445,12 +481,19 @@ export default function Materials() {
           />
         )}
 
-        <MeetingFooter userRole={user?.role || "participant"} />
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+        />
       </div>
     </MeetingLayout>
   );
 }
 
+/* ============ History & Card components ============ */
 function HistoryGroup({ group, onPreview, onDownload }) {
   const [open, setOpen] = useState(false);
   const { meetingId, title, startTime, endTime, status, materials } = group;
@@ -521,14 +564,14 @@ function MaterialCard({
         <div className="mtl-meta">{meta}</div>
       </div>
       <div className="mtl-actions-right">
-        <button className="mtl-act" title="Preview" onClick={onPreview}>
+        <button className="mtl-act" title="Lihat" onClick={onPreview}>
           <Icon slug="eye" />
         </button>
-        <button className="mtl-act" title="Download" onClick={onDownload}>
+        <button className="mtl-act" title="Unduh" onClick={onDownload}>
           <Icon slug="download" />
         </button>
         {canDelete && onDelete && (
-          <button className="mtl-act danger" title="Delete" onClick={onDelete}>
+          <button className="mtl-act danger" title="Hapus" onClick={onDelete}>
             <Icon slug="trash" />
           </button>
         )}
@@ -557,6 +600,7 @@ function SkeletonGrid() {
     </div>
   );
 }
+
 function SkeletonAccordion() {
   return (
     <div className="mtl-accordion">
@@ -575,7 +619,7 @@ function SkeletonAccordion() {
   );
 }
 
-/* ====================== utils kecil ====================== */
+/* ============ utils ============ */
 function guessName(p = "") {
   try {
     const s = p.split("?")[0];
@@ -584,15 +628,11 @@ function guessName(p = "") {
     return "file";
   }
 }
-function toAbsolute(base, rel) {
-  if (!rel) return "";
-  if (/^https?:\/\//i.test(rel)) return rel;
-  if (rel.startsWith("/")) return base + rel;
-  return `${base}/${rel}`;
-}
+
 function formatMeta(it) {
   return it.createdAt ? new Date(it.createdAt).toLocaleString() : "—";
 }
+
 function formatDateRange(a, b) {
   try {
     const s = a ? new Date(a) : null;
@@ -613,33 +653,8 @@ function formatDateRange(a, b) {
     return "—";
   }
 }
-async function fetchBlobWithAuth(url, authHeaders = {}) {
-  const res = await fetch(url, {
-    method: "GET",
-    credentials: "include",
-    headers: { ...authHeaders },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return await res.blob();
-}
-function openBlobInNewTab(blob, filename = "file") {
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, "_blank", "noopener,noreferrer");
-  if (!win) downloadBlob(blob, filename);
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
-function downloadBlob(blob, filename = "file") {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
 
-/* ===== file kind helpers (untuk style ikon/label) ===== */
+/* file kind helpers (untuk style ikon/label) */
 function extKind(name = "") {
   const ext = (name.split(".").pop() || "").toLowerCase();
   if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "img";

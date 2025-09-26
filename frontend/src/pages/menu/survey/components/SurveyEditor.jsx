@@ -204,7 +204,7 @@ export default function SurveyEditor({
           gap: 8,
         }}
       >
-        <span style={{ fontSize: "24px" }}>✏️</span>
+        <span style={{ fontSize: "24px" }}>✏</span>
         Kelola Survey
       </div>
 
@@ -274,7 +274,7 @@ export default function SurveyEditor({
                       : t === "multiple_choice"
                       ? "🔘 Pilihan Ganda"
                       : t === "checkbox"
-                      ? "☑️ Checkbox"
+                      ? "☑ Checkbox"
                       : t === "date"
                       ? "📅 Tanggal"
                       : t}
@@ -293,7 +293,7 @@ export default function SurveyEditor({
                   color: "#1d4ed8",
                 }}
               >
-                ⬆️
+                ⬆
               </button>
               <button
                 type="button"
@@ -306,7 +306,7 @@ export default function SurveyEditor({
                   color: "#1d4ed8",
                 }}
               >
-                ⬇️
+                ⬇
               </button>
               <button
                 type="button"
@@ -319,7 +319,7 @@ export default function SurveyEditor({
                   color: "#dc2626",
                 }}
               >
-                🗑️
+                🗑
               </button>
             </div>
 
@@ -405,7 +405,7 @@ export default function SurveyEditor({
             color: "#1d4ed8",
           }}
         >
-          <Icon slug="plus" /> <span>➕ Tambah Pertanyaan</span>
+          <Icon slug="plus" /> <span> Tambah Pertanyaan</span>
         </button>
         <button
           type="button"

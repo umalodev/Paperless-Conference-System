@@ -1,8 +1,14 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
-
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 export default function ScreenSharePage() {
   const [user, setUser] = useState(null);
 
@@ -27,6 +33,28 @@ export default function ScreenSharePage() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
+
   return (
     <MeetingLayout
       title="Screen Share"
@@ -40,10 +68,14 @@ export default function ScreenSharePage() {
         <main className="pd-main">
           <SimpleScreenShare meetingId={meetingId} userId={userId} />
         </main>
-        <MeetingFooter userRole={user?.role || "participant"} />
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+        />
       </div>
     </MeetingLayout>
   );
 }
-
-

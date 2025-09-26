@@ -1,5 +1,11 @@
 // src/pages/menu/chat/Chat.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
@@ -8,6 +14,8 @@ import "./Chating.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import meetingService from "../../../services/meetingService.js";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Chat() {
@@ -38,6 +46,28 @@ export default function Chat() {
   const listRef = useRef(null);
   const wsRef = useRef(null);
   const navigate = useNavigate();
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
 
   // Helper function to get meeting ID
   const getMeetingId = () => {
@@ -79,8 +109,10 @@ export default function Chat() {
       console.log("Full API URL:", url);
 
       const res = await fetch(url, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
       });
 
       console.log("=== API RESPONSE DEBUG ===");
@@ -180,8 +212,7 @@ export default function Chat() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -228,8 +259,10 @@ export default function Chat() {
       }
 
       const res = await fetch(url, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -281,7 +314,11 @@ export default function Chat() {
         wsRef.current.close();
       }
 
-      const wsUrl = `${API_URL.replace(/^http/, "ws")}/meeting/${meetingId}`;
+      const token = localStorage.getItem("token") || "";
+      const wsUrl = `${API_URL.replace(
+        /^http/,
+        "ws"
+      )}/meeting/${meetingId}?token=${encodeURIComponent(token)}`;
       console.log("Connecting to WebSocket:", wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
@@ -527,8 +564,11 @@ export default function Chat() {
       // Kirim ke backend API
       const res = await fetch(`${API_URL}/api/chat/meeting/${meetingId}/send`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
         body: JSON.stringify(requestBody),
       });
 
@@ -594,7 +634,7 @@ export default function Chat() {
         `${API_URL}/api/chat/meeting/${meetingId}/upload`,
         {
           method: "POST",
-          credentials: "include",
+          headers: meetingService.getAuthHeaders(),
           body: formData,
         }
       );
@@ -679,8 +719,12 @@ export default function Chat() {
           <section className="chat-wrap">
             <div className="chat-header">
               <div className="chat-title">
-                <Icon slug="chat" iconUrl="/img/chat.svg" size={22} />
-                <span>
+                <img
+                  src="/img/Chating1.png"
+                  alt=""
+                  className="chat-title-icon"
+                />
+                <span className="chat-title-text">
                   {chatMode === "global"
                     ? "Ruang Chat"
                     : `Chat dengan ${
@@ -878,16 +922,41 @@ export default function Chat() {
           />
         )}
 
-        <MeetingFooter userRole={user?.role || "participant"} />
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+        />
       </div>
     </MeetingLayout>
   );
 }
 
 function MessageItem({ msg, isMine }) {
-  const handleFileDownload = () => {
-    if (msg.filePath) {
-      window.open(`${API_URL}/api/chat/message/${msg.id}/download`, "_blank");
+  const handleFileDownload = async () => {
+    if (!msg.filePath) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/api/chat/message/${msg.id}/download`,
+        {
+          headers: { ...meetingService.getAuthHeaders() },
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = msg.originalName || `file-${msg.id}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Gagal mengunduh file.");
     }
   };
 

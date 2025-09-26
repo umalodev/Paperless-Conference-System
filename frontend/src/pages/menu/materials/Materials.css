@@ -340,3 +340,33 @@
     transform: translateX(100%);
   }
 }
+/* ukuran & perataan ikon + teks judul Materials */
+.mtl-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ikon */
+.mtl-title-icon{
+  width: 26px;
+  height: 26px;
+  display: block;
+  object-fit: contain;
+}
+
+/* teks di-bold, sedikit lebih besar & sejajar dengan ikon */
+.mtl-title-text{
+  font-weight: 800;     /* bold */
+  font-size: 20px;      /* sedikit lebih besar dari 18px */
+  line-height: 1.1;
+  margin-left: 4px;     /* geser dikit ke kanan */
+  position: relative;
+  top: -2px;            /* naikkan biar segaris ikon */
+}
+
+/* responsive tweak */
+@media (max-width: 560px){
+  .mtl-title-icon{ width: 22px; height: 22px; }
+  .mtl-title-text{ font-size: 18px; top: -1px; }
+}

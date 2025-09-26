@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './UserManagement.css';
 import { API_URL } from '../../../config';
+import meetingService from '../../../services/meetingService';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -42,10 +43,7 @@ const UserManagement = () => {
           try {
             const sessionResponse = await fetch(`${API_URL}/api/auth/me`, {
               method: 'GET',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              }
+              headers: meetingService.getAuthHeaders(),
             });
             
             if (sessionResponse.ok) {
@@ -87,10 +85,7 @@ const UserManagement = () => {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/users`, {
         method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers: meetingService.getAuthHeaders(),
       });
       
       if (response.ok) {
@@ -145,9 +140,9 @@ const UserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/api/users`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...meetingService.getAuthHeaders()
         },
         body: JSON.stringify({
           username: userData.username,
@@ -175,9 +170,10 @@ const UserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/api/users/${userId}`, {
         method: 'PUT',
-        credentials: 'include',
+        
         headers: {
           'Content-Type': 'application/json',
+          ...meetingService.getAuthHeaders()
         },
         body: JSON.stringify({
           username: userData.username,
@@ -208,9 +204,10 @@ const UserManagement = () => {
       try {
         const response = await fetch(`${API_URL}/api/users/${userId}`, {
           method: 'DELETE',
-          credentials: 'include',
+          
           headers: {
             'Content-Type': 'application/json',
+            ...meetingService.getAuthHeaders()
           }
         });
 

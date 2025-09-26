@@ -201,3 +201,222 @@
     display: none;
   }
 }
+/* ========= AdminSidebar.css (Umalo Green – Professional) ========= */
+
+/* Brand tokens (scoped so tidak ganggu global) */
+.admin-sidebar {
+  --uma-bg: linear-gradient(180deg, #15c18f 0%, #10b981 40%, #0ea37d 100%);
+  --uma-bg-soft: #0f5132;
+  --uma-surface: #0d3b2b;         /* dipakai utk hover subtle di tema hijau */
+  --uma-ink: #ffffff;
+  --uma-ink-muted: rgba(255,255,255,.78);
+  --uma-ring: rgba(255,255,255,.25);
+  --uma-border: rgba(255,255,255,.18);
+  --uma-active: #e6fff5;
+  --uma-active-ink: #063a2c;
+  --shadow-1: 0 6px 18px rgba(0,0,0,.18);
+  --shadow-2: 0 10px 28px rgba(0,0,0,.22);
+}
+
+/* Shell: jadikan “card” vertikal hijau dengan sisi kanan membulat */
+.admin-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  height: 100vh;
+  background: var(--uma-bg);
+  color: var(--uma-ink);
+  transition: width .28s ease, transform .28s ease;
+  z-index: 1000;
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--uma-border);
+  /* sudut kanan membulat -> rasa kartu */
+  border-top-right-radius: 18px;
+  border-bottom-right-radius: 18px;
+}
+
+/* Lebar terbuka / tertutup */
+.admin-sidebar.open { width: 280px; }
+.admin-sidebar.closed { width: 76px; }
+
+/* Header: tempat logo */
+.sidebar-header {
+  padding: 18px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-logo .logo-container {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.16);
+  border: 1px solid var(--uma-border);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+}
+.logo-text { display: none; } /* tidak dipakai pada versi ini */
+.admin-sidebar.closed .logo-text { display: none; }
+
+/* Navigasi: scrollable rapi */
+.sidebar-nav {
+  padding: 12px 8px;
+  flex: 1;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.35) transparent;
+}
+.sidebar-nav::-webkit-scrollbar { width: 8px; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.35);
+  border-radius: 8px;
+}
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+
+.nav-menu { list-style: none; padding: 0; margin: 0; }
+.nav-item { margin: 4px 0; }
+
+/* Link: gaya profesional, dengan pill saat active */
+.nav-link {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--uma-ink-muted);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .08s ease;
+  text-align: left;
+  border-radius: 12px;
+  position: relative;
+  outline: none;
+}
+
+/* Hover subtle di hijau gelap agar elegan */
+.nav-link:hover {
+  background: rgba(255,255,255,.10);
+  color: var(--uma-ink);
+}
+
+/* Active: pill terang + accent line di kiri */
+.nav-link.active {
+  background: var(--uma-active);
+  color: var(--uma-active-ink);
+  border-color: #b7f5de;
+  box-shadow: inset 0 0 0 1px rgba(16,185,129,.35), 0 4px 10px rgba(0,0,0,.08);
+}
+.nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 4px;
+  background: #10b981;
+}
+
+/* Focus ring untuk aksesibilitas */
+.nav-link:focus-visible {
+  box-shadow: 0 0 0 3px var(--uma-ring);
+}
+
+/* Icon & text */
+.nav-icon {
+  font-size: 1.22rem;
+  min-width: 22px;
+  text-align: center;
+  transform: translateY(0);
+}
+.nav-text {
+  font-size: .98rem;
+  font-weight: 600;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mode closed: hanya icon, tetap center */
+.admin-sidebar.closed .nav-text { display: none; }
+.admin-sidebar.closed .nav-link {
+  justify-content: center;
+  padding: 14px 10px;
+}
+.admin-sidebar.closed .nav-link.active::before {
+  left: 4px; width: 3px;
+}
+
+/* Footer: tombol logout */
+.sidebar-footer {
+  padding: 14px;
+  margin-top: auto;
+  border-top: 1px solid var(--uma-border);
+  background: linear-gradient(to top, rgba(0,0,0,.12), rgba(0,0,0,0));
+}
+.logout-btn {
+  width: 100%;
+  background: rgba(242, 68, 68, .95);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.18);
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform .08s ease, filter .18s ease, box-shadow .18s ease;
+  box-shadow: 0 6px 14px rgba(242,68,68,.25);
+}
+.logout-btn:hover { filter: brightness(1.05); }
+.logout-btn:active { transform: translateY(1px); }
+.logout-icon { font-size: 1.1rem; }
+
+.admin-sidebar.closed .logout-text { display: none; }
+.admin-sidebar.closed .logout-btn {
+  justify-content: center;
+  padding: 12px 10px;
+}
+
+/* Mobile overlay untuk tap-out */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 999;
+  display: none;
+}
+
+/* ===== Responsiveness ===== */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    transform: translateX(-100%);
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+    width: 84vw;               /* sedikit lebih lebar di mobile */
+    max-width: 320px;
+    box-shadow: var(--shadow-2);
+  }
+  .mobile-overlay { display: block; }
+}
+
+@media (min-width: 769px) {
+  .admin-sidebar { transform: translateX(0); }
+  .admin-sidebar.closed { width: 76px; }
+  .admin-sidebar.closed .nav-link {
+    justify-content: center;
+    padding: 14px 10px;
+  }
+}
+
+/* ===== Motion safety ===== */
+@media (prefers-reduced-motion: reduce) {
+  .admin-sidebar,
+  .nav-link,
+  .logout-btn { transition: none !important; }
+}

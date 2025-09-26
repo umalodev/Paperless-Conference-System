@@ -1,5 +1,11 @@
 // src/pages/menu/notes/Notes.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
@@ -8,6 +14,8 @@ import "./Notes.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import meetingService from "../../../services/meetingService.js";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Notes() {
@@ -36,6 +44,28 @@ export default function Notes() {
 
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
 
   const meetingId = useMemo(() => {
     try {
@@ -69,8 +99,10 @@ export default function Notes() {
         const res = await fetch(
           `${API_URL}/api/notes?meetingId=${encodeURIComponent(meetingId)}`,
           {
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...meetingService.getAuthHeaders(),
+            },
           }
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -96,8 +128,7 @@ export default function Notes() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -150,8 +181,10 @@ export default function Notes() {
       const payload = { meetingId, title: t, body: b };
       const res = await fetch(`${API_URL}/api/notes`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -185,8 +218,10 @@ export default function Notes() {
       const payload = { title: editTitle.trim(), body: editBody.trim() };
       const res = await fetch(`${API_URL}/api/notes/${editingId}`, {
         method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -207,7 +242,7 @@ export default function Notes() {
     try {
       const res = await fetch(`${API_URL}/api/notes/${id}`, {
         method: "DELETE",
-        credentials: "include",
+        headers: meetingService.getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNotes((prev) => prev.filter((x) => x.id !== id));
@@ -224,7 +259,7 @@ export default function Notes() {
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
-      userRole={user?.role || 'participant'}
+      userRole={user?.role || "participant"}
       socket={null} // Will be set when socket is integrated
       mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
     >
@@ -232,7 +267,7 @@ export default function Notes() {
         {/* Top bar */}
         <header className="pd-topbar">
           <div className="pd-left">
-            <span className="pd-live" aria-hidden />
+            <span className="pd-live" aria-hidden="true" />
             <div>
               <h1 className="pd-title">Notes</h1>
               <div className="pd-sub">Tulis & simpan catatan sesi</div>
@@ -245,183 +280,185 @@ export default function Notes() {
                 minute: "2-digit",
               })}
             </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(user?.username || "US").slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <div className="pd-user-name">
-                {user?.username || "Participant"}
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
-              <div className="pd-user-role">Participant</div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <main className="pd-main">
-        {/* Screen share moved to dedicated page */}
-        
-        <section className="notes-wrap">
-          <div className="notes-header">
-            <div className="notes-title">
-              <Icon slug="note" iconUrl="/img/note.svg" size={22} />
-              <span>Catatan</span>
-            </div>
-            <div className="notes-actions">
-              <button
-                className="note-btn ghost"
-                onClick={() => window.location.reload()}
-                title="Refresh"
-              >
-                <RefreshIcon />
-                <span>Refresh</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Composer */}
-          <div className="notes-composer">
-            <input
-              className="note-input"
-              placeholder="Judul catatan"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <textarea
-              className="note-textarea"
-              placeholder="Tuliskan catatan…"
-              rows={3}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-            />
-            <div className="notes-composer-actions">
-              <button
-                className="note-btn primary"
-                onClick={handleAdd}
-                disabled={saving || (!title.trim() && !body.trim())}
-              >
-                <SaveIcon />
-                <span>Simpan</span>
-              </button>
-              {(title || body) && (
-                <button
-                  className="note-btn"
-                  onClick={resetComposer}
-                  disabled={saving}
-                >
-                  <ClearIcon />
-                  <span>Bersihkan</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* List */}
-          {loadingNotes && <div className="pd-empty">Memuat catatan…</div>}
-          {errNotes && !loadingNotes && (
-            <div className="pd-error">Gagal memuat catatan: {errNotes}</div>
-          )}
-
-          {!loadingNotes && !errNotes && (
-            <>
-              {notes.length === 0 ? (
-                <div className="pd-empty">Belum ada catatan.</div>
-              ) : (
-                <div className="notes-grid">
-                  {notes.map((n) =>
-                    editingId === n.id ? (
-                      <div className="note-card editing" key={n.id}>
-                        <input
-                          className="note-input"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          placeholder="Judul catatan"
-                        />
-                        <textarea
-                          className="note-textarea"
-                          rows={4}
-                          value={editBody}
-                          onChange={(e) => setEditBody(e.target.value)}
-                          placeholder="Isi catatan…"
-                        />
-                        <div className="note-meta">
-                          <span>Diedit sekarang</span>
-                        </div>
-                        <div className="note-actions">
-                          <button
-                            className="note-btn primary"
-                            onClick={saveEdit}
-                            disabled={saving}
-                          >
-                            <SaveIcon />
-                            <span>Simpan</span>
-                          </button>
-                          <button
-                            className="note-btn"
-                            onClick={cancelEdit}
-                            disabled={saving}
-                          >
-                            <CancelIcon />
-                            <span>Batal</span>
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="note-card" key={n.id}>
-                        <div className="note-title">
-                          {n.title || "Untitled"}
-                        </div>
-                        <div className="note-body">
-                          {n.body || <i>(tanpa isi)</i>}
-                        </div>
-                        <div className="note-meta">
-                          <span>{formatDate(n.updatedAt)}</span>
-                          {n.author ? <span> · {n.author}</span> : null}
-                        </div>
-                        <div className="note-actions">
-                          <button
-                            className="note-btn"
-                            onClick={() => startEdit(n)}
-                            disabled={saving}
-                          >
-                            <EditIcon />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            className="note-btn danger"
-                            onClick={() => handleDelete(n.id)}
-                            disabled={saving}
-                          >
-                            <TrashIcon />
-                            <span>Hapus</span>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  )}
+              <div>
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
                 </div>
-              )}
-            </>
-          )}
-        </section>
-      </main>
+                <div className="pd-user-role">Participant</div>
+              </div>
+            </div>
+          </div>
+        </header>
 
-      {/* Bottom nav dari DB */}
-      {!loadingMenus && !errMenus && (
-        <BottomNav
-          items={visibleMenus}
-          active="note"
-          onSelect={handleSelectNav}
-        />
-      )}
+        {/* Content */}
+        <main className="pd-main">
+          {/* Screen share moved to dedicated page */}
+
+          <section className="notes-wrap">
+            <div className="notes-header">
+              <div className="notes-title">
+                <Icon slug="note" iconUrl="/img/note.svg" size={22} />
+                <span>Catatan</span>
+              </div>
+              <div className="notes-actions">
+                <button
+                  className="note-btn ghost"
+                  onClick={() => window.location.reload()}
+                  title="Refresh"
+                >
+                  <RefreshIcon />
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Composer */}
+            <div className="notes-composer">
+              <input
+                className="note-input"
+                placeholder="Judul catatan"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <textarea
+                className="note-textarea"
+                placeholder="Tuliskan catatan…"
+                rows={3}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+              />
+              <div className="notes-composer-actions">
+                <button
+                  className="note-btn primary"
+                  onClick={handleAdd}
+                  disabled={saving || (!title.trim() && !body.trim())}
+                >
+                  <SaveIcon />
+                  <span>Simpan</span>
+                </button>
+                {(title || body) && (
+                  <button
+                    className="note-btn"
+                    onClick={resetComposer}
+                    disabled={saving}
+                  >
+                    <ClearIcon />
+                    <span>Bersihkan</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* List */}
+            {loadingNotes && <div className="pd-empty">Memuat catatan…</div>}
+            {errNotes && !loadingNotes && (
+              <div className="pd-error">Gagal memuat catatan: {errNotes}</div>
+            )}
+
+            {!loadingNotes && !errNotes && (
+              <>
+                {notes.length === 0 ? (
+                  <div className="pd-empty">Belum ada catatan.</div>
+                ) : (
+                  <div className="notes-grid">
+                    {notes.map((n) =>
+                      editingId === n.id ? (
+                        <div className="note-card editing" key={n.id}>
+                          <input
+                            className="note-input"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            placeholder="Judul catatan"
+                          />
+                          <textarea
+                            className="note-textarea"
+                            rows={4}
+                            value={editBody}
+                            onChange={(e) => setEditBody(e.target.value)}
+                            placeholder="Isi catatan…"
+                          />
+                          <div className="note-meta">
+                            <span>Diedit sekarang</span>
+                          </div>
+                          <div className="note-actions">
+                            <button
+                              className="note-btn primary"
+                              onClick={saveEdit}
+                              disabled={saving}
+                            >
+                              <SaveIcon />
+                              <span>Simpan</span>
+                            </button>
+                            <button
+                              className="note-btn"
+                              onClick={cancelEdit}
+                              disabled={saving}
+                            >
+                              <CancelIcon />
+                              <span>Batal</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="note-card" key={n.id}>
+                          <div className="note-title">
+                            {n.title || "Untitled"}
+                          </div>
+                          <div className="note-body">
+                            {n.body || <i>(tanpa isi)</i>}
+                          </div>
+                          <div className="note-meta">
+                            <span>{formatDate(n.updatedAt)}</span>
+                            {n.author ? <span> · {n.author}</span> : null}
+                          </div>
+                          <div className="note-actions">
+                            <button
+                              className="note-btn"
+                              onClick={() => startEdit(n)}
+                              disabled={saving}
+                            >
+                              <EditIcon />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              className="note-btn danger"
+                              onClick={() => handleDelete(n.id)}
+                              disabled={saving}
+                            >
+                              <TrashIcon />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </main>
+
+        {/* Bottom nav dari DB */}
+        {!loadingMenus && !errMenus && (
+          <BottomNav
+            items={visibleMenus}
+            active="note"
+            onSelect={handleSelectNav}
+          />
+        )}
 
         <MeetingFooter
           userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
         />
-
-
       </div>
     </MeetingLayout>
   );
@@ -453,7 +490,7 @@ function SaveIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
       <path d="M17 21V9H7v12" />
@@ -471,7 +508,7 @@ function ClearIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M3 6h18" />
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -489,7 +526,7 @@ function EditIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -506,7 +543,7 @@ function TrashIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M3 6h18" />
       <path d="M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" />
@@ -524,7 +561,7 @@ function CancelIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M18 6L6 18M6 6l12 12" />
     </svg>
@@ -540,7 +577,7 @@ function RefreshIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden
+      aria-hidden="true"
     >
       <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9" />
       <path d="M3 12l3-3 3 3" />

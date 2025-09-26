@@ -28,10 +28,26 @@
   font-size: 18px;
   color: var(--color-text);
 }
-.files-title .pd-svg {
-  width: 22px;
-  height: 22px;
+/* ikon & teks judul Files */
+.files-title-icon{
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
 }
+
+.files-title-text{
+  /* optional nudge, biar sejajar cantik sama ikon */
+  position: relative;
+  top: -2px;
+}
+
+/* responsive: sedikit lebih kecil di mobile */
+@media (max-width: 640px){
+  .files-title-icon{ width: 22px; height: 22px; }
+  .files-title-text{ top: -1px; }
+}
+
 
 .files-actions {
   display: flex;
@@ -167,12 +183,6 @@
   transition: opacity 0.3s ease;
 }
 
-.fcard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: var(--color-primary);
-}
-
 .fcard:hover::before {
   opacity: 1;
 }
@@ -196,12 +206,6 @@
   background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
   border: 1px solid #bae6fd;
   transition: all 0.3s ease;
-}
-
-.fcard:hover .fcard-icon {
-  transform: scale(1.05);
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  border-color: var(--color-primary);
 }
 
 .fcard-icon .pd-svg {
@@ -420,125 +424,226 @@
   margin: 18px 0 12px;
 }
 
-/* history header */
+/* ===== FILES — History (compact, creative, responsive) ===== */
+
+/* Header "Riwayat Files" lebih ringkas */
 .files-history {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 .files-history-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 .files-history-title {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 800;
-  font-size: 16px;
-  color: #111827;
+  font-size: 15px;     /* <— lebih kecil */
+  color: #0f172a;
 }
 .files-history-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .files-history-search {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 8px 10px;
-  min-width: 220px;
+  padding: 6px 8px;    /* <— lebih kecil */
+  min-width: 200px;
 }
 
-/* accordion */
+/* List accordion riwayat */
 .files-accordion {
   display: grid;
   gap: 10px;
 }
-.facc {
-  border: 1px solid #eef0f2;
-  border-radius: 14px;
-  background: #fff;
-  overflow: hidden;
+
+/* Card tiap meeting - compact & ada hover */
+.facc{
+  border:1px solid #e6eef0;
+  background:#fff;
+  border-radius:14px;
+  overflow:visible;                /* <— biar pseudo-divider tidak kepotong */
+  box-shadow:0 3px 10px rgba(2, 6, 23, .04);
+  transition: box-shadow .15s ease, border-color .15s ease, transform .08s ease;
 }
-.facc.open {
-  border-color: #dde6ff;
-  box-shadow: 0 3px 10px rgba(26, 77, 255, 0.06);
+.facc:hover{ box-shadow:0 8px 20px rgba(2, 6, 23, .08); transform:translateY(-1px); }
+.facc.open{ border-color:#c7d2fe; box-shadow:0 10px 24px rgba(37, 99, 235, .12); }
+
+/* Header card – tanpa border penuh, pakai divider inset agar tak "nabrak ujung" */
+.facc-head{
+  width:100%;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;              /* <— lebih kecil */
+  background:linear-gradient(0deg, #fff, #f9fbff);
+  cursor:pointer;
+  border-bottom:0 !important;
+  position:relative;              /* untuk ::after */
 }
-.facc-head {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 10px;
+.facc-head::after{
+  content:"";
+  position:absolute;
+  left:10px; right:10px; bottom:0;    /* <— inset kiri/kanan biar tidak kepotong sudut */
+  height:1px;
+  background:#cbd5e1;                 /* garis lembut */
+  border-radius:999px;
+  opacity:.9;
+}
+
+.facc-info{ min-width:0; }
+.facc-title{
+  display:flex; align-items:center; gap:8px;
+  font-weight:700; color:#0f172a; font-size:14px;
+}
+.facc-meta{
+  margin-top:3px;
+  font-size:12px; color:#64748b;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width:60vw;                    /* jaga supaya tidak makan tempat */
+}
+
+/* Pill jumlah file di kanan */
+.facc-count{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 9px;                   /* <— lebih kecil */
+  border-radius:10px;
+  background:#f1f5f9; color:#334155;
+  border:1px solid #e2e8f0;
+  font-weight:700; font-size:12px;
+}
+/* Kalau mau pakai emoji kecil sebagai indikator, aktifkan ini dan sembunyikan ikon bawaan: */
+/* .facc-count .pd-svg{ display:none; }
+.facc-count::before{ content:"📁"; font-size:14px; line-height:1; } */
+
+/* Body card – pakai divider inset juga (matching header) */
+.facc-body{
+  padding:10px 12px;                /* <— lebih kecil */
+  background:#fafcff;
+  border-top:0; position:relative;
+}
+.facc-body::before{
+  content:"";
+  position:absolute;
+  left:10px; right:10px; top:0;
+  height:1px; background:#e2e8f0; opacity:.6; border-radius:999px;
+}
+
+/* Status chip kecil (started/ended/scheduled) */
+.fchip{
+  margin-left:6px;
+  font-size:11px; line-height:1;
+  padding:5px 7px;
+  border-radius:999px;
+  background:#f5f7fb; color:#666; border:1px solid #eaeef5;
+}
+.fchip.started{ background:#ecfdf5; color:#047857; border-color:#d1fae5; }
+.fchip.ended{ background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+.fchip.scheduled{ background:#fef9c3; color:#854d0e; border-color:#fde68a; }
+
+/* Responsif */
+@media (max-width: 640px){
+  .files-history-head{ flex-direction:column; align-items:stretch; gap:8px; }
+  .files-history-actions{ justify-content:space-between; }
+  .files-history-search{ min-width: 0; flex:1; }
+
+  .facc-head{ align-items:flex-start; }
+  .facc-meta{ white-space:normal; max-width:100%; }
+  .facc-count{ margin-left:auto; }
+}
+/* ===== COMPACT LIST + ALWAYS-VISIBLE ICON ACTIONS ===== */
+
+/* Grid lebih rapat & kartu lebih kecil */
+.files-grid { gap: 12px; }
+@media (min-width: 640px){
+  .files-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+}
+@media (min-width: 1024px){
+  .files-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+}
+
+/* Kartu diperkecil */
+.fcard{
   padding: 12px 14px;
-  background: linear-gradient(0deg, #fff, #f9fbff);
-  cursor: pointer;
+  border-radius: 12px;
+  gap: 10px;
 }
-.facc-info {
-  min-width: 0;
-}
-.facc-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 800;
-  color: #111827;
-}
-.facc-meta {
-  font-size: 12px;
-  color: #6b7280;
-}
-.facc-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  font-size: 13px;
-  color: #334155;
-  background: #f1f5f9;
-  padding: 6px 10px;
+.fcard-left{ gap: 12px; }
+
+/* Ikon file diperkecil */
+.fcard-icon{
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
 }
-.facc-body {
-  padding: 12px;
-  background: #fcfdff;
+.fcard-icon .pd-svg{ width: 20px; height: 20px; }
+
+/* Teks ringkas */
+.fcard-name{ font-size: 14px; margin-bottom: 2px; }
+.fcard-sub{ font-size: 12px; gap: 6px; }
+
+/* Aksi SELALU terlihat (tanpa hover) dan compact */
+.fcard-actions{
+  opacity: 1;                 /* <- bukan hover-only lagi */
+  transform: none;
+  gap: 4px;
 }
 
-/* small input near uploader */
-.file-desc-input {
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 6px 8px;
-  min-width: 200px;
-  margin-right: 8px;
+/* Mode icon-only untuk tombol di dalam kartu */
+.files-btn.icon{
+  padding: 6px;               /* kecil */
+  border-radius: 8px;
+  min-width: auto;
+}
+.files-btn.icon .pd-svg{ width: 16px; height: 16px; }
+.files-btn.icon span{ display: none; }      /* sembunyikan label, ikon tetap nampak */
+
+/* Danger kecil tetap jelas */
+.files-btn.danger.icon{
+  padding: 6px;
+}
+/* ====== KEEP CARD SIZE STABLE (no grow on hover/click) ====== */
+
+/* Selalu tampilkan tombol aksi, bahkan saat tidak hover */
+.fcard-actions{
+  opacity: 1 !important;
+  transform: none !important;
 }
 
-/* optional status chip */
-.fchip {
-  margin-left: 8px;
-  font-size: 12px;
-  line-height: 1;
-  padding: 6px 8px;
-  border-radius: 999px;
-  background: #f5f7fb;
-  color: #666;
-  border: 1px solid #eaeef5;
+/* Hapus efek nge-zoom/geser saat hover/focus */
+.fcard{
+  transition: box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
 }
-.fchip.started {
-  background: #ecfdf5;
-  color: #047857;
-  border-color: #d1fae5;
+.fcard:hover,
+.fcard:active,
+.fcard:focus-within{
+  transform: none !important;                     /* <— kunci: tidak membesar/geser */
+  box-shadow: 0 4px 14px rgba(2,6,23,.06);        /* efek halus saja */
+  border-color: #e8f2ff;                          /* tetap konsisten */
+  background: linear-gradient(135deg,#ffffff 0%,#f8fbff 100%);
 }
-.fchip.ended {
-  background: #f1f5f9;
-  color: #475569;
-  border-color: #e2e8f0;
+
+/* Ikon file jangan ikut nge-zoom */
+.fcard:hover .fcard-icon,
+.fcard:focus-within .fcard-icon{
+  transform: none !important;
 }
-.fchip.scheduled {
-  background: #fef9c3;
-  color: #854d0e;
-  border-color: #fde68a;
+
+/* (opsional) garis tipis di bagian atas tetap muncul, tapi tanpa efek membesar */
+.fcard:hover::before,
+.fcard:focus-within::before{
+  opacity: .6;
 }
+
+/* History cards juga jangan “melompat” saat hover */
+.facc:hover{
+  transform: none !important;
+  box-shadow: 0 6px 16px rgba(2,6,23,.08);
+}
+
+

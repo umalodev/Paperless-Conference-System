@@ -43,7 +43,7 @@
 }
 
 :root {
-  --login-bg-image: url("/img/background2.png");
+  --login-bg-image: url("/img/background5.png");
   --login-bg-overlay-top: rgba(255, 255, 255, 0.42);
   --login-bg-overlay-bot: rgba(240, 255, 244, 0.82);
 }
@@ -171,7 +171,7 @@
   position: fixed;
   inset: 0;
   z-index: -1;
-  background-image: url("/img/background2.png");
+  background-image: url("/img/background5.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

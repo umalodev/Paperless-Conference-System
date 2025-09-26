@@ -692,7 +692,7 @@ const getMaterialsHistory = async (req, res) => {
         {
           model: Materials,
           as: "Materials",
-          required: withMaterialsOnly ? true : false, // kalau true, hanya meeting yang punya materials
+          required: withMaterialsOnly ? true : false,
           where: { flag: "Y" },
           attributes: ["id", "path", "created_at"],
           separate: true,

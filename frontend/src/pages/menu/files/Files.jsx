@@ -1,5 +1,11 @@
 // src/pages/menu/files/Files.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../components/BottomNav.jsx";
 import Icon from "../../../components/Icon.jsx";
@@ -8,12 +14,14 @@ import "./Files.css";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 
 import {
   listFiles,
   uploadFile,
   deleteFile,
 } from "../../../services/filesService.js";
+import meetingService from "../../../services/meetingService.js";
 
 const absolutize = (u) => {
   if (!u) return "";
@@ -38,7 +46,6 @@ export default function Files() {
 
   // upload UI
   const [pick, setPick] = useState(null);
-  const [desc, setDesc] = useState("");
   const [uploading, setUploading] = useState(false);
 
   // HISTORY UI
@@ -49,6 +56,28 @@ export default function Files() {
   const [qHistory, setQHistory] = useState("");
 
   const navigate = useNavigate();
+
+  const {
+    ready: mediaReady,
+    error: mediaError,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+    muteAllOthers,
+  } = useMediaRoom();
+
+  const onToggleMic = useCallback(() => {
+    if (!mediaReady) return;
+    micOn ? stopMic() : startMic();
+  }, [mediaReady, micOn, startMic, stopMic]);
+
+  const onToggleCam = useCallback(() => {
+    if (!mediaReady) return;
+    camOn ? stopCam() : startCam();
+  }, [mediaReady, camOn, startCam, stopCam]);
 
   const meetingId = useMemo(() => {
     try {
@@ -73,8 +102,7 @@ export default function Files() {
         setLoadingMenus(true);
         setErrMenus("");
         const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: meetingService.getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -131,13 +159,11 @@ export default function Files() {
     try {
       const url = new URL(`${API_URL}/api/files/history`);
       if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
-      url.searchParams.set("limit", "30");
-      url.searchParams.set("withFilesOnly", "1");
+      url.searchParams.set("withFilesOnly", "0");
       if (qHistory.trim()) url.searchParams.set("q", qHistory.trim());
 
       const res = await fetch(url.toString(), {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: meetingService.getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -155,6 +181,12 @@ export default function Files() {
             })),
           }))
         : [];
+
+      groups.sort((a, b) => {
+        const da = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const db = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return db - da;
+      });
       setHistoryGroups(groups);
     } catch (e) {
       setErrHistory(String(e.message || e));
@@ -196,11 +228,9 @@ export default function Files() {
       const created = await uploadFile({
         meetingId,
         file: pick,
-        description: desc || "",
       });
       setFiles((prev) => [created, ...prev]);
       setPick(null);
-      setDesc("");
       (document.getElementById("file-input") || {}).value = "";
     } catch (e) {
       alert(`Gagal upload: ${e.message || e}`);
@@ -273,8 +303,12 @@ export default function Files() {
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
-                <Icon slug="files" iconUrl="/img/files.svg" size={22} />
-                <span>Daftar File</span>
+                <img
+                  src="/img/Files1.png"
+                  alt=""
+                  className="files-title-icon"
+                />
+                <span className="files-title-text">Daftar File</span>
               </div>
               <div className="files-actions">
                 <div className="files-search">
@@ -290,7 +324,7 @@ export default function Files() {
                   onClick={() => setShowHistory((s) => !s)}
                   title="Riwayat file meeting sebelumnya"
                 >
-                  <Icon slug="history" size={18} />
+                  <Icon iconUrl="/img/history.png" size={18} />
                   <span>{showHistory ? "Tutup Riwayat" : "Riwayat"}</span>
                 </button>
                 <button
@@ -298,7 +332,7 @@ export default function Files() {
                   onClick={() => window.location.reload()}
                   title="Refresh"
                 >
-                  <Icon slug="refresh" size={18} />
+                  <Icon iconUrl="/img/refresh.png" size={18} />
                   <span>Refresh</span>
                 </button>
               </div>
@@ -315,13 +349,6 @@ export default function Files() {
                 type="file"
                 onChange={(e) => setPick(e.target.files?.[0] || null)}
                 style={{ marginRight: 8 }}
-              />
-              <input
-                type="text"
-                placeholder="Deskripsi (opsional)"
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                className="file-desc-input"
               />
               <button
                 className="files-btn"
@@ -364,7 +391,8 @@ export default function Files() {
                 <section className="files-history">
                   <div className="files-history-head">
                     <h3 className="files-history-title">
-                      <Icon slug="history" /> Riwayat Files
+                      <Icon iconUrl="/img/history.png" size={18} /> Riwayat
+                      Files
                     </h3>
                     <div className="files-history-actions">
                       <input
@@ -424,7 +452,13 @@ export default function Files() {
           />
         )}
 
-        <MeetingFooter userRole={user?.role || "participant"} />
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+        />
       </div>
     </MeetingLayout>
   );
@@ -513,21 +547,21 @@ function FileCard({ file, me, onDelete }) {
         </div>
       </div>
       <div className="fcard-actions">
-        <button className="files-btn" onClick={onOpen} title="Buka">
+        <button className="files-btn icon" onClick={onOpen} title="Buka">
           <OpenIcon />
           <span>Buka</span>
         </button>
-        <button className="files-btn" onClick={onDownload} title="Unduh">
-          <Icon slug="download" size={18} />
+        <button className="files-btn icon" onClick={onDownload} title="Unduh">
+          <Icon slug="download" size={16} />
           <span>Unduh</span>
         </button>
         {canDelete && (
           <button
-            className="files-btn danger"
+            className="files-btn danger icon"
             onClick={() => onDelete(fileId)}
             title="Hapus"
           >
-            <Icon slug="trash" size={18} />
+            <Icon slug="trash" size={16} />
             <span>Hapus</span>
           </button>
         )}
