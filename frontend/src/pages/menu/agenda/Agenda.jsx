@@ -440,13 +440,13 @@ export default function Agenda() {
                   {showHistory ? "Tutup Riwayat" : "Riwayat"}
                 </button>
 
-                {isHost && (
+               {isHost && (
                   <button
                     className="agenda-add"
                     title="Tambah agenda"
                     onClick={openAdd}
                   >
-                    <Icon slug="plus" />
+                    <img src="/img/add1.png" alt="Tambah agenda" className="action-icon" />
                   </button>
                 )}
               </div>

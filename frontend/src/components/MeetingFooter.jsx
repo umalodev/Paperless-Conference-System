@@ -146,9 +146,6 @@ export default function MeetingFooter({
         >
           <Icon slug="camera" />
         </button>
-        <button className="pd-ctrl" title="Settings">
-          <Icon slug="settings" />
-        </button>
       </div>
 
       <div className="pd-controls-right">
@@ -181,10 +178,6 @@ export default function MeetingFooter({
             End Meeting
           </button>
         )}
-
-        <button className="pd-fab" title="Help" onClick={handleHelp}>
-          ?
-        </button>
       </div>
     </footer>
   );

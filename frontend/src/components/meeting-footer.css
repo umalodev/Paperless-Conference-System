@@ -1,4 +1,29 @@
-/* Footer bar */
+/* Meeting footer / control bar styles */
+:root {
+  --bottombar-bg-dark: #3a3a3a;      
+  --bottombar-bg-alpha: rgba(39, 38, 38, 0.9);
+  --bottombar-border: rgba(255,255,255,0.06);
+
+  --accent-green: #138000;           
+  --accent-green-700: #0f6f00;
+  --accent-green-50: rgba(19,128,0,0.06);
+
+  --text-on-accent: #ffffff;
+  --text-light: #f8fafc;             
+  --muted-light: rgba(255,255,255,0.72);
+
+  --btn-radius: 14px;
+  --ctrl-size: 40px;
+  --ctrl-size-sm: 36px;
+
+  --shadow-strong: 0 8px 30px rgba(2,6,23,0.6);
+  --shadow-subtle: 0 6px 16px rgba(2,6,23,0.45);
+
+  --transition-fast: 0.12s ease;
+  --transition-medium: 0.18s ease;
+}
+
+/* ==== Footer container ==== */
 .pd-bottombar {
   position: sticky;
   bottom: 0;
@@ -9,50 +34,124 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--color-white);
-  border-top: 1px solid #e9e9e9;
+
+  background: var(--bottombar-bg-alpha);
+  color: var(--text-light);
+  border-top: 1px solid var(--bottombar-border);
+  box-shadow: 0 -1px 10px #107C10;
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+
+  box-sizing: border-box;
 }
 
+/* left / right groups */
 .pd-controls-left,
 .pd-controls-right {
   display: inline-flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
-/* Buttons */
+/* ==== Generic control button (icon style) ==== */
+/* On dark bg, keep icon buttons white inside and green border for the look you wanted */
 .pd-ctrl {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  width: var(--ctrl-size);
+  height: var(--ctrl-size);
+  min-width: var(--ctrl-size);
   display: grid;
   place-items: center;
+  border-radius: 12px;
+  border: 1.5px solid var(--accent-green);
+  background: #ffffff;          /* white interior to match previous design */
+  color: var(--accent-green);  /* icon color is green */
   cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  box-shadow: none;
+  padding: 0;
 }
-.pd-ctrl.is-off {
-  opacity: 0.6;
-}
-.pd-ctrl.is-active {
-  background: var(--color-primary);
-  color: #fff;
-  border-color: var(--color-primary);
-}
-.pd-ctrl .pd-svg {
+
+/* Icon sizing and color inherit */
+.pd-ctrl .pd-svg,
+.pd-ctrl svg {
   width: 20px;
   height: 20px;
+  stroke: currentColor;
+  fill: none; /* if your icons use fill, set fill="currentColor" in Icon.jsx */
 }
 
-.pd-ghost {
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: var(--color-text);
-  padding: 8px 12px;
-  border-radius: 12px;
+/* Hover / subtle lift */
+.pd-ctrl:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-subtle);
+}
+
+/* Focus for keyboard users */
+.pd-ctrl:focus,
+.pd-ctrl:focus-visible {
+  outline: 3px solid var(--accent-green-50);
+  outline-offset: 4px;
+  box-shadow: var(--shadow-strong);
+}
+
+/* Off state: slightly faded white */
+.pd-ctrl.is-off {
+  opacity: 0.66;
+  transform: none;
+}
+
+/* Active filled variant (if needed) */
+.pd-ctrl.is-active {
+  background: var(--accent-green);
+  color: var(--text-on-accent);
+  border-color: var(--accent-green);
+}
+
+/* ==== Menu / Home buttons: green pill (primary action) ==== */
+.pd-ghost,
+.pd-outline {
+  border: 0;
+  background: linear-gradient(180deg, var(--accent-green), var(--accent-green-700));
+  color: var(--text-on-accent);
+  padding: 8px 14px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  box-shadow: 0 10px 28px rgba(19,128,0,0.14);
+  transition: transform var(--transition-medium), filter var(--transition-fast), box-shadow var(--transition-fast);
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
+/* icon inside pill (if present) */
+.pd-ghost svg,
+.pd-outline svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+}
+
+/* hover/pressed */
+.pd-ghost:hover,
+.pd-outline:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.02);
+  box-shadow: 0 14px 34px rgba(19,128,0,0.14);
+}
+
+/* focus */
+.pd-ghost:focus-visible,
+.pd-outline:focus-visible {
+  outline: 3px solid rgba(19,128,0,0.14);
+  outline-offset: 4px;
+}
+
+/* ==== Danger / Warning (left unchanged but tuned for dark bg) ==== */
 .pd-warning {
   border: 0;
   background: #f59e0b;
@@ -60,10 +159,9 @@
   padding: 10px 14px;
   border-radius: 12px;
   cursor: pointer;
+  transition: filter var(--transition-fast), transform var(--transition-fast);
 }
-.pd-warning:hover {
-  filter: brightness(0.95);
-}
+.pd-warning:hover { transform: translateY(-1px); }
 
 .pd-danger {
   border: 0;
@@ -72,31 +170,71 @@
   padding: 10px 14px;
   border-radius: 12px;
   cursor: pointer;
+  transition: filter var(--transition-fast), transform var(--transition-fast);
 }
-.pd-danger:hover {
-  filter: brightness(0.95);
-}
+.pd-danger:hover { transform: translateY(-1px); }
 
+/* Floating / FAB style (if used) */
 .pd-fab {
   width: 40px;
   height: 40px;
   border-radius: 999px;
   border: 0;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--accent-green);
+  color: var(--text-on-accent);
   display: grid;
   place-items: center;
   cursor: pointer;
+  box-shadow: var(--shadow-strong);
 }
 
-/* Optional: adapt for small screens */
-@media (max-width: 560px) {
-  .pd-bottombar {
-    padding: 10px 12px;
-  }
-  .pd-ctrl,
-  .pd-fab {
-    width: 38px;
-    height: 38px;
-  }
+/* ==== Layout tweaks ==== */
+.pd-controls-right .pd-ghost,
+.pd-controls-right .pd-outline,
+.pd-controls-right .pd-warning,
+.pd-controls-right .pd-danger {
+  min-width: 72px;
 }
+
+/* ==== Mobile accessibility ==== */
+@media (max-width: 720px) {
+  .pd-ctrl, .pd-fab {
+    width: var(--ctrl-size-sm);
+    height: var(--ctrl-size-sm);
+    min-width: var(--ctrl-size-sm);
+  }
+  .pd-controls-left { gap: 8px; }
+  .pd-controls-right { gap: 8px; }
+  .pd-ghost, .pd-outline {
+    padding: 8px 10px;
+    min-width: 62px;
+    font-size: 14px;
+  }
+  .pd-bottombar { padding: 10px 12px; }
+}
+
+/* Stack layout for very small screens */
+@media (max-width: 420px) {
+  .pd-bottombar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+  }
+  .pd-controls-left, .pd-controls-right {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .pd-controls-left { order: 1; }
+  .pd-controls-right { order: 2; }
+}
+
+/* Slightly larger padding on wide screens */
+@media (min-width: 900px) {
+  .pd-bottombar { padding: 14px 20px; }
+}
+
+/* Optional: mobile label under icon (hidden by default) */
+.pd-ctrl .pd-label { display: none; font-size: 11px; margin-top: 4px; color: var(--muted-light); }
+@media (max-width: 420px) { .pd-ctrl .pd-label { display: block; } }
+
+/* End of file */

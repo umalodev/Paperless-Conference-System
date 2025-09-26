@@ -1,4 +1,9 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+} from "react";
 import BottomNav from "../../../components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../config";
@@ -111,7 +116,11 @@ export default function Services() {
     return fromLS || 1000;
   };
 
+  // isAssist (previous) and isStaff (new)
   const isAssist = String(user?.role || "").toLowerCase() === "assist";
+  const isStaff = ["admin", "host", "assist"].includes(
+    String(user?.role || "").toLowerCase()
+  );
 
   // Load requests
   const loadRequests = useCallback(async () => {
@@ -161,7 +170,7 @@ export default function Services() {
 
   useEffect(() => {
     loadRequests();
-    // Polling untuk sinkron status di kedua sisi
+    // Polling untuk sinkron status di kedua sisi (10s)
     const intervalMs = 10000;
     const t = setInterval(loadRequests, intervalMs);
     return () => clearInterval(t);
@@ -199,7 +208,7 @@ export default function Services() {
     }
   };
 
-  // ---- Assist actions ----
+  // ---- Assist/staff actions ----
   const doAssign = async (id) => {
     setBusyId(id);
     try {
@@ -238,6 +247,12 @@ export default function Services() {
     }
   };
 
+  // helper to mark done (used by staff)
+  const markDone = async (id) => {
+    // alias for doUpdateStatus
+    await doUpdateStatus(id, "done");
+  };
+
   const doCancel = async (id) => {
     setBusyId(id);
     try {
@@ -267,9 +282,11 @@ export default function Services() {
       ? "🧑‍💼"
       : "🔔";
 
-  const StatusBadge = ({ status }) => (
-    <em className={`svc-status svc-status--${status}`}>{status}</em>
-  );
+  // display human-friendly status label (map 'done' -> 'Completed')
+  const StatusBadge = ({ status }) => {
+    const label = status === "done" ? "Completed" : status;
+    return <em className={`svc-status svc-status--${status}`}>{label}</em>;
+  };
 
   return (
     <MeetingLayout
@@ -305,9 +322,7 @@ export default function Services() {
                 <div className="pd-user-name">
                   {user?.username || "Participant"}
                 </div>
-                <div className="pd-user-role">
-                  {user?.role || "Participant"}
-                </div>
+                <div className="pd-user-role">{user?.role || "Participant"}</div>
               </div>
             </div>
           </div>
@@ -381,6 +396,17 @@ export default function Services() {
                               Done
                             </button>
                           )}
+                          {/* Staff can always mark done */}
+                          {isStaff && r.status !== "done" && (
+                            <button
+                              className="svc-btn"
+                              disabled={busyId === r.serviceRequestId}
+                              onClick={() => markDone(r.serviceRequestId)}
+                              title="Mark as completed"
+                            >
+                              Mark Done
+                            </button>
+                          )}
                           {r.status !== "done" && r.status !== "cancelled" && (
                             <button
                               className="svc-btn svc-btn--danger"
@@ -410,26 +436,42 @@ export default function Services() {
                     myRequests.map((r) => (
                       <div
                         key={r.serviceRequestId}
-                        className="svc-recent-item"
+                        className="svc-row"
                         title={r.note || undefined}
                       >
-                        <span className="svc-recent-icon" aria-hidden>
-                          {iconFor(r.serviceKey)}
-                        </span>
-                        <span className="svc-recent-text">
-                          <strong>{r.serviceLabel}</strong>
-                          <span>
-                            {r.name} — {r.priority} —{" "}
-                            <StatusBadge status={r.status} />
+                        <div className="svc-recent-item">
+                          <span className="svc-recent-icon" aria-hidden>
+                            {iconFor(r.serviceKey)}
                           </span>
-                        </span>
+                          <span className="svc-recent-text">
+                            <strong>{r.serviceLabel}</strong>
+                            <span>
+                              {r.name} — {r.priority} —{" "}
+                              <StatusBadge status={r.status} />
+                            </span>
+                          </span>
+                        </div>
+
+                        {/* If current user is staff, allow marking done from left column too */}
+                        <div className="svc-actions">
+                          {isStaff && r.status !== "done" && (
+                            <button
+                              className="svc-btn"
+                              disabled={busyId === r.serviceRequestId}
+                              onClick={() => markDone(r.serviceRequestId)}
+                              title="Mark as completed"
+                            >
+                              Mark Done
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                 </>
               )}
             </section>
 
-            {/* RIGHT COLUMN */}
+            {/* RIGHT COLUMN (only for participant) */}
             {!isAssist && (
               <section className="svc-card svc-main">
                 <div className="svc-card-title">Quick services</div>
@@ -451,6 +493,7 @@ export default function Services() {
 
                 <div className="svc-form">
                   <div className="svc-form-title">Request</div>
+
                   <div className="svc-form-field">
                     <label>Service</label>
                     <input
@@ -460,12 +503,13 @@ export default function Services() {
                       placeholder="Select service from quick menu"
                     />
                   </div>
+
                   <div className="svc-form-row">
                     <div className="svc-form-field flex-1">
                       <label>Name (required)</label>
                       <input
                         className="svc-input"
-                        placeholder="e.g., Seat 12"
+                        placeholder="seat"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         disabled={!selectedService}
@@ -485,6 +529,7 @@ export default function Services() {
                       </select>
                     </div>
                   </div>
+
                   <div className="svc-form-field">
                     <label>Note</label>
                     <textarea
@@ -496,6 +541,7 @@ export default function Services() {
                       disabled={!selectedService}
                     />
                   </div>
+
                   <div className="svc-form-actions">
                     <button
                       className="svc-send"

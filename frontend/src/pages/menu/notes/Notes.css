@@ -188,3 +188,36 @@
   width: 16px;            /* ikon diperkecil */
   height: 16px;
 }
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  margin-right: 6px; /* biar ada jarak ke teks */
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.action-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  margin-right: 8px;
+  display: inline-block;
+  vertical-align: middle;
+}
+.note-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+

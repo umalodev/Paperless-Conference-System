@@ -551,3 +551,12 @@
   padding: 4px 8px;
   border-radius: 8px;
 }
+.mute-img {
+  width: 14px;   /* kecilkan sesuai kebutuhan, misalnya 14px */
+  height: 14px;  /* samakan biar proporsional */
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+
