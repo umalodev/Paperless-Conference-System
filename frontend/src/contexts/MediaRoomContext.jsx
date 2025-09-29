@@ -3,13 +3,27 @@ import useMediasoupRoom from "../hooks/useMediasoupRoom";
 
 /** Tombol unlock sekali untuk lewati autoplay policy + audio sinks tersembunyi */
 function GlobalAudioLayer({ remotePeers, myPeerId }) {
-  const [unlocked, setUnlocked] = useState(false);
-  const triggerReplayAll = () => setUnlocked((x) => !x);
+  const [unlocked, setUnlocked] = useState(
+    () => sessionStorage.getItem("audioUnlocked") === "1"
+  );
+  React.useEffect(() => {
+    sessionStorage.setItem("audioUnlocked", unlocked ? "1" : "0");
+  }, [unlocked]);
+
+  // hitung berapa sink yang masih terblokir
+  const [blockedCount, setBlockedCount] = React.useState(0);
+  const onBlocked = React.useCallback(() => setBlockedCount((c) => c + 1), []);
+  const onUnblocked = React.useCallback(
+    () => setBlockedCount((c) => Math.max(0, c - 1)),
+    []
+  );
+
+  const triggerReplayAll = () => setUnlocked((u) => !u);
 
   // tombol global; tampil sampai user klik sekali
   return (
     <>
-      {!unlocked && (
+      {!unlocked && blockedCount > 0 && (
         <div style={{ position: "fixed", bottom: 16, left: 16, zIndex: 9999 }}>
           <button className="pd-audio-unlock" onClick={triggerReplayAll}>
             Enable audio
@@ -32,6 +46,8 @@ function GlobalAudioLayer({ remotePeers, myPeerId }) {
             muted={String(pid) === String(myPeerId)} // jangan putar suara kita sendiri
             hideButton
             unlockedSignal={unlocked}
+            onBlocked={onBlocked}
+            onUnblocked={onUnblocked}
           />
         ))}
       </div>
@@ -40,9 +56,17 @@ function GlobalAudioLayer({ remotePeers, myPeerId }) {
 }
 
 /** Dipakai GlobalAudioLayer */
-function AudioSink({ stream, muted, hideButton = false, unlockedSignal }) {
+function AudioSink({
+  stream,
+  muted,
+  hideButton = false,
+  unlockedSignal,
+  onBlocked,
+  onUnblocked,
+}) {
   const ref = React.useRef(null);
   const [needUnlock, setNeedUnlock] = React.useState(false);
+  const prevNeedUnlock = React.useRef(false);
 
   React.useEffect(() => {
     const el = ref.current;
@@ -55,6 +79,14 @@ function AudioSink({ stream, muted, hideButton = false, unlockedSignal }) {
         .catch(() => setNeedUnlock(true));
     }
   }, [stream, muted, unlockedSignal]);
+
+  React.useEffect(() => {
+    if (needUnlock !== prevNeedUnlock.current) {
+      prevNeedUnlock.current = needUnlock;
+      if (needUnlock) onBlocked && onBlocked();
+      else onUnblocked && onUnblocked();
+    }
+  }, [needUnlock, onBlocked, onUnblocked]);
 
   const unlock = () => {
     const el = ref.current;
@@ -108,8 +140,9 @@ export function MediaRoomProvider({ children }) {
   return (
     <MediaRoomContext.Provider value={value}>
       {children}
-      {/* Audio global selalu aktif di semua halaman */}
-      <GlobalAudioLayer remotePeers={media.remotePeers} myPeerId={myPeerId} />
+      {meeting && media.remotePeers?.size > 0 && (
+        <GlobalAudioLayer remotePeers={media.remotePeers} myPeerId={myPeerId} />
+      )}
     </MediaRoomContext.Provider>
   );
 }
