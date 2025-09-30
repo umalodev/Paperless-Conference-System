@@ -1,0 +1,88 @@
+/* src/pages/menu/whiteboard/whiteboard.css */
+.whiteboard-page .wb-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.whiteboard-page .wb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.whiteboard-page .wb-group {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  background: #f7f7f8;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.whiteboard-page .wb-btn {
+  appearance: none;
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.whiteboard-page .wb-btn.active {
+  background: #0d6efd;
+  color: #fff;
+  border-color: #0d6efd;
+}
+.whiteboard-page .wb-btn.ghost {
+  background: #fff;
+}
+.whiteboard-page .wb-btn.danger {
+  background: #fee;
+  border-color: #f6caca;
+  color: #b10000;
+}
+.whiteboard-page .wb-btn:hover {
+  filter: brightness(0.97);
+}
+
+.whiteboard-page .wb-label {
+  font-size: 12px;
+  color: #666;
+}
+.whiteboard-page .wb-color {
+  width: 34px;
+  height: 28px;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+.whiteboard-page .wb-size {
+  min-width: 40px;
+  text-align: right;
+  font-size: 12px;
+  color: #555;
+}
+
+.whiteboard-page .wb-canvas-wrap {
+  flex: 1;
+  min-height: 320px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.whiteboard-page .wb-canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none; /* supaya pointer/touch move mulus */
+  display: block;
+}

@@ -1,9 +1,4 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  useCallback,
-} from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import BottomNav from "../../../components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../config";
@@ -52,6 +47,7 @@ export default function Services() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
+              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               flag: m.flag ?? "Y",
@@ -322,7 +318,9 @@ export default function Services() {
                 <div className="pd-user-name">
                   {user?.username || "Participant"}
                 </div>
-                <div className="pd-user-role">{user?.role || "Participant"}</div>
+                <div className="pd-user-role">
+                  {user?.role || "Participant"}
+                </div>
               </div>
             </div>
           </div>

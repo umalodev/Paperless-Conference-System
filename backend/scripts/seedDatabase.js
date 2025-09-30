@@ -104,9 +104,18 @@ async function seedDatabase() {
         flag: "Y",
       },
       {
+        displayLabel: "Whiteboard",
+        iconMenu: "/img/whiteboard.png",
+        sequenceMenu: 8,
+        parentMenu: null,
+        slug: "whiteboard",
+        flag: "Y",
+      },
+
+      {
         displayLabel: "Services",
         iconMenu: "/img/services.png",
-        sequenceMenu: 8,
+        sequenceMenu: 9,
         parentMenu: null,
         slug: "services",
         flag: "Y",

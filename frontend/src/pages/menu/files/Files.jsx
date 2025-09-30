@@ -109,6 +109,7 @@ export default function Files() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
+              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               flag: m.flag ?? "Y",
@@ -319,7 +320,11 @@ export default function Files() {
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
-                <img src="/img/Files1.png" alt="" className="files-title-icon" />
+                <img
+                  src="/img/Files1.png"
+                  alt=""
+                  className="files-title-icon"
+                />
                 <span className="files-title-text">Daftar File</span>
               </div>
               <div className="files-actions">
@@ -369,14 +374,14 @@ export default function Files() {
                 disabled={!pick || uploading || !meetingId}
               >
                 <img
-                src="/img/upload1.png"
-                alt="Unggah"
-                style={{ width: 18, height: 18, objectFit: "contain" }}
-                className="icon-img"
-              />
-              <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
-            </button>
-          </form>
+                  src="/img/upload1.png"
+                  alt="Unggah"
+                  style={{ width: 18, height: 18, objectFit: "contain" }}
+                  className="icon-img"
+                />
+                <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
+              </button>
+            </form>
 
             {loadingFiles && <div className="pd-empty">Memuat file…</div>}
             {errFiles && !loadingFiles && (
@@ -430,9 +435,13 @@ export default function Files() {
                     </div>
                   </div>
 
-                  {loadingHistory && <div className="pd-empty">Memuat riwayat…</div>}
+                  {loadingHistory && (
+                    <div className="pd-empty">Memuat riwayat…</div>
+                  )}
                   {errHistory && !loadingHistory && (
-                    <div className="pd-error">Gagal memuat riwayat: {errHistory}</div>
+                    <div className="pd-error">
+                      Gagal memuat riwayat: {errHistory}
+                    </div>
                   )}
                   {!loadingHistory &&
                     !errHistory &&
@@ -506,7 +515,9 @@ function FilesHistoryGroup({ group, me, onOpen, onDownload, onDelete }) {
 
       {open && (
         <div className="facc-body">
-          {(!files || files.length === 0) && <div className="pd-empty">Tidak ada file.</div>}
+          {(!files || files.length === 0) && (
+            <div className="pd-empty">Tidak ada file.</div>
+          )}
           {files && files.length > 0 && (
             <div className="mtl-grid files-grid">
               {files.map((f) => (
@@ -557,7 +568,12 @@ function FileCard({ file, me, onOpen, onDownload, onDelete }) {
       </div>
 
       <div className="mtl-info">
-        <div className="mtl-name" title={name} onClick={onOpen} style={{ cursor: "pointer" }}>
+        <div
+          className="mtl-name"
+          title={name}
+          onClick={onOpen}
+          style={{ cursor: "pointer" }}
+        >
           {name}
         </div>
         <div className="mtl-meta">
@@ -577,7 +593,11 @@ function FileCard({ file, me, onOpen, onDownload, onDelete }) {
         </button>
 
         {canDelete && (
-          <button className="mtl-act danger" onClick={() => onDelete && onDelete(fileId)} title="Hapus">
+          <button
+            className="mtl-act danger"
+            onClick={() => onDelete && onDelete(fileId)}
+            title="Hapus"
+          >
             <img src="/img/hapus1.png" alt="Hapus" className="action-icon" />
           </button>
         )}

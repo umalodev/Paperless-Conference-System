@@ -20,6 +20,7 @@ import SetUp from "./pages/start/SetUp.jsx";
 import Services from "./pages/menu/services/services.jsx";
 import ScreenSharePage from "./pages/menu/screenshare/ScreenShare.jsx";
 import { MediaRoomProvider } from "./contexts/MediaRoomContext.jsx";
+import Whiteboard from "./pages/menu/whiteboard/whiteboards.jsx";
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
           <Route path="/setup" element={<SetUp />} />
           <Route path="/menu/services" element={<Services />} />
           <Route path="/menu/screenshare" element={<ScreenSharePage />} />
+          <Route path="/menu/whiteboard" element={<Whiteboard />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
