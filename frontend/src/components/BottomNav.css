@@ -1,0 +1,22 @@
+.bn-item.is-active,
+.bn-item:focus,
+.bn-item:hover {
+  color: #1976d2;
+  background: #f5faff;
+}
+
+.bn-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+}
+
+.bn-label {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+}

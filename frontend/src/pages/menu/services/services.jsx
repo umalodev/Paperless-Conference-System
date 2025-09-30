@@ -94,7 +94,15 @@ export default function Services() {
         .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
     [menus]
   );
-  const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
+
+  const handleSelectNav = (item) => {
+    console.log("handleSelectNav called with:", {
+      slug: item.slug,
+      label: item.label,
+      menuId: item.menuId,
+    });
+    navigate(`/menu/${item.slug}`);
+  };
 
   const quickOptions = [
     { key: "staff_assist", label: "Staff Assist", icon: "🧑‍💼" },

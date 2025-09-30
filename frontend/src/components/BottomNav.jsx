@@ -1,4 +1,3 @@
-// components/BottomNav.jsx
 import React from "react";
 
 export default function BottomNav({ items = [], active = "", onSelect }) {
@@ -15,7 +14,15 @@ export default function BottomNav({ items = [], active = "", onSelect }) {
             <button
               key={itemKey}
               className={`bn-item ${isActive ? "is-active" : ""}`}
-              onClick={() => onSelect?.(it)}
+              onClick={() => {
+                console.log("BottomNav clicked:", {
+                  slug: it.slug,
+                  label: it.label,
+                  menuId: it.menuId,
+                  fullItem: it,
+                });
+                onSelect?.(it);
+              }}
               aria-current={isActive ? "page" : undefined}
             >
               <span className="bn-icon">
