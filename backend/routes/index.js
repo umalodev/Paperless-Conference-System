@@ -15,6 +15,7 @@ const SurveyRoutes = require("./survey");
 const filesRoutes = require("./files");
 const dashboardRoutes = require("./dashboard");
 const serviceRoutes = require("./services");
+const whiteboardRoutes = require("./whiteboard");
 
 // Use route modules
 router.use("/auth", authRoutes);
@@ -30,6 +31,7 @@ router.use("/chat", chatRoutes);
 router.use("/files", filesRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/services", serviceRoutes);
+router.use("/whiteboard", whiteboardRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {

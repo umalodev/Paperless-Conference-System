@@ -61,6 +61,7 @@ export default function ParticipantsPage() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
+              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               iconUrl: m.iconMenu || null,
@@ -458,8 +459,7 @@ export default function ParticipantsPage() {
                               <Icon slug="camera" />
                             </button>
                           </div>
-                          <div className="prt-actions-right">
-                          </div>
+                          <div className="prt-actions-right"></div>
                         </div>
                       );
                     })}

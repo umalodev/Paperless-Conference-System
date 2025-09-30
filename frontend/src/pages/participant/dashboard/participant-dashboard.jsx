@@ -109,7 +109,6 @@ export default function ParticipantDashboard() {
               display_label: m.displayLabel,
               slug: m.slug,
               flag: m.flag ?? "Y",
-
               iconUrl: m.iconMenu || null,
               parent: m.parentMenu,
               seq: m.sequenceMenu,

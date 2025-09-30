@@ -111,6 +111,7 @@ export default function Materials() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
+              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               iconUrl: m.iconMenu || null,
@@ -552,40 +553,40 @@ function MaterialCard({
   canDelete,
 }) {
   return (
-  <div className="mtl-card">
-    <div className={`mtl-fileicon ${ext}`}>
-      <div className="mtl-fileext">{extLabel(ext)}</div>
-      {/* biarkan Icon untuk tampilan filetype (atau ganti bila mau) */}
-      <Icon slug="file" />
-    </div>
-
-    <div className="mtl-info">
-      <div className="mtl-name" title={name}>
-        {name}
+    <div className="mtl-card">
+      <div className={`mtl-fileicon ${ext}`}>
+        <div className="mtl-fileext">{extLabel(ext)}</div>
+        {/* biarkan Icon untuk tampilan filetype (atau ganti bila mau) */}
+        <Icon slug="file" />
       </div>
-      <div className="mtl-meta">{meta}</div>
-    </div>
 
-    <div className="mtl-actions-right">
-      {/* Lihat / Buka */}
-      <button className="mtl-act" title="Lihat" onClick={onPreview}>
-        <img src="/img/buka.png" alt="Lihat" className="action-icon" />
-      </button>
+      <div className="mtl-info">
+        <div className="mtl-name" title={name}>
+          {name}
+        </div>
+        <div className="mtl-meta">{meta}</div>
+      </div>
 
-      {/* Unduh */}
-      <button className="mtl-act" title="Unduh" onClick={onDownload}>
-        <img src="/img/download1.png" alt="Unduh" className="action-icon" />
-      </button>
-
-      {/* Hapus (jika boleh) */}
-      {canDelete && onDelete && (
-        <button className="mtl-act danger" title="Hapus" onClick={onDelete}>
-          <img src="/img/hapus1.png" alt="Hapus" className="action-icon" />
+      <div className="mtl-actions-right">
+        {/* Lihat / Buka */}
+        <button className="mtl-act" title="Lihat" onClick={onPreview}>
+          <img src="/img/buka.png" alt="Lihat" className="action-icon" />
         </button>
-      )}
+
+        {/* Unduh */}
+        <button className="mtl-act" title="Unduh" onClick={onDownload}>
+          <img src="/img/download1.png" alt="Unduh" className="action-icon" />
+        </button>
+
+        {/* Hapus (jika boleh) */}
+        {canDelete && onDelete && (
+          <button className="mtl-act danger" title="Hapus" onClick={onDelete}>
+            <img src="/img/hapus1.png" alt="Hapus" className="action-icon" />
+          </button>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
 }
 
 /* ============ Skeletons ============ */

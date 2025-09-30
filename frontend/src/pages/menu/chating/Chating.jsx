@@ -218,6 +218,7 @@ export default function Chat() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
+              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               flag: m.flag ?? "Y",
