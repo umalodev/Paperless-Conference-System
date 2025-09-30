@@ -72,6 +72,7 @@ export default function Whiteboard() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
+              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               iconUrl: m.iconMenu || null,
@@ -98,7 +99,14 @@ export default function Whiteboard() {
         .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
     [menus]
   );
-  const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
+  const handleSelectNav = (item) => {
+    console.log("handleSelectNav called with:", {
+      slug: item.slug,
+      label: item.label,
+      menuId: item.menuId,
+    });
+    navigate(`/menu/${item.slug}`);
+  };
 
   // ======== Canvas sizing & drawing ========
 
