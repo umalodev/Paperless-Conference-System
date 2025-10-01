@@ -3,7 +3,10 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
+import { useScreenShare } from "../contexts/ScreenShareContext";
 import "./meeting-footer.css";
+import { useLocation } from "react-router-dom";
+
 
 export default function MeetingFooter({
   userRole = "participant",
@@ -15,14 +18,26 @@ export default function MeetingFooter({
   camOn,
   onToggleMic,
   onToggleCam,
-  isSharingUser,
-  currentUserId,
-  isAnnotating,
-  onToggleAnnotate,
-  screenShareOn,
-  onToggleScreenShare,
 }) {
   const navigate = useNavigate();
+
+  // 🔹 Ambil state global screen share
+  const {
+    sharingUser,
+    screenShareOn,
+    isAnnotating,
+    setIsAnnotating,
+  } = useScreenShare();
+
+  const currentUserId = (() => {
+    try {
+      const rawUser = localStorage.getItem("user");
+      const u = rawUser ? JSON.parse(rawUser) : null;
+      return u?.id || u?._id || u?.userId || null;
+    } catch {
+      return null;
+    }
+  })();
 
   // Helpers
   const getCurrentMeeting = () => {
@@ -42,7 +57,8 @@ export default function MeetingFooter({
   const isDefaultMeeting =
     Boolean(cm?.isDefault) || String(meetingId) === "1000";
 
-  // Common cleanup (stop share, close WS)
+  const location = useLocation();
+  // Common cleanup
   const cleanupRealtime = () => {
     try {
       if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
@@ -56,15 +72,12 @@ export default function MeetingFooter({
     } catch {}
   };
 
-  // BACK action
   const defaultBack = async () => {
     try {
       cleanupRealtime();
       if (meetingId) {
         await meetingService.leaveMeeting(meetingId);
       }
-    } catch (err) {
-      console.warn("leaveMeeting failed on back:", err);
     } finally {
       localStorage.removeItem("currentMeeting");
       if (isHost) navigate("/setup");
@@ -85,15 +98,13 @@ export default function MeetingFooter({
       alert("Meeting ended successfully!");
       navigate("/setup");
     } catch (err) {
-      console.error("Failed to end meeting:", err);
       alert(`Failed to end meeting: ${err?.message || err}`);
     }
   };
 
   const defaultLeaveMeeting = async () => {
     try {
-      if (!window.confirm("Are you sure you want to leave this meeting?"))
-        return;
+      if (!window.confirm("Are you sure you want to leave this meeting?")) return;
       if (!meetingId) {
         alert("Meeting ID not found. Cannot leave meeting.");
         return;
@@ -101,10 +112,8 @@ export default function MeetingFooter({
       cleanupRealtime();
       await meetingService.leaveMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
-      alert("Left meeting successfully!");
       navigate("/start");
     } catch (err) {
-      console.error("Failed to leave meeting:", err);
       alert(`Failed to leave meeting: ${err?.message || err}`);
     }
   };
@@ -117,7 +126,6 @@ export default function MeetingFooter({
 
   const showBackButton = !isHost || (isHost && isDefaultMeeting);
   const showEndButton = isHost && !isDefaultMeeting;
-  const showLeaveButton = false;
 
   return (
     <footer className="pd-bottombar">
@@ -143,18 +151,71 @@ export default function MeetingFooter({
           className="pd-ctrl"
           title="Open Screen Share Page"
           onClick={() => navigate("/menu/screenshare")}
+          style={{ position: "relative" }}
         >
           <Icon slug="screen-share" />
+
+          {/* 🔴 Badge merah kalau ada orang lain share */}
+          {screenShareOn && String(sharingUser) !== String(currentUserId) && (
+            <>
+              <span
+                style={{
+                  position: "absolute",
+                  top: 6,
+                  right: 6,
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: "red",
+                  boxShadow: "0 0 6px rgba(0,0,0,0.4)",
+                }}
+              />
+              
+              {/* 🔹 Tooltip hanya muncul kalau bukan di halaman screenshare */}
+              {location.pathname !== "/menu/screenshare" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -36,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "red",
+                    color: "white",
+                    fontSize: 12,
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  Someone is sharing
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -6,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 0,
+                      height: 0,
+                      borderLeft: "6px solid transparent",
+                      borderRight: "6px solid transparent",
+                      borderTop: "6px solid red",
+                    }}
+                  />
+                </div>
+              )}
+            </>
+          )}
         </button>
 
-        {/* Tombol Annotate muncul hanya kalau aku yang share */}
-        {screenShareOn && String(isSharingUser) === String(currentUserId) && (
+
+        {screenShareOn && String(sharingUser) === String(currentUserId) && (
           <button
             className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
             title={isAnnotating ? "Stop Annotate" : "Start Annotate"}
-            onClick={onToggleAnnotate}
+            onClick={() => setIsAnnotating(!isAnnotating)}
           >
-            <Icon slug="pencil" />
+            <Icon slug="annotate" />
           </button>
         )}
 
@@ -165,12 +226,6 @@ export default function MeetingFooter({
         {showBackButton && (
           <button className="pd-outline" onClick={handleBack} title="Back">
             Home
-          </button>
-        )}
-
-        {showLeaveButton && (
-          <button className="pd-warning" onClick={handleLeave}>
-            Leave Meeting
           </button>
         )}
 

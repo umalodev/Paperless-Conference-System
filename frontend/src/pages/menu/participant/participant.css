@@ -484,6 +484,7 @@
 }
 .video-grid {
   display: grid;
+  z-index: 1;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 18px;
 }
@@ -515,6 +516,7 @@
 
 .video-grid {
   display: grid;
+  z-index: 1;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
 }

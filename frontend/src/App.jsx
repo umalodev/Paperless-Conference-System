@@ -20,12 +20,15 @@ import SetUp from "./pages/start/SetUp.jsx";
 import Services from "./pages/menu/services/services.jsx";
 import ScreenSharePage from "./pages/menu/screenshare/ScreenShare.jsx";
 import { MediaRoomProvider } from "./contexts/MediaRoomContext.jsx";
+import { ScreenShareProvider } from "./contexts/ScreenShareContext";
 import Whiteboard from "./pages/menu/whiteboard/whiteboards.jsx";
+
 
 function App() {
   return (
     <HashRouter>
       <MediaRoomProvider>
+        <ScreenShareProvider>
         <Routes>
           <Route path="/" element={<Login />} />
 
@@ -64,6 +67,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ScreenShareProvider>
       </MediaRoomProvider>
     </HashRouter>
   );

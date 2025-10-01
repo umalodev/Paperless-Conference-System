@@ -2,20 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import simpleScreenShare from "../services/simpleScreenShare";
 import "./SimpleScreenShare.css";
 import AnnotateZoomCanvas from "./AnnotateZoomCanvas";
+import { useScreenShare } from "../contexts/ScreenShareContext";
 
-const SimpleScreenShare = ({
-  meetingId,
-  userId,
-  isSharing: externalIsSharing,
-  onSharingChange: externalOnSharingChange,
-  onError: externalOnError,
-  isAnnotating,
-  setIsAnnotating,
-  sharingUser,         // ⬅️ ambil dari parent
-  setSharingUser,      // ⬅️ update dari parent
-  setScreenShareOn,
-}) => {
-  
+const SimpleScreenShare = ({ meetingId, userId }) => {
   const [internalIsSharing, setInternalIsSharing] = useState(false);
   const [receivedStream, setReceivedStream] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,107 +12,79 @@ const SimpleScreenShare = ({
   const imageRef = useRef(null);
   const overlayRef = useRef(null);
 
-  const isSharing =
-    externalIsSharing !== undefined ? externalIsSharing : internalIsSharing;
-  const setIsSharing = externalOnSharingChange || setInternalIsSharing;
-  const setError = externalOnError || (() => {});
+  // 🔹 ambil dari context global
+  const {
+    sharingUser,
+    setSharingUser,
+    screenShareOn,
+    setScreenShareOn,
+    isAnnotating,
+    setIsAnnotating,
+  } = useScreenShare();
 
+  const isSharing = screenShareOn && String(sharingUser) === String(userId);
   const someoneElseSharing =
     Boolean(sharingUser) && String(sharingUser) !== String(userId);
 
   useEffect(() => {
     if (meetingId && userId) {
-      if (
-        !simpleScreenShare.meetingId ||
-        simpleScreenShare.meetingId !== meetingId
-      ) {
-        initializeScreenShare();
-      } else {
-        setupEventListeners();
-        syncFromService();
-      }
+      initializeScreenShare();
     }
     return () => {};
   }, [meetingId, userId]);
 
   const setupEventListeners = () => {
-    const originalOnStart = simpleScreenShare.onScreenShareStart;
-    const originalOnStop = simpleScreenShare.onScreenShareStop;
-    const originalOnReceived = simpleScreenShare.onScreenShareReceived;
-
     simpleScreenShare.onScreenShareStart = (data) => {
       setSharingUser(data.userId);
       setScreenShareOn(true);
       if (String(data.userId) === String(userId)) {
-        setIsSharing(true);
+        setInternalIsSharing(true);
       }
-      if (originalOnStart) originalOnStart(data);
     };
 
     simpleScreenShare.onScreenShareStop = (data) => {
       setSharingUser(null);
       setScreenShareOn(false);
-      setIsAnnotating(false); // otomatis matikan annotate
+      setIsAnnotating(false);
       setReceivedStream(null);
       if (String(data.userId) === String(userId)) {
-        setIsSharing(false);
-        setIsAnnotating(false); // matikan annotate otomatis
+        setInternalIsSharing(false);
       }
-      if (originalOnStop) originalOnStop(data);
     };
 
     simpleScreenShare.onScreenShareReceived = (data) => {
       setReceivedStream({ ...data, timestamp: Date.now() });
       setSharingUser(data.userId);
-      if (originalOnReceived) originalOnReceived(data);
     };
   };
 
   const initializeScreenShare = async () => {
     await simpleScreenShare.initialize(meetingId, userId);
     setupEventListeners();
-    syncFromService();
-  };
-
-  const syncFromService = () => {
-    try {
-      const currentlySharing = !!simpleScreenShare.isSharing;
-      setIsSharing(currentlySharing);
-      if (currentlySharing && simpleScreenShare.userId) {
-        setSharingUser(simpleScreenShare.userId);
-      }
-    } catch {}
   };
 
   const handleStartShare = async () => {
-  if (someoneElseSharing) {
-    setError("Someone is already sharing.");
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    const success = await simpleScreenShare.startScreenShare();
-    if (success) {
-      setIsSharing(true);
-      setSharingUser(userId);
-      setScreenShareOn(true); // ⬅️ tambahin ini biar parent tau
-    } else {
-      setError("Failed to start screen sharing");
+    if (someoneElseSharing) return;
+    setIsLoading(true);
+    try {
+      const success = await simpleScreenShare.startScreenShare();
+      if (success) {
+        setSharingUser(userId);
+        setScreenShareOn(true);
+      }
+    } catch (err) {
+      console.error("Start share failed", err);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error("Failed to start screen share:", error);
-    setError(error.message || "Failed to start screen sharing");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleStopShare = () => {
     simpleScreenShare.stopScreenShare();
-    setIsSharing(false);
+    setInternalIsSharing(false);
     setSharingUser(null);
-    setIsAnnotating(false); // matikan annotate otomatis
+    setScreenShareOn(false);
+    setIsAnnotating(false);
   };
 
   useEffect(() => {
@@ -136,30 +97,29 @@ const SimpleScreenShare = ({
     <div className="simple-screen-share">
       <div className="screen-share-header">
         <h3>Screen Share</h3>
-        <div className="screen-share-controls">
-          {isSharing ? (
-            <button onClick={handleStopShare} className="btn btn-danger">
-              Stop Share
-            </button>
-          ) : someoneElseSharing ? (
-            <button className="btn" disabled>
-              Someone is sharing…
-            </button>
-          ) : (
-            <button
-              onClick={handleStartShare}
-              disabled={isLoading}
-              className="btn btn-primary"
-            >
-              {isLoading ? "Starting..." : "Start Share"}
-            </button>
-          )}
-        </div>
+          <div className="screen-share-controls">
+            {isSharing ? (
+              <button onClick={handleStopShare} className="btn btn-danger">
+                Stop Share
+              </button>
+            ) : someoneElseSharing ? (
+              <button className="btn" disabled>
+                Someone is sharing…
+              </button>
+            ) : (
+              <button
+                onClick={handleStartShare}
+                disabled={isLoading}
+                className="btn btn-primary"
+              >
+                {isLoading ? "Starting..." : "Start Share"}
+              </button>
+            )}
+          </div>
       </div>
 
       <div className="screen-share-content">
-        {(receivedStream ||
-          (isSharing && String(sharingUser) === String(userId))) ? (
+        {(receivedStream || (isSharing && String(sharingUser) === String(userId))) ? (
           <div className="received-screen-share">
             <div className="share-info">
               <span className="live-indicator">🔴 LIVE</span>
@@ -179,12 +139,7 @@ const SimpleScreenShare = ({
                 <img ref={imageRef} alt="Screen Share" />
               )}
 
-              {isAnnotating && String(sharingUser) === String(userId) && (
-                <AnnotateZoomCanvas
-                  global={true}
-                  onClose={() => setIsAnnotating(false)}
-                />
-              )}
+         
             </div>
           </div>
         ) : (

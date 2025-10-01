@@ -1,21 +1,16 @@
-import React, {
-  useMemo,
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import simpleScreenShare from "../../../services/simpleScreenShare";  // ⬅️ tambahin ini
+
 export default function ScreenSharePage() {
   const [user, setUser] = useState(null);
 
   const [isAnnotating, setIsAnnotating] = useState(false);
   const [sharingUser, setSharingUser] = useState(null);
   const [screenShareOn, setScreenShareOn] = useState(false);
-
 
   const { meetingId, userId } = useMemo(() => {
     try {
@@ -38,16 +33,25 @@ export default function ScreenSharePage() {
     if (u) setUser(JSON.parse(u));
   }, []);
 
+  useEffect(() => {
+    // cek kondisi share saat halaman ini dibuka kembali
+    if (simpleScreenShare && simpleScreenShare.isSharing) {
+      setScreenShareOn(true);
+      setSharingUser(simpleScreenShare.userId);
+    } else {
+      setScreenShareOn(false);
+      setSharingUser(null);
+    }
+  }, []);
+
   const {
     ready: mediaReady,
-    error: mediaError,
     micOn,
     camOn,
     startMic,
     stopMic,
     startCam,
     stopCam,
-    muteAllOthers,
   } = useMediaRoom();
 
   const onToggleMic = useCallback(() => {
@@ -71,30 +75,29 @@ export default function ScreenSharePage() {
     >
       <div className="pd-app">
         <main className="pd-main">
-        <SimpleScreenShare
-          meetingId={meetingId}
-          userId={userId}
-          sharingUser={sharingUser}
-          setSharingUser={setSharingUser}
-          setScreenShareOn={setScreenShareOn}
-          isAnnotating={isAnnotating}
-          setIsAnnotating={setIsAnnotating}
-        />
-
-        </main>
-          <MeetingFooter
-            userRole={user?.role || "participant"}
-            micOn={micOn}
-            camOn={camOn}
-            onToggleMic={onToggleMic}
-            onToggleCam={onToggleCam}
-            isSharingUser={sharingUser}
-            currentUserId={userId}
-            screenShareOn={screenShareOn}
+          <SimpleScreenShare
+            meetingId={meetingId}
+            userId={userId}
+            sharingUser={sharingUser}
+            setSharingUser={setSharingUser}
+            setScreenShareOn={setScreenShareOn}
             isAnnotating={isAnnotating}
-            onToggleAnnotate={() => setIsAnnotating(!isAnnotating)}
+            setIsAnnotating={setIsAnnotating}
           />
+        </main>
 
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+          isSharingUser={sharingUser}
+          currentUserId={userId}
+          screenShareOn={screenShareOn}
+          isAnnotating={isAnnotating}
+          onToggleAnnotate={() => setIsAnnotating(!isAnnotating)}
+        />
       </div>
     </MeetingLayout>
   );
