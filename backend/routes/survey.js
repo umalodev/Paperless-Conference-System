@@ -61,4 +61,15 @@ router.patch(
   controller.toggleVisibility
 );
 
+router.get(
+  "/:surveyId/responses",
+  auth.isAuthenticated,
+  controller.listResponses
+);
+router.get(
+  "/:surveyId/responses.csv",
+  auth.isAuthenticated,
+  controller.exportResponsesCSV
+);
+
 module.exports = router;
