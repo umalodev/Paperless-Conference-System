@@ -1,29 +1,28 @@
 import React, { useState, useEffect, useRef } from "react";
 import simpleScreenShare from "../services/simpleScreenShare";
 import "./SimpleScreenShare.css";
-import AnnotateZoomCanvas from "./AnnotateZoomCanvas"; // ⬅️ Import komponen anotasi
+import AnnotateZoomCanvas from "./AnnotateZoomCanvas";
 
-/**
- * Simple Screen Share Component
- */
 const SimpleScreenShare = ({
   meetingId,
   userId,
   isSharing: externalIsSharing,
   onSharingChange: externalOnSharingChange,
   onError: externalOnError,
+  isAnnotating,
+  setIsAnnotating,
+  sharingUser,         // ⬅️ ambil dari parent
+  setSharingUser,      // ⬅️ update dari parent
+  setScreenShareOn,
 }) => {
+  
   const [internalIsSharing, setInternalIsSharing] = useState(false);
   const [receivedStream, setReceivedStream] = useState(null);
-  const [sharingUser, setSharingUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const [isAnnotating, setIsAnnotating] = useState(false); // ⬅️ state untuk anotasi
 
   const imageRef = useRef(null);
   const overlayRef = useRef(null);
 
-  // pakai state eksternal kalau ada
   const isSharing =
     externalIsSharing !== undefined ? externalIsSharing : internalIsSharing;
   const setIsSharing = externalOnSharingChange || setInternalIsSharing;
@@ -54,6 +53,7 @@ const SimpleScreenShare = ({
 
     simpleScreenShare.onScreenShareStart = (data) => {
       setSharingUser(data.userId);
+      setScreenShareOn(true);
       if (String(data.userId) === String(userId)) {
         setIsSharing(true);
       }
@@ -62,9 +62,12 @@ const SimpleScreenShare = ({
 
     simpleScreenShare.onScreenShareStop = (data) => {
       setSharingUser(null);
+      setScreenShareOn(false);
+      setIsAnnotating(false); // otomatis matikan annotate
       setReceivedStream(null);
       if (String(data.userId) === String(userId)) {
         setIsSharing(false);
+        setIsAnnotating(false); // matikan annotate otomatis
       }
       if (originalOnStop) originalOnStop(data);
     };
@@ -93,140 +96,105 @@ const SimpleScreenShare = ({
   };
 
   const handleStartShare = async () => {
-    if (someoneElseSharing) {
-      setError("Someone is already sharing.");
-      return;
-    }
+  if (someoneElseSharing) {
+    setError("Someone is already sharing.");
+    return;
+  }
 
-    setIsLoading(true);
-    try {
-      const success = await simpleScreenShare.startScreenShare();
-      if (success) {
-        setIsSharing(true);
-        setSharingUser(userId);
-      } else {
-        setError("Failed to start screen sharing");
-      }
-    } catch (error) {
-      console.error("Failed to start screen share:", error);
-      setError(error.message || "Failed to start screen sharing");
-    } finally {
-      setIsLoading(false);
+  setIsLoading(true);
+  try {
+    const success = await simpleScreenShare.startScreenShare();
+    if (success) {
+      setIsSharing(true);
+      setSharingUser(userId);
+      setScreenShareOn(true); // ⬅️ tambahin ini biar parent tau
+    } else {
+      setError("Failed to start screen sharing");
     }
-  };
+  } catch (error) {
+    console.error("Failed to start screen share:", error);
+    setError(error.message || "Failed to start screen sharing");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleStopShare = () => {
     simpleScreenShare.stopScreenShare();
     setIsSharing(false);
     setSharingUser(null);
+    setIsAnnotating(false); // matikan annotate otomatis
   };
 
   useEffect(() => {
     if (receivedStream && imageRef.current) {
       imageRef.current.src = receivedStream.imageData;
-      imageRef.current.onload = () => {};
-      imageRef.current.onerror = (error) => {
-        console.error("Error loading image:", error);
-      };
     }
   }, [receivedStream]);
 
-return (
-  <div className="simple-screen-share">
-    {/* Header selalu tampil */}
-    <div className="screen-share-header">
-      <h3>Screen Share</h3>
-      <div className="screen-share-controls">
-        {isSharing ? (
-          <button onClick={handleStopShare} className="btn btn-danger">
-            Stop Share
-          </button>
-        ) : someoneElseSharing ? (
-          <button className="btn" disabled title="Someone is already sharing">
-            Someone is sharing…
-          </button>
-        ) : (
-          <button
-            onClick={handleStartShare}
-            disabled={isLoading}
-            className="btn btn-primary"
-          >
-            {isLoading ? "Starting..." : "Start Share"}
-          </button>
-        )}
+  return (
+    <div className="simple-screen-share">
+      <div className="screen-share-header">
+        <h3>Screen Share</h3>
+        <div className="screen-share-controls">
+          {isSharing ? (
+            <button onClick={handleStopShare} className="btn btn-danger">
+              Stop Share
+            </button>
+          ) : someoneElseSharing ? (
+            <button className="btn" disabled>
+              Someone is sharing…
+            </button>
+          ) : (
+            <button
+              onClick={handleStartShare}
+              disabled={isLoading}
+              className="btn btn-primary"
+            >
+              {isLoading ? "Starting..." : "Start Share"}
+            </button>
+          )}
+        </div>
+      </div>
 
-        {/* Tombol annotate – hanya muncul kalau aku yang share */}
-        {String(sharingUser) === String(userId) && isSharing && (
-          <button
-            onClick={() => setIsAnnotating(!isAnnotating)}
-            className={`btn ${isAnnotating ? "btn-warning" : "btn-secondary"}`}
-            style={{ marginLeft: "8px" }}
-          >
-            {isAnnotating ? "Stop Annotate" : "Start Annotate"}
-          </button>
+      <div className="screen-share-content">
+        {(receivedStream ||
+          (isSharing && String(sharingUser) === String(userId))) ? (
+          <div className="received-screen-share">
+            <div className="share-info">
+              <span className="live-indicator">🔴 LIVE</span>
+              <span>
+                {String(sharingUser) === String(userId)
+                  ? "You are sharing"
+                  : `Sharing: ${sharingUser}`}
+              </span>
+            </div>
+
+            <div className="video-container" ref={overlayRef}>
+              {String(sharingUser) === String(userId) ? (
+                <div className="sharing-placeholder">
+                  <p>🔴 You are sharing your screen</p>
+                </div>
+              ) : (
+                <img ref={imageRef} alt="Screen Share" />
+              )}
+
+              {isAnnotating && String(sharingUser) === String(userId) && (
+                <AnnotateZoomCanvas
+                  global={true}
+                  onClose={() => setIsAnnotating(false)}
+                />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="no-screen-share">
+            <p>No screen share active</p>
+          </div>
         )}
       </div>
     </div>
-
-    {/* Konten share */}
-    <div className="screen-share-content">
-      {(receivedStream || (isSharing && String(sharingUser) === String(userId))) ? (
-        <div className="received-screen-share">
-          <div className="share-info">
-            <span className="live-indicator">🔴 LIVE</span>
-            <span>
-              {String(sharingUser) === String(userId)
-                ? "You are sharing"
-                : `Sharing: ${sharingUser}`}
-            </span>
-          </div>
-
-          <div className="video-container" ref={overlayRef} style={{ position: "relative" }}>
-            {String(sharingUser) === String(userId) ? (
-              // Placeholder kalau aku yang share
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  background: "#111",
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <p>🔴 You are sharing your screen</p>
-              </div>
-            ) : (
-              // Kalau orang lain yang share
-              <img
-                ref={imageRef}
-                className="screen-share-image"
-                alt="Screen Share"
-              />
-            )}
-
-            {/* Render annotate overlay hanya untuk sharer */}
-            {isAnnotating && String(sharingUser) === String(userId) && (
-              <AnnotateZoomCanvas
-                attachTo={overlayRef}
-                onClose={() => setIsAnnotating(false)}
-              />
-            )}
-          </div>
-        </div>
-      ) : (
-        // Kalau tidak ada share
-        <div className="no-screen-share">
-          <div className="empty-state">
-            <div className="empty-icon">📺</div>
-            <p>No screen share active</p>
-            <small>Start sharing to see your screen here</small>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-);
+  );
 };
+
 export default SimpleScreenShare;

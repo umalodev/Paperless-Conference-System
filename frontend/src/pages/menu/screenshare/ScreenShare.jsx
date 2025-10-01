@@ -12,6 +12,11 @@ import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 export default function ScreenSharePage() {
   const [user, setUser] = useState(null);
 
+  const [isAnnotating, setIsAnnotating] = useState(false);
+  const [sharingUser, setSharingUser] = useState(null);
+  const [screenShareOn, setScreenShareOn] = useState(false);
+
+
   const { meetingId, userId } = useMemo(() => {
     try {
       const rawMeeting = localStorage.getItem("currentMeeting");
@@ -66,15 +71,30 @@ export default function ScreenSharePage() {
     >
       <div className="pd-app">
         <main className="pd-main">
-          <SimpleScreenShare meetingId={meetingId} userId={userId} />
-        </main>
-        <MeetingFooter
-          userRole={user?.role || "participant"}
-          micOn={micOn}
-          camOn={camOn}
-          onToggleMic={onToggleMic}
-          onToggleCam={onToggleCam}
+        <SimpleScreenShare
+          meetingId={meetingId}
+          userId={userId}
+          sharingUser={sharingUser}
+          setSharingUser={setSharingUser}
+          setScreenShareOn={setScreenShareOn}
+          isAnnotating={isAnnotating}
+          setIsAnnotating={setIsAnnotating}
         />
+
+        </main>
+          <MeetingFooter
+            userRole={user?.role || "participant"}
+            micOn={micOn}
+            camOn={camOn}
+            onToggleMic={onToggleMic}
+            onToggleCam={onToggleCam}
+            isSharingUser={sharingUser}
+            currentUserId={userId}
+            screenShareOn={screenShareOn}
+            isAnnotating={isAnnotating}
+            onToggleAnnotate={() => setIsAnnotating(!isAnnotating)}
+          />
+
       </div>
     </MeetingLayout>
   );

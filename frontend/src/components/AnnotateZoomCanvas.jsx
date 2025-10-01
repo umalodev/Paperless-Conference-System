@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 
-export default function AnnotateZoomCanvas({ attachTo, onClose }) {
+export default function AnnotateZoomCanvas({ onClose }) {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
 
@@ -13,21 +13,25 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
   const [redoStack, setRedoStack] = useState([]);
   const [startPoint, setStartPoint] = useState(null);
 
-  // Resize canvas mengikuti container
+  // Resize canvas ke ukuran layar penuh
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !attachTo?.current) return;
-    const rect = attachTo.current.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    const ctx = canvas.getContext("2d");
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctxRef.current = ctx;
+    if (!canvas) return;
 
-    // simpan state awal kosong
-    saveHistory();
-  }, [attachTo]);
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctxRef.current = ctx;
+      saveHistory();
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
 
   const saveHistory = () => {
     const canvas = canvasRef.current;
@@ -37,20 +41,20 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
   };
 
   const startDraw = (e) => {
-    const { offsetX, offsetY } = e.nativeEvent;
+    const { clientX, clientY } = e;
     setIsDrawing(true);
-    setStartPoint({ x: offsetX, y: offsetY });
+    setStartPoint({ x: clientX, y: clientY });
 
     const ctx = ctxRef.current;
     if (tool === "pen" || tool === "highlighter") {
       ctx.beginPath();
-      ctx.moveTo(offsetX, offsetY);
+      ctx.moveTo(clientX, clientY);
     }
   };
 
   const draw = (e) => {
     if (!isDrawing) return;
-    const { offsetX, offsetY } = e.nativeEvent;
+    const { clientX, clientY } = e;
     const ctx = ctxRef.current;
 
     ctx.strokeStyle = color;
@@ -58,7 +62,7 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
     ctx.globalAlpha = tool === "highlighter" ? 0.3 : 1;
 
     if (tool === "pen" || tool === "highlighter") {
-      ctx.lineTo(offsetX, offsetY);
+      ctx.lineTo(clientX, clientY);
       ctx.stroke();
     }
   };
@@ -66,13 +70,13 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
   const endDraw = (e) => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    const { offsetX, offsetY } = e.nativeEvent;
+    const { clientX, clientY } = e;
     const ctx = ctxRef.current;
 
     if (tool === "rect" || tool === "circle" || tool === "arrow") {
       const sp = startPoint;
-      const dx = offsetX - sp.x;
-      const dy = offsetY - sp.y;
+      const dx = clientX - sp.x;
+      const dy = clientY - sp.y;
       ctx.strokeStyle = color;
       ctx.lineWidth = lineWidth;
       ctx.globalAlpha = 1;
@@ -94,21 +98,18 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
       if (tool === "arrow") {
         ctx.beginPath();
         ctx.moveTo(sp.x, sp.y);
-        ctx.lineTo(offsetX, offsetY);
+        ctx.lineTo(clientX, clientY);
         ctx.stroke();
       }
     }
 
-    // reset alpha
     ctx.globalAlpha = 1;
-
-    // simpan history setelah selesai menggambar
     saveHistory();
     setRedoStack([]);
   };
 
   const undo = () => {
-    if (history.length <= 1) return; // jangan hapus state awal
+    if (history.length <= 1) return;
     const newHist = [...history];
     const last = newHist.pop();
     setRedoStack([...redoStack, last]);
@@ -119,7 +120,8 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const prevImg = new Image();
-    prevImg.onload = () => ctx.drawImage(prevImg, 0, 0, canvas.width, canvas.height);
+    prevImg.onload = () =>
+      ctx.drawImage(prevImg, 0, 0, canvas.width, canvas.height);
     prevImg.src = newHist[newHist.length - 1];
   };
 
@@ -144,7 +146,7 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
   };
 
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 20 }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: "100%", cursor: "crosshair" }}
@@ -155,7 +157,7 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
       />
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           top: 8,
           left: 8,
           background: "rgba(0,0,0,0.6)",
@@ -164,6 +166,7 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
           display: "flex",
           gap: 6,
           color: "#fff",
+          zIndex: 10000,
         }}
       >
         <select value={tool} onChange={(e) => setTool(e.target.value)}>
@@ -173,7 +176,11 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
           <option value="circle">Circle</option>
           <option value="arrow">Arrow</option>
         </select>
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+        />
         <input
           type="range"
           min={1}

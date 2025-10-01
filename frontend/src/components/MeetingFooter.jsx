@@ -15,6 +15,10 @@ export default function MeetingFooter({
   camOn,
   onToggleMic,
   onToggleCam,
+  isSharingUser,
+  currentUserId,
+  isAnnotating,
+  onToggleAnnotate,
   screenShareOn,
   onToggleScreenShare,
 }) {
@@ -36,7 +40,7 @@ export default function MeetingFooter({
   const cm = getCurrentMeeting();
   const meetingId = getMeetingId(cm);
   const isDefaultMeeting =
-    Boolean(cm?.isDefault) || String(meetingId) === "1000"; // fallback ke 1000 bila flag belum terset
+    Boolean(cm?.isDefault) || String(meetingId) === "1000";
 
   // Common cleanup (stop share, close WS)
   const cleanupRealtime = () => {
@@ -52,30 +56,22 @@ export default function MeetingFooter({
     } catch {}
   };
 
-  // BACK action (participant: ke /start, host default: ke /setup)
+  // BACK action
   const defaultBack = async () => {
     try {
       cleanupRealtime();
       if (meetingId) {
-        // tetap panggil leave agar backend konsisten
         await meetingService.leaveMeeting(meetingId);
       }
     } catch (err) {
-      // tidak blok navigasi
       console.warn("leaveMeeting failed on back:", err);
     } finally {
       localStorage.removeItem("currentMeeting");
-      if (isHost) {
-        // host/admin
-        navigate("/setup");
-      } else {
-        // participant
-        navigate("/start");
-      }
+      if (isHost) navigate("/setup");
+      else navigate("/start");
     }
   };
 
-  // END action (hanya untuk host non-default)
   const defaultEndMeeting = async () => {
     try {
       if (!window.confirm("Are you sure you want to end this meeting?")) return;
@@ -87,7 +83,6 @@ export default function MeetingFooter({
       await meetingService.endMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
       alert("Meeting ended successfully!");
-      // setelah end → kembali ke halaman setup host
       navigate("/setup");
     } catch (err) {
       console.error("Failed to end meeting:", err);
@@ -95,7 +90,6 @@ export default function MeetingFooter({
     }
   };
 
-  // (dipertahankan untuk kompatibilitas, tapi tidak ditampilkan untuk participant)
   const defaultLeaveMeeting = async () => {
     try {
       if (!window.confirm("Are you sure you want to leave this meeting?"))
@@ -121,13 +115,9 @@ export default function MeetingFooter({
   const handleMenu = onMenuClick || (() => navigate("/participant/dashboard"));
   const handleHelp = onHelpClick || (() => alert("Need help?"));
 
-  // 🔎 Final UI rules:
-  // - Participant: hanya Back
-  // - Host/Admin + Default: hanya Back
-  // - Host/Admin + Non-default: hanya End
   const showBackButton = !isHost || (isHost && isDefaultMeeting);
   const showEndButton = isHost && !isDefaultMeeting;
-  const showLeaveButton = false; // disembunyikan sesuai requirement
+  const showLeaveButton = false;
 
   return (
     <footer className="pd-bottombar">
@@ -156,6 +146,17 @@ export default function MeetingFooter({
         >
           <Icon slug="screen-share" />
         </button>
+
+        {/* Tombol Annotate muncul hanya kalau aku yang share */}
+        {screenShareOn && String(isSharingUser) === String(currentUserId) && (
+          <button
+            className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
+            title={isAnnotating ? "Stop Annotate" : "Start Annotate"}
+            onClick={onToggleAnnotate}
+          >
+            <Icon slug="pencil" />
+          </button>
+        )}
 
         <button className="pd-ghost" onClick={handleMenu}>
           Menu
