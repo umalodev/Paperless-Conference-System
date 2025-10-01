@@ -1,4 +1,5 @@
 import React from "react";
+import "./BottomNav.css";
 
 export default function BottomNav({ items = [], active = "", onSelect }) {
   return (

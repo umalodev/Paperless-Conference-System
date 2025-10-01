@@ -26,6 +26,7 @@ import {
 } from "../../../services/surveyService.js";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import SurveyResponses from "./components/SurveyResponses.jsx";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
@@ -34,6 +35,7 @@ export default function Survey() {
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
+  const [showResponses, setShowResponses] = useState(false);
 
   // meeting
   const meetingId = useMemo(() => {
@@ -274,6 +276,19 @@ export default function Survey() {
                   </button>
                 )}
 
+                {isHost && !editing && activeSurvey && (
+                  <button
+                    className={`svr-btn ${showResponses ? "active" : ""}`}
+                    onClick={() => setShowResponses((v) => !v)}
+                    title={showResponses ? "Tutup Jawaban" : "Lihat Jawaban"}
+                  >
+                    <img src="/img/eye.png" alt="" className="pd-icon-img" />
+                    <span>
+                      {showResponses ? "Tutup Jawaban" : "Lihat Jawaban"}
+                    </span>
+                  </button>
+                )}
+
                 <button
                   className="svr-btn ghost"
                   onClick={reload}
@@ -291,6 +306,9 @@ export default function Survey() {
 
             {!loading && !err && (
               <>
+                {isHost && !editing && showResponses && activeSurvey && (
+                  <SurveyResponses survey={activeSurvey} />
+                )}
                 {/* Mode Host: daftar & editor */}
                 {isHost && manageMode && !editing && (
                   <div className="svr-item">

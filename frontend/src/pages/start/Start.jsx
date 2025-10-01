@@ -96,6 +96,13 @@ export default function Start() {
   const intentText = isHost ? "Host a meeting" : "Join a meeting";
   const ctaText = isHost ? "Set Meeting" : "Join Meeting";
 
+  const setMeetingLocalName = (meetingId, name) => {
+    const n = (name || "").trim();
+    localStorage.setItem(`meeting:${meetingId}:displayName`, n); // per-meeting
+    localStorage.setItem("displayName", n); // global fallback
+    localStorage.setItem("currentMeetingId", String(meetingId)); // angka utk Services
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -122,9 +129,6 @@ export default function Start() {
           }
 
           if (picked && !picked.isDefault) {
-            // ✅ Ada meeting host yang sedang started
-            console.log("Found active host meeting:", picked);
-
             const meetingInfo = {
               id: picked.meetingId,
               code: picked.meetingId,
@@ -135,6 +139,8 @@ export default function Start() {
             localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
             // display name simpan juga
             localStorage.setItem("pconf.displayName", username || "");
+
+            setMeetingLocalName(meetingInfo.id, username);
 
             // (Opsional) kalau kamu ingin langsung create participant record di backend untuk non-default:
             // await meetingService.autoJoinMeeting({ meetingId: picked.meetingId });
