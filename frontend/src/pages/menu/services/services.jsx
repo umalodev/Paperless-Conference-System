@@ -17,7 +17,7 @@ export default function Services() {
 
   // Services state
   const [selectedService, setSelectedService] = useState(null);
-  const [name, setName] = useState("");
+
   const [priority, setPriority] = useState("Normal");
   const [note, setNote] = useState("");
 
@@ -112,7 +112,7 @@ export default function Services() {
   ];
 
   const onQuickSelect = (opt) => setSelectedService(opt);
-  const canSend = !!selectedService && name.trim().length > 0;
+  const canSend = !!selectedService;
 
   // meetingId: sesuaikan
   const resolveMeetingId = () => {
@@ -125,6 +125,25 @@ export default function Services() {
   const isStaff = ["admin", "host", "assist"].includes(
     String(user?.role || "").toLowerCase()
   );
+
+  const getMeetingDisplayName = () => {
+    const meetingId = resolveMeetingId();
+    const byMeeting = localStorage.getItem(`meeting:${meetingId}:displayName`);
+    const name = localStorage.getItem("pconf.displayName");
+
+    if (name && name.trim()) return name.trim();
+    if (byMeeting && byMeeting.trim()) return byMeeting.trim();
+
+    // fallback 1: mungkin kamu pernah simpan "displayName" global
+    const globalName = localStorage.getItem("displayName");
+    if (globalName && globalName.trim()) return globalName.trim();
+
+    // fallback 2: username dari objek user (kalau ada)
+    if (user?.username) return String(user.username).trim();
+
+    // fallback 3: string generik
+    return "Participant";
+  };
 
   // Load requests
   const loadRequests = useCallback(async () => {
@@ -184,14 +203,17 @@ export default function Services() {
   const onSend = async () => {
     if (!canSend || !user) return;
     const meetingId = resolveMeetingId();
+    const displayName = getMeetingDisplayName();
+
     const body = {
       meetingId,
       serviceKey: selectedService.key,
       serviceLabel: selectedService.label,
-      name: name.trim(),
+      name: displayName, // <— diisi otomatis
       priority,
       note: note.trim() || null,
     };
+
     try {
       const res = await fetch(`${API_URL}/api/services`, {
         method: "POST",
@@ -203,7 +225,8 @@ export default function Services() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await res.json();
-      setName("");
+
+      // reset form (kecuali nama karena sudah otomatis)
       setNote("");
       setSelectedService(null);
       await loadRequests();
@@ -511,17 +534,10 @@ export default function Services() {
                   </div>
 
                   <div className="svc-form-row">
-                    <div className="svc-form-field flex-1">
-                      <label>Name (required)</label>
-                      <input
-                        className="svc-input"
-                        placeholder="seat"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        disabled={!selectedService}
-                      />
-                    </div>
-                    <div className="svc-form-field svc-priority">
+                    <div
+                      className="svc-form-field svc-priority"
+                      style={{ flex: 1 }}
+                    >
                       <label>Priority</label>
                       <select
                         className="svc-input"
