@@ -1,4 +1,5 @@
 import React from "react";
+import "./BottomNav.css";
 
 export default function BottomNav({ items = [], active = "", onSelect }) {
   return (
@@ -6,12 +7,23 @@ export default function BottomNav({ items = [], active = "", onSelect }) {
       <div className="bn-inner">
         {items.map((it) => {
           const isActive =
-            (active || "").toLowerCase() === it.slug.toLowerCase();
+            (active || "").toLowerCase() === (it.slug || "").toLowerCase();
+
+          const itemKey = String(it.menuId ?? it.menu_id ?? it.id ?? it.slug);
+
           return (
             <button
-              key={it.slug}
+              key={itemKey}
               className={`bn-item ${isActive ? "is-active" : ""}`}
-              onClick={() => onSelect?.(it)}
+              onClick={() => {
+                console.log("BottomNav clicked:", {
+                  slug: it.slug,
+                  label: it.label,
+                  menuId: it.menuId,
+                  fullItem: it,
+                });
+                onSelect?.(it);
+              }}
               aria-current={isActive ? "page" : undefined}
             >
               <span className="bn-icon">

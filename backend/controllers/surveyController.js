@@ -837,5 +837,274 @@ module.exports = (models, sequelize) => {
           .json({ success: false, message: e.message || e });
       }
     },
+
+    // === LIST RESPONSES (HOST/ADMIN ONLY) ===
+    // GET /api/surveys/:surveyId/responses
+    listResponses: async (req, res) => {
+      try {
+        const {
+          Survey,
+          SurveyQuestion,
+          SurveyOption,
+          SurveyQuestionType,
+          SurveyResponse,
+          SurveyResponseAnswer,
+          User,
+        } = models;
+        const { surveyId } = req.params;
+
+        // izin hanya host/admin
+        const role = (req.user?.role || "").toLowerCase();
+        if (!["host", "admin"].includes(role)) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Forbidden: host/admin only" });
+        }
+
+        // Ambil pertanyaan²
+        const survey = await Survey.findOne({
+          where: { surveyId, flag: "Y" },
+          include: [
+            {
+              model: SurveyQuestion,
+              as: "Questions",
+              where: { flag: "Y" },
+              required: false,
+              include: [
+                { model: SurveyQuestionType, as: "Type" },
+                {
+                  model: SurveyOption,
+                  as: "Options",
+                  where: { flag: "Y" },
+                  required: false,
+                },
+              ],
+              order: [["seq", "ASC"]],
+            },
+          ],
+        });
+        if (!survey)
+          return res
+            .status(404)
+            .json({ success: false, message: "Survey not found" });
+
+        const optionById = new Map();
+        for (const q of survey.Questions || []) {
+          for (const o of q.Options || []) {
+            optionById.set(String(o.optionId), o.optionBody || "");
+          }
+        }
+
+        const questions = (survey.Questions || [])
+          .slice()
+          .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+          .map((q) => ({
+            questionId: q.questionId,
+            text: q.questionBody,
+            type: (q.Type?.name || "").toLowerCase(),
+            seq: q.seq ?? 0,
+          }));
+
+        // Ambil semua respons + answers + user (username saja)
+        const responses = await SurveyResponse.findAll({
+          where: { surveyId, flag: "Y" },
+          include: [
+            {
+              model: SurveyResponseAnswer,
+              as: "Answers",
+              where: { flag: "Y" },
+              required: false,
+              include: [
+                { model: SurveyOption, as: "SelectedOption", required: false },
+              ],
+            },
+            // ⬇️ ambil hanya username, jangan minta 'userId' untuk menghindari kolom tidak dikenal
+            {
+              model: User,
+              as: "User",
+              attributes: ["username"],
+              required: false,
+            },
+          ],
+          order: [["submitted_at", "DESC"]],
+        });
+
+        // Bentuk map jawaban per pertanyaan
+        const shaped = responses.map((r) => {
+          const ansMap = {};
+          for (const a of r.Answers || []) {
+            const qid = a.questionId;
+            // utamakan label opsi / list opsi; fallback ke text / date
+            let text = null;
+            if (a.selectedOptionId && a.SelectedOption) {
+              text = a.SelectedOption.optionBody || null;
+            } else if (a.selectedOptionIds) {
+              try {
+                const arr = JSON.parse(a.selectedOptionIds);
+                if (Array.isArray(arr)) {
+                  const labels = arr.map(
+                    (id) => optionById.get(String(id)) || String(id)
+                  );
+                  text = labels.join(", ");
+                } else {
+                  text = String(a.selectedOptionIds);
+                }
+              } catch {
+                text = String(a.selectedOptionIds);
+              }
+            } else if (a.answerText != null) {
+              text = a.answerText;
+            } else if (a.answerDate != null) {
+              text = String(a.answerDate);
+            }
+            ansMap[qid] = { text };
+          }
+
+          return {
+            responseId: r.responseId,
+            userId: r.userId ?? null, // dari header response
+            username: r.User?.username || null, // dari relasi User
+            submittedAt: r.submittedAt,
+            answers: ansMap,
+          };
+        });
+
+        return res.json({
+          success: true,
+          data: { questions, responses: shaped },
+        });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+    // === DOWNLOAD CSV (HOST/ADMIN ONLY) ===
+    // GET /api/surveys/:surveyId/responses.csv
+    exportResponsesCSV: async (req, res) => {
+      try {
+        const {
+          SurveyQuestion,
+          SurveyResponse,
+          SurveyResponseAnswer,
+          SurveyOption,
+          User,
+        } = models;
+        const { surveyId } = req.params;
+
+        const role = (req.user?.role || "").toLowerCase();
+        if (!["host", "admin"].includes(role)) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Forbidden: host/admin only" });
+        }
+
+        // Pertanyaan + Options (untuk kamus)
+        const questions = await SurveyQuestion.findAll({
+          where: { surveyId, flag: "Y" },
+          order: [["seq", "ASC"]],
+          include: [
+            {
+              model: SurveyOption,
+              as: "Options",
+              where: { flag: "Y" },
+              required: false,
+            },
+          ],
+        });
+
+        // Kamus optionId -> label
+        const optionById = new Map();
+        for (const q of questions) {
+          for (const o of q.Options || []) {
+            optionById.set(String(o.optionId), o.optionBody || "");
+          }
+        }
+
+        // Responses
+        const rows = await SurveyResponse.findAll({
+          where: { surveyId, flag: "Y" },
+          include: [
+            {
+              model: SurveyResponseAnswer,
+              as: "Answers",
+              where: { flag: "Y" },
+              required: false,
+              include: [
+                { model: SurveyOption, as: "SelectedOption", required: false },
+              ],
+            },
+            {
+              model: User,
+              as: "User",
+              attributes: ["username"],
+              required: false,
+            },
+          ],
+          order: [["submitted_at", "DESC"]],
+        });
+
+        const csvEscape = (v) => {
+          if (v == null) return "";
+          const s = String(v);
+          if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+          return s;
+        };
+
+        const header = [
+          "responseId",
+          "username",
+          "submittedAt",
+          ...questions.map((q) => q.questionBody),
+        ];
+        const lines = [header.map(csvEscape).join(",")];
+
+        for (const r of rows) {
+          const ansByQ = {};
+          for (const a of r.Answers || []) {
+            let text = null;
+            if (a.selectedOptionId && a.SelectedOption) {
+              text = a.SelectedOption.optionBody || null;
+            } else if (a.selectedOptionIds) {
+              try {
+                const arr = JSON.parse(a.selectedOptionIds);
+                if (Array.isArray(arr)) {
+                  const labels = arr.map(
+                    (id) => optionById.get(String(id)) || String(id)
+                  );
+                  text = labels.join("; ");
+                } else {
+                  text = String(a.selectedOptionIds);
+                }
+              } catch {
+                text = String(a.selectedOptionIds);
+              }
+            } else if (a.answerText != null) {
+              text = a.answerText;
+            } else if (a.answerDate != null) {
+              text = String(a.answerDate);
+            }
+            ansByQ[a.questionId] = text;
+          }
+
+          const row = [
+            r.responseId,
+            r.User?.username ?? `User-${r.userId ?? "-"}`,
+            r.submittedAt?.toISOString?.() || r.submittedAt,
+            ...questions.map((q) => ansByQ[q.questionId] ?? ""),
+          ];
+          lines.push(row.map(csvEscape).join(","));
+        }
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="survey-${surveyId}-responses.csv"`
+        );
+        return res.send(lines.join("\n"));
+      } catch (e) {
+        return res.status(500).send(`Error: ${e.message || e}`);
+      }
+    },
   };
 };

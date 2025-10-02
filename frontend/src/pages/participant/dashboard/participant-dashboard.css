@@ -96,7 +96,7 @@
 .pd-app.centered-page .pd-main {
   display: flex;
   justify-content: center;
-  align-items: center;   /* center hanya di halaman ini */
+  align-items: center; /* center hanya di halaman ini */
 }
 .pd-panel {
   /* unified shiny green border */
@@ -122,11 +122,14 @@
   padding: 12px 14px;
   border-radius: 12px;
 }
-
 .pd-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 22px;
+}
+.pd-tile {
+  flex: 0 1 calc(20% - 22px); /* 5 kolom */
 }
 @media (max-width: 1100px) {
   .pd-grid {

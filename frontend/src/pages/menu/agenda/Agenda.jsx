@@ -111,6 +111,7 @@ export default function Agenda() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
+              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               flag: m.flag ?? "Y",
@@ -449,13 +450,17 @@ export default function Agenda() {
                   {showHistory ? "Tutup Riwayat" : "Riwayat"}
                 </button>
 
-               {isHost && (
+                {isHost && (
                   <button
                     className="agenda-add"
                     title="Tambah agenda"
                     onClick={openAdd}
                   >
-                    <img src="/img/add1.png" alt="Tambah agenda" className="action-icon" />
+                    <img
+                      src="/img/add1.png"
+                      alt="Tambah agenda"
+                      className="action-icon"
+                    />
                   </button>
                 )}
               </div>

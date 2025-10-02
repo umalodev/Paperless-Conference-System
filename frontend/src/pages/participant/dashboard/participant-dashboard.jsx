@@ -105,11 +105,10 @@ export default function ParticipantDashboard() {
 
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
-              menu_id: m.menuId,
-              display_label: m.displayLabel,
+              menuId: m.menuId,
               slug: m.slug,
+              label: m.displayLabel,
               flag: m.flag ?? "Y",
-
               iconUrl: m.iconMenu || null,
               parent: m.parentMenu,
               seq: m.sequenceMenu,
@@ -125,7 +124,7 @@ export default function ParticipantDashboard() {
     return () => {
       cancel = true;
     };
-  }, [API_URL]);
+  }, []);
 
   const {
     ready: mediaReady,
@@ -150,7 +149,10 @@ export default function ParticipantDashboard() {
   }, [mediaReady, camOn, startCam, stopCam]);
 
   const visibleMenus = useMemo(
-    () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
+    () =>
+      (menus || [])
+        .filter((m) => (m?.flag ?? "Y") === "Y")
+        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)), // Tambahkan sorting
     [menus]
   );
 
@@ -193,6 +195,9 @@ export default function ParticipantDashboard() {
   };
 
   const meetingId = currentMeeting?.id || "MTG-001";
+  useEffect(() => {
+    console.log("visibleMenus:", visibleMenus);
+  }, [visibleMenus]);
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
@@ -251,15 +256,15 @@ export default function ParticipantDashboard() {
             <div className="pd-grid">
               {visibleMenus.map((m) => (
                 <button
-                  key={m.menu_id || m.slug}
+                  key={m.menuId || m.slug}
                   className="pd-tile"
                   onClick={() => handleTileClick(m)}
-                  aria-label={m.display_label || m.slug}
+                  aria-label={m.label || m.slug}
                 >
                   <span className="pd-tile-icon" aria-hidden>
                     <Icon slug={m.slug} iconUrl={m.iconUrl} />
                   </span>
-                  <span className="pd-tile-label">{m.display_label}</span>
+                  <span className="pd-tile-label">{m.label}</span>
                 </button>
               ))}
               {visibleMenus.length === 0 && (
