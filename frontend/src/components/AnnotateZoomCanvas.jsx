@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import Icon from "./Icon";
 
-export default function AnnotateZoomCanvas({ attachTo, onClose }) {
+export default function AnnotateZoomCanvas({ attachTo, onClose, mode = "full" }) {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
 
@@ -13,7 +13,9 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
   const [history, setHistory] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
   const [startPoint, setStartPoint] = useState(null);
+  const [currentPath, setCurrentPath] = useState([]);
 
+  // ---- Setup canvas size ----
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !attachTo?.current) return;
@@ -24,10 +26,77 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctxRef.current = ctx;
-
     saveHistory();
   }, [attachTo]);
 
+  // ---- Listen remote annotations ----
+useEffect(() => {
+  if (!window.ws) return;
+
+  const handleMessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+
+      // hanya tangani coretan
+      if (data.type === "anno:commit" && data.shape) {
+        // kalau mode full (viewer menggambar) → skip coretan dari dirinya sendiri
+        if (mode === "full" && data.from === window.currentUserId) return;
+
+        // kalau mode receive-only (sharer) → render semua coretan
+        drawRemoteShape(data.shape);
+      }
+
+      if (data.type === "anno:clear") {
+        clearAll(true); // skip broadcast
+      }
+    } catch (e) {
+      console.error("WS parse error:", e);
+    }
+  };
+
+  window.ws.addEventListener("message", handleMessage);
+  return () => window.ws.removeEventListener("message", handleMessage);
+}, [mode]);
+
+  // ---- Draw shape from remote ----
+  const drawRemoteShape = (shape) => {
+  const ctx = ctxRef.current;
+  const canvas = canvasRef.current;
+  if (!ctx || !canvas) return;
+
+  ctx.strokeStyle = shape.color || "#ff0000";
+  ctx.lineWidth = shape.lineWidth || 2;
+  ctx.globalAlpha = 1;
+
+  if (shape.kind === "pen" && shape.points) {
+    ctx.beginPath();
+    ctx.moveTo(shape.points[0].x * canvas.width, shape.points[0].y * canvas.height);
+    shape.points.forEach(p => ctx.lineTo(p.x * canvas.width, p.y * canvas.height));
+    ctx.stroke();
+  }
+  if (shape.kind === "rect") {
+    ctx.strokeRect(
+      shape.x * canvas.width,
+      shape.y * canvas.height,
+      shape.w * canvas.width,
+      shape.h * canvas.height
+    );
+  }
+  if (shape.kind === "circle") {
+    ctx.beginPath();
+    ctx.ellipse(
+      shape.cx * canvas.width,
+      shape.cy * canvas.height,
+      shape.rx * canvas.width,
+      shape.ry * canvas.height,
+      0, 0, 2 * Math.PI
+    );
+    ctx.stroke();
+  }
+};
+
+
+  // ---- History & snapshot ----
   const saveHistory = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -35,16 +104,16 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
     setHistory((prev) => [...prev, snapshot]);
   };
 
+  // ---- Local drawing ----
   const startDraw = (e) => {
     const { offsetX, offsetY } = e.nativeEvent;
     setIsDrawing(true);
     setStartPoint({ x: offsetX, y: offsetY });
+    setCurrentPath([{ x: offsetX, y: offsetY }]);
 
     const ctx = ctxRef.current;
-    if (tool === "pen" || tool === "highlighter") {
-      ctx.beginPath();
-      ctx.moveTo(offsetX, offsetY);
-    }
+    ctx.beginPath();
+    ctx.moveTo(offsetX, offsetY);
   };
 
   const draw = (e) => {
@@ -53,9 +122,10 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
     const ctx = ctxRef.current;
     const canvas = canvasRef.current;
 
+    setCurrentPath((prev) => [...prev, { x: offsetX, y: offsetY }]);
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // restore terakhir dari history agar coretan lama tidak hilang
     if (history.length > 0) {
       const prevImg = new Image();
       prevImg.onload = () =>
@@ -71,18 +141,14 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
       ctx.lineTo(offsetX, offsetY);
       ctx.stroke();
     } else if (tool === "rect" || tool === "circle") {
-      const sp = startPoint;
-      const dx = offsetX - sp.x;
-      const dy = offsetY - sp.y;
-
-      if (tool === "rect") {
-        ctx.strokeRect(sp.x, sp.y, dx, dy);
-      }
+      const dx = offsetX - startPoint.x;
+      const dy = offsetY - startPoint.y;
+      if (tool === "rect") ctx.strokeRect(startPoint.x, startPoint.y, dx, dy);
       if (tool === "circle") {
         ctx.beginPath();
         ctx.ellipse(
-          sp.x + dx / 2,
-          sp.y + dy / 2,
+          startPoint.x + dx / 2,
+          startPoint.y + dy / 2,
           Math.abs(dx / 2),
           Math.abs(dy / 2),
           0,
@@ -93,49 +159,83 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
       }
     }
   };
-
 
   const endDraw = (e) => {
     if (!isDrawing) return;
     setIsDrawing(false);
     const { offsetX, offsetY } = e.nativeEvent;
-    const ctx = ctxRef.current;
+    const canvas = canvasRef.current;
 
-    if (tool === "rect" || tool === "circle" || tool === "arrow") {
-      const sp = startPoint;
-      const dx = offsetX - sp.x;
-      const dy = offsetY - sp.y;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth;
-      ctx.globalAlpha = 1;
-
-      if (tool === "rect") ctx.strokeRect(sp.x, sp.y, dx, dy);
-      if (tool === "circle") {
-        ctx.beginPath();
-        ctx.ellipse(
-          sp.x + dx / 2,
-          sp.y + dy / 2,
-          Math.abs(dx / 2),
-          Math.abs(dy / 2),
-          0,
-          0,
-          2 * Math.PI
-        );
-        ctx.stroke();
-      }
-      if (tool === "arrow") {
-        ctx.beginPath();
-        ctx.moveTo(sp.x, sp.y);
-        ctx.lineTo(offsetX, offsetY);
-        ctx.stroke();
-      }
+    let shapeData = null;
+    if (tool === "pen") {
+      shapeData = {
+        kind: "pen",
+        points: currentPath,
+        color,
+        lineWidth,
+      };
+    }
+    if (tool === "rect") {
+      shapeData = {
+        kind: "rect",
+        x: startPoint.x,
+        y: startPoint.y,
+        w: offsetX - startPoint.x,
+        h: offsetY - startPoint.y,
+        color,
+        lineWidth,
+      };
+    }
+    if (tool === "circle") {
+      shapeData = {
+        kind: "circle",
+        cx: (startPoint.x + offsetX) / 2,
+        cy: (startPoint.y + offsetY) / 2,
+        rx: Math.abs(offsetX - startPoint.x) / 2,
+        ry: Math.abs(offsetY - startPoint.y) / 2,
+        color,
+        lineWidth,
+      };
     }
 
-    ctx.globalAlpha = 1;
+    if (shapeData) {
+      shapeData.canvasWidth = canvas.width;
+      shapeData.canvasHeight = canvas.height;
+
+      // Normalisasi ke 0..1
+      if (shapeData.points) {
+        shapeData.points = shapeData.points.map(p => ({
+          x: p.x / canvas.width,
+          y: p.y / canvas.height
+        }));
+      }
+      if (shapeData.kind === "rect") {
+        shapeData.x = shapeData.x / canvas.width;
+        shapeData.y = shapeData.y / canvas.height;
+        shapeData.w = shapeData.w / canvas.width;
+        shapeData.h = shapeData.h / canvas.height;
+      }
+      if (shapeData.kind === "circle") {
+        shapeData.cx = shapeData.cx / canvas.width;
+        shapeData.cy = shapeData.cy / canvas.height;
+        shapeData.rx = shapeData.rx / canvas.width;
+        shapeData.ry = shapeData.ry / canvas.height;
+      }
+
+      window.ws?.send(JSON.stringify({
+        type: "anno:commit",
+        meetingId: window.currentMeetingId,
+        from: window.currentUserId,
+        shape: shapeData,
+      }));
+    }
+
+
     saveHistory();
     setRedoStack([]);
   };
 
+  // ---- Tools ----
   const undo = () => {
     if (history.length <= 1) return;
     const newHist = [...history];
@@ -165,14 +265,24 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
     img.src = next;
   };
 
-  const clearAll = () => {
+  const clearAll = (skipBroadcast = false) => {
     const canvas = canvasRef.current;
     const ctx = ctxRef.current;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     saveHistory();
     setRedoStack([]);
+    if (!skipBroadcast) {
+      window.ws?.send(
+        JSON.stringify({
+          type: "anno:clear",
+          meetingId: window.currentMeetingId,
+          from: window.currentUserId,
+        })
+      );
+    }
   };
 
+  // ---- Toolbar button ----
   const ToolButton = ({ slug, active, onClick, title }) => (
     <button
       onClick={onClick}
@@ -198,97 +308,83 @@ export default function AnnotateZoomCanvas({ attachTo, onClose }) {
     <div style={{ position: "absolute", inset: 0, zIndex: 20 }}>
       <canvas
         ref={canvasRef}
-        style={{ width: "100%", height: "100%", cursor: "crosshair" }}
-        onMouseDown={startDraw}
-        onMouseMove={draw}
-        onMouseUp={endDraw}
-        onMouseLeave={endDraw}
+        style={{
+          width: "100%",
+          height: "100%",
+          cursor: mode === "full" ? "crosshair" : "default",
+        }}
+        onMouseDown={mode === "full" ? startDraw : undefined}
+        onMouseMove={mode === "full" ? draw : undefined}
+        onMouseUp={mode === "full" ? endDraw : undefined}
       />
 
-      {/* Toolbar bawah */}
-      <div
-        style={{
-          position: "absolute",
-          top: 20,
-          left: 20,
-          background: "rgba(30,30,30,0.85)",
-          borderRadius: 50,
-          padding: "8px 14px",
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-        }}
-      >
-        <ToolButton
-          slug="annotate"
-          active={tool === "pen"}
-          onClick={() => setTool("pen")}
-          title="Pen"
-        />
-
-        <ToolButton
-          slug="square"
-          active={tool === "rect"}
-          onClick={() => setTool("rect")}
-          title="Rectangle"
-        />
-
-        <ToolButton
-          slug="circle"
-          active={tool === "circle"}
-          onClick={() => setTool("circle")}
-          title="Circle"
-        />
-        
-        <div style={{ position: "relative" }}>
-        
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          style={{
-            opacity: 0,
-            position: "absolute",
-            inset: 0,
-            cursor: "pointer",
-          }}
-        />
-
+      {mode === "full" && (
         <div
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            backgroundColor: color,
-            border: "2px solid #fff",
-            boxShadow: "0 0 4px rgba(0,0,0,0.3)",
-            cursor: "pointer",
+            position: "absolute",
+            top: 20,
+            left: 20,
+            background: "rgba(30,30,30,0.85)",
+            borderRadius: 50,
+            padding: "8px 14px",
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
           }}
-        />
-      </div>
+        >
+          <ToolButton slug="annotate" active={tool === "pen"} onClick={() => setTool("pen")} title="Pen" />
+          <ToolButton slug="square" active={tool === "rect"} onClick={() => setTool("rect")} title="Rectangle" />
+          <ToolButton slug="circle" active={tool === "circle"} onClick={() => setTool("circle")} title="Circle" />
 
-      <input
-        type="range"
-        min={1}
-        max={12}
-        value={lineWidth}
-        onChange={(e) => setLineWidth(Number(e.target.value))}
-        style={{
-          WebkitAppearance: "none",
-          width: 100,
-          height: 4,
-          borderRadius: 4,
-          background: `linear-gradient(to right, #4f46e5 ${(lineWidth / 12) * 100}%, #e5e7eb ${(lineWidth / 12) * 100}%)`,
-          outline: "none",
-          cursor: "pointer",
-        }}
-      />
-        <ToolButton slug="undo" onClick={undo} title="Undo" />
-        <ToolButton slug="redo" onClick={redo} title="Redo" />
-        <ToolButton slug="trash" onClick={clearAll} title="Clear All" />
-        <ToolButton slug="close" onClick={onClose} title="Close" />
-      </div>
+          <div style={{ position: "relative" }}>
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              style={{
+                opacity: 0,
+                position: "absolute",
+                inset: 0,
+                cursor: "pointer",
+              }}
+            />
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                backgroundColor: color,
+                border: "2px solid #fff",
+                boxShadow: "0 0 4px rgba(0,0,0,0.3)",
+                cursor: "pointer",
+              }}
+            />
+          </div>
+
+          <input
+            type="range"
+            min={1}
+            max={12}
+            value={lineWidth}
+            onChange={(e) => setLineWidth(Number(e.target.value))}
+            style={{
+              WebkitAppearance: "none",
+              width: 100,
+              height: 4,
+              borderRadius: 4,
+              background: `linear-gradient(to right, #4f46e5 ${(lineWidth / 12) * 100}%, #e5e7eb ${(lineWidth / 12) * 100}%)`,
+              outline: "none",
+              cursor: "pointer",
+            }}
+          />
+
+          <ToolButton slug="undo" onClick={undo} title="Undo" />
+          <ToolButton slug="redo" onClick={redo} title="Redo" />
+          <ToolButton slug="trash" onClick={() => clearAll(false)} title="Clear All" />
+          <ToolButton slug="close" onClick={onClose} title="Close" />
+        </div>
+      )}
     </div>
   );
 }

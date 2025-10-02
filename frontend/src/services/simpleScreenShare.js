@@ -14,6 +14,9 @@ class SimpleScreenShare {
     this.onScreenShareReceived = null;
     this.onScreenShareStart = null;
     this.onScreenShareStop = null;
+
+    this.messageQueue = [];
+
   }
 
   /**
@@ -53,19 +56,26 @@ class SimpleScreenShare {
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log("SimpleScreenShare WebSocket connected successfully");
+      console.log("✅ SimpleScreenShare WebSocket connected successfully");
+
+      window.ws = this.ws;  
+
+      // flush queue
+      while (this.messageQueue.length > 0) {
+        const msg = this.messageQueue.shift();
+        this.sendMessage(msg);
+      }
+
       if (this.userId) {
-        this.ws.send(
-          JSON.stringify({
-            type: "participant_joined",
-            participantId: this.userId,
-            username:
-              JSON.parse(localStorage.getItem("user") || "{}").username ||
-              "unknown",
-          })
-        );
+        this.sendMessage({
+          type: "participant_joined",
+          participantId: this.userId,
+          username:
+            JSON.parse(localStorage.getItem("user") || "{}").username || "unknown",
+        });
       }
     };
+
 
     this.ws.onmessage = (event) => {
       try {
@@ -78,24 +88,14 @@ class SimpleScreenShare {
     };
 
     this.ws.onclose = (evt) => {
-      console.log(
-        "SimpleScreenShare WebSocket disconnected",
-        evt.code,
-        evt.reason
-      );
-      // kalau unauthorized, jangan reconnect terus2an
-      if (evt.code === 4401) {
-        console.error(
-          "WS closed: unauthorized. Pastikan token login tersedia/valid."
-        );
-        return;
-      }
-      // Reconnect setelah 3 detik
+      console.warn("WS closed", evt.code, evt.reason);
+      if (evt.code === 4401) return; // unauthorized
       setTimeout(() => this.connectWebSocket(), 3000);
     };
 
-    this.ws.onerror = (error) => {
-      console.error("SimpleScreenShare WebSocket error:", error);
+
+    this.ws.onerror = (err) => {
+      console.error("WS error", err);
     };
   }
 
@@ -103,51 +103,37 @@ class SimpleScreenShare {
    * Handle WebSocket messages
    */
   handleMessage(data) {
-    console.log("=== SimpleScreenShare Message Received ===");
-    console.log("Message type:", data.type);
-    console.log("From user:", data.userId);
-    console.log("Meeting ID:", data.meetingId);
-    console.log("Current user ID:", this.userId);
-    console.log("Is from different user:", data.userId !== this.userId);
-    console.log("Full message:", data);
+  switch (data.type) {
+    case "screen-share-start":
+      if (this.onScreenShareStart) this.onScreenShareStart(data);
+      break;
 
-    switch (data.type) {
-      case "screen-share-start":
-        console.log("Handling screen-share-start event");
-        if (this.onScreenShareStart) {
-          this.onScreenShareStart(data);
-        }
-        break;
+    case "screen-share-stop":
+    case "screen-share-stopped":
+      if (this.onScreenShareStop) this.onScreenShareStop(data);
+      break;
 
-      case "screen-share-stop":
-      case "screen-share-stopped":
-        console.log("Handling screen-share-stop event");
-        if (this.onScreenShareStop) {
-          this.onScreenShareStop(data);
-        }
-        break;
+    case "screen-share-stream":
+      if (this.onScreenShareReceived) this.onScreenShareReceived(data);
+      break;
 
-      case "screen-share-stream":
-        console.log("Handling screen-share-stream event");
-        console.log("Image data length:", data.imageData?.length || 0);
-        console.log(
-          "Image data preview:",
-          data.imageData?.substring(0, 100) + "..."
-        );
+    // 🔹 annotation event harus ditambah tapi tidak ganggu stream
+    case "anno:commit":
+    case "anno:clear":
+    case "anno:undo":
+    case "anno:redo":
+    case "anno:preview":
+      if (this.onAnnotationEvent) {
+        this.onAnnotationEvent(data);
+      }
+      break;
 
-        // Process screen share stream from any user (including own stream for preview)
-        console.log("Processing screen share stream from user:", data.userId);
-        if (this.onScreenShareReceived) {
-          this.onScreenShareReceived(data);
-        }
-        break;
-
-      default:
-        console.log("Unhandled message type:", data.type);
-        break;
-    }
-    console.log("=== End Message Handling ===");
+    default:
+      console.log("Unhandled message type:", data.type);
+      break;
   }
+}
+
 
   /**
    * Start screen sharing
@@ -414,18 +400,22 @@ class SimpleScreenShare {
    * Send WebSocket message
    */
   sendMessage(message) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log(
-        "Sending WebSocket message:",
-        message.type,
-        "to meeting:",
-        this.meetingId
-      );
+    if (!this.ws) {
+      console.error("❌ No WebSocket instance");
+      return;
+    }
+    if (this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+    } else if (this.ws.readyState === WebSocket.CONNECTING) {
+      console.warn("⏳ WS connecting, queue message", message.type);
+      this.messageQueue.push(message);
     } else {
-      console.error("WebSocket not connected. State:", this.ws?.readyState);
+      console.error("❌ WS closed, cannot send", message.type);
     }
   }
+
+
+ 
 
   /**
    * Cleanup
@@ -437,6 +427,11 @@ class SimpleScreenShare {
     }
   }
 }
+
+ export function sendWS(msg) {
+  simpleScreenShare.sendMessage(msg);
+}
+
 
 // Export singleton
 const simpleScreenShare = new SimpleScreenShare();
