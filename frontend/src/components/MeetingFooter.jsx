@@ -3,7 +3,10 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
+import { useScreenShare } from "../contexts/ScreenShareContext";
 import "./meeting-footer.css";
+import { useLocation } from "react-router-dom";
+
 
 export default function MeetingFooter({
   userRole = "participant",
@@ -15,10 +18,26 @@ export default function MeetingFooter({
   camOn,
   onToggleMic,
   onToggleCam,
-  screenShareOn,
-  onToggleScreenShare,
 }) {
   const navigate = useNavigate();
+
+  // 🔹 Ambil state global screen share
+  const {
+    sharingUser,
+    screenShareOn,
+    isAnnotating,
+    setIsAnnotating,
+  } = useScreenShare();
+
+  const currentUserId = (() => {
+    try {
+      const rawUser = localStorage.getItem("user");
+      const u = rawUser ? JSON.parse(rawUser) : null;
+      return u?.id || u?._id || u?.userId || null;
+    } catch {
+      return null;
+    }
+  })();
 
   // Helpers
   const getCurrentMeeting = () => {
@@ -36,9 +55,10 @@ export default function MeetingFooter({
   const cm = getCurrentMeeting();
   const meetingId = getMeetingId(cm);
   const isDefaultMeeting =
-    Boolean(cm?.isDefault) || String(meetingId) === "1000"; // fallback ke 1000 bila flag belum terset
+    Boolean(cm?.isDefault) || String(meetingId) === "1000";
 
-  // Common cleanup (stop share, close WS)
+  const location = useLocation();
+  // Common cleanup
   const cleanupRealtime = () => {
     try {
       if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
@@ -52,30 +72,19 @@ export default function MeetingFooter({
     } catch {}
   };
 
-  // BACK action (participant: ke /start, host default: ke /setup)
   const defaultBack = async () => {
     try {
       cleanupRealtime();
       if (meetingId) {
-        // tetap panggil leave agar backend konsisten
         await meetingService.leaveMeeting(meetingId);
       }
-    } catch (err) {
-      // tidak blok navigasi
-      console.warn("leaveMeeting failed on back:", err);
     } finally {
       localStorage.removeItem("currentMeeting");
-      if (isHost) {
-        // host/admin
-        navigate("/setup");
-      } else {
-        // participant
-        navigate("/start");
-      }
+      if (isHost) navigate("/setup");
+      else navigate("/start");
     }
   };
 
-  // END action (hanya untuk host non-default)
   const defaultEndMeeting = async () => {
     try {
       if (!window.confirm("Are you sure you want to end this meeting?")) return;
@@ -87,19 +96,15 @@ export default function MeetingFooter({
       await meetingService.endMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
       alert("Meeting ended successfully!");
-      // setelah end → kembali ke halaman setup host
       navigate("/setup");
     } catch (err) {
-      console.error("Failed to end meeting:", err);
       alert(`Failed to end meeting: ${err?.message || err}`);
     }
   };
 
-  // (dipertahankan untuk kompatibilitas, tapi tidak ditampilkan untuk participant)
   const defaultLeaveMeeting = async () => {
     try {
-      if (!window.confirm("Are you sure you want to leave this meeting?"))
-        return;
+      if (!window.confirm("Are you sure you want to leave this meeting?")) return;
       if (!meetingId) {
         alert("Meeting ID not found. Cannot leave meeting.");
         return;
@@ -107,10 +112,8 @@ export default function MeetingFooter({
       cleanupRealtime();
       await meetingService.leaveMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
-      alert("Left meeting successfully!");
       navigate("/start");
     } catch (err) {
-      console.error("Failed to leave meeting:", err);
       alert(`Failed to leave meeting: ${err?.message || err}`);
     }
   };
@@ -121,13 +124,8 @@ export default function MeetingFooter({
   const handleMenu = onMenuClick || (() => navigate("/participant/dashboard"));
   const handleHelp = onHelpClick || (() => alert("Need help?"));
 
-  // 🔎 Final UI rules:
-  // - Participant: hanya Back
-  // - Host/Admin + Default: hanya Back
-  // - Host/Admin + Non-default: hanya End
   const showBackButton = !isHost || (isHost && isDefaultMeeting);
   const showEndButton = isHost && !isDefaultMeeting;
-  const showLeaveButton = false; // disembunyikan sesuai requirement
 
   return (
     <footer className="pd-bottombar">
@@ -153,9 +151,73 @@ export default function MeetingFooter({
           className="pd-ctrl"
           title="Open Screen Share Page"
           onClick={() => navigate("/menu/screenshare")}
+          style={{ position: "relative" }}
         >
           <Icon slug="screen-share" />
+
+          {/* 🔴 Badge merah kalau ada orang lain share */}
+          {screenShareOn && String(sharingUser) !== String(currentUserId) && (
+            <>
+              <span
+                style={{
+                  position: "absolute",
+                  top: 6,
+                  right: 6,
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: "red",
+                  boxShadow: "0 0 6px rgba(0,0,0,0.4)",
+                }}
+              />
+              
+              {/* 🔹 Tooltip hanya muncul kalau bukan di halaman screenshare */}
+              {location.pathname !== "/menu/screenshare" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -36,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "red",
+                    color: "white",
+                    fontSize: 12,
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  Someone is sharing
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -6,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 0,
+                      height: 0,
+                      borderLeft: "6px solid transparent",
+                      borderRight: "6px solid transparent",
+                      borderTop: "6px solid red",
+                    }}
+                  />
+                </div>
+              )}
+            </>
+          )}
         </button>
+
+
+        {screenShareOn && String(sharingUser) === String(currentUserId) && (
+          <button
+            className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
+            title={isAnnotating ? "Stop Annotate" : "Start Annotate"}
+            onClick={() => setIsAnnotating(!isAnnotating)}
+          >
+            <Icon slug="annotate" />
+          </button>
+        )}
 
         <button className="pd-ghost" onClick={handleMenu}>
           Menu
@@ -164,12 +226,6 @@ export default function MeetingFooter({
         {showBackButton && (
           <button className="pd-outline" onClick={handleBack} title="Back">
             Home
-          </button>
-        )}
-
-        {showLeaveButton && (
-          <button className="pd-warning" onClick={handleLeave}>
-            Leave Meeting
           </button>
         )}
 

@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import meetingWebSocketService from '../services/meetingWebSocket.js';
 import { API_URL } from '../config.js';
 import './MeetingLayout.css';
 
-/**
- * MeetingLayout Component
- * Layout wrapper untuk meeting dengan screen share preview embedded dalam menu content
- */
+import { useScreenShare } from "../contexts/ScreenShareContext";
+import AnnotateZoomCanvas from "./AnnotateZoomCanvas";
+
 const MeetingLayout = ({ 
   children, 
   meetingId, 
@@ -16,22 +15,30 @@ const MeetingLayout = ({
   mediasoupDevice,
   className = '' 
 }) => {
-  // Internal state for screen sharing
   const [screenShareError, setScreenShareError] = useState("");
-  
-  // Initialize WebSocket connection for meeting
+
+  const { isAnnotating, setIsAnnotating, sharingUser } = useScreenShare();
+
+  const currentUserId = (() => {
+    try {
+      const raw = localStorage.getItem("user");
+      const u = raw ? JSON.parse(raw) : null;
+      return u?.id || u?._id || u?.userId || null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // ✅ host untuk kanvas global
+  const annotateHostRef = useRef(null);
+
   useEffect(() => {
     if (meetingId && userId) {
-      // Store global reference for screen sharing
       if (typeof window !== 'undefined') {
         window.meetingWebSocketService = meetingWebSocketService;
       }
-
-      // Connect to meeting WebSocket
       meetingWebSocketService.connect(meetingId, userId, API_URL);
-      
       return () => {
-        // Cleanup on unmount
         meetingWebSocketService.disconnect();
       };
     }
@@ -39,34 +46,25 @@ const MeetingLayout = ({
 
   return (
     <div className={`meeting-layout ${className}`}>
-      {/* Screen Share Error Notification */}
+      {/* Content */}
+      <div className="menu-section">
+        <div className="menu-content">{children}</div>
+      </div>
+
+      {/* Error notif (optional) */}
       {screenShareError && (
         <div className="pd-error" style={{ 
-          position: 'fixed', 
-          top: '20px', 
-          right: '20px', 
-          zIndex: 1000,
-          padding: '12px 16px',
-          borderRadius: '8px',
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fecaca',
-          color: '#dc2626',
-          maxWidth: '300px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          position: 'fixed', top: 20, right: 20, zIndex: 1000,
+          padding: '12px 16px', borderRadius: 8,
+          backgroundColor: '#fee2e2', border: '1px solid #fecaca',
+          color: '#dc2626', maxWidth: 300, boxShadow: '0 4px 6px rgba(0,0,0,.1)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '16px' }}>⚠️</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>⚠️</span>
             <span>{screenShareError}</span>
             <button 
               onClick={() => setScreenShareError("")}
-              style={{ 
-                marginLeft: 'auto',
-                background: 'none',
-                border: 'none',
-                color: '#dc2626',
-                cursor: 'pointer',
-                fontSize: '16px'
-              }}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 16 }}
             >
               ×
             </button>
@@ -74,13 +72,26 @@ const MeetingLayout = ({
         </div>
       )}
 
-      {/* Menu Content - Always full width */}
-      <div className="menu-section">
-        {/* Menu content */}
-        <div className="menu-content">
-          {children}
+      {/* 🔹 Global annotate overlay dengan ref sebagai attachTo */}
+      {isAnnotating && String(sharingUser) === String(currentUserId) && (
+        <div
+          ref={annotateHostRef}
+          style={{
+            position: "fixed",
+            inset: 0,
+            width: "100vw",
+            height: "100vh",
+            zIndex: 9999,
+            pointerEvents: "auto",
+          }}
+        >
+          <AnnotateZoomCanvas
+            attachTo={annotateHostRef} 
+            global={true}
+            onClose={() => setIsAnnotating(false)}
+          />
         </div>
-      </div>
+      )}
     </div>
   );
 };

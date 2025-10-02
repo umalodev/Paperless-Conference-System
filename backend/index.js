@@ -393,6 +393,31 @@ wss.on("connection", (ws, req) => {
           });
         }
 
+        if (data.type === "annotate") {
+        console.log(`Annotate from ${data.userId} in meeting ${meetingId}`);
+
+        wss.clients.forEach((client) => {
+          if (
+            client !== ws &&
+            client.readyState === WebSocket.OPEN &&
+            client.meetingId === meetingId
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "annotate",
+                userId: data.userId,
+                meetingId: meetingId,
+                x: data.x,
+                y: data.y,
+                color: data.color,
+                size: data.size,
+                action: data.action, // "start", "draw", "end"
+              })
+            );
+          }
+        });
+      }
+
         // Handle meeting end
         if (data.type === "meeting-end") {
           console.log(

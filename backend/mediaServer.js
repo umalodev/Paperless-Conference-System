@@ -534,7 +534,7 @@ async function startServer() {
     await runMediasoupWorker();
 
     const port = process.env.MEDIA_PORT || 3002;
-    server.listen(port, () => {
+    server.listen(port, "0.0.0.0", () => {
       logger.info(`Media server running on port ${port}`);
     });
   } catch (error) {
