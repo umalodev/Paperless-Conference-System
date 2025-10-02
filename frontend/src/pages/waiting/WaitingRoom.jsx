@@ -36,7 +36,7 @@ export default function WaitingRoom() {
       } catch {}
     }
     setDisplayName(localStorage.getItem("pconf.displayName") || "");
-    
+
     // Get current meeting info
     const meetingRaw = localStorage.getItem("currentMeeting");
     if (meetingRaw) {
@@ -61,6 +61,29 @@ export default function WaitingRoom() {
     };
   }, [currentMeeting]);
 
+  useEffect(() => {
+    const pushName = async () => {
+      if (!meetingId) return;
+      const name = (localStorage.getItem("pconf.displayName") || "").trim();
+      if (!name) return;
+      try {
+        const headers = {
+          "Content-Type": "application/json",
+          ...(meetingService.getAuthHeaders?.() || {}),
+        };
+        await fetch(`${API_URL}/api/participants/name`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ meetingId, displayName: name }),
+        });
+        // optional: simpan juga per-meeting
+        localStorage.setItem(`meeting:${meetingId}:displayName`, name);
+      } catch (e) {
+        console.warn("Gagal sync display name:", e);
+      }
+    };
+    pushName();
+  }, [meetingId]);
   // cek status + polling untuk participant
   useEffect(() => {
     let cancel = false;
@@ -73,22 +96,28 @@ export default function WaitingRoom() {
           console.log("No meeting ID available");
           return;
         }
-        
+
         console.log("Checking meeting status for:", meetingId);
         const result = await meetingService.getMeetingStatus(meetingId);
         if (cancel) return;
-        
+
         console.log("Meeting status result:", result);
-        const on = !!(result?.data?.isActive ?? result?.data?.started ?? result?.started);
+        const on = !!(
+          result?.data?.isActive ??
+          result?.data?.started ??
+          result?.started
+        );
         setStarted(on);
-        
+
         if (on) {
-          console.log("Meeting is active, attempting auto-join then redirecting");
+          console.log(
+            "Meeting is active, attempting auto-join then redirecting"
+          );
           try {
             // Attempt auto-join; ignore errors to allow redirect flow
             await meetingService.autoJoinMeeting(meetingId);
           } catch (e) {
-            console.warn('Auto-join failed or not required:', e?.message || e);
+            console.warn("Auto-join failed or not required:", e?.message || e);
           }
         }
       } catch (e) {
@@ -96,8 +125,8 @@ export default function WaitingRoom() {
           console.error("Error fetching meeting status:", e);
           // Suppress 404 not found noise in waiting room; show friendly text
           const msg = String(e.message || e);
-          if (msg.toLowerCase().includes('not found')) {
-            setErr('Meeting belum tersedia. Menunggu host memulai…');
+          if (msg.toLowerCase().includes("not found")) {
+            setErr("Meeting belum tersedia. Menunggu host memulai…");
           } else {
             setErr(msg);
           }
@@ -145,7 +174,7 @@ export default function WaitingRoom() {
         console.log("Meeting started successfully");
         setStarted(true); // akan memicu redirect
       } else {
-        throw new Error(result.message || 'Failed to start meeting');
+        throw new Error(result.message || "Failed to start meeting");
       }
     } catch (e) {
       console.error("Error starting meeting:", e);
@@ -158,7 +187,7 @@ export default function WaitingRoom() {
   const leave = () => {
     // Clear meeting from localStorage
     localStorage.removeItem("currentMeeting");
-    
+
     // Navigate based on user role
     if (role === "host") {
       // Host should go back to start page (same as screenshot)
@@ -186,9 +215,14 @@ export default function WaitingRoom() {
         </header>
         <main className="wr-main">
           <div className="wr-card">
-            <div className="wr-error">No meeting information found. Please go back to start page.</div>
+            <div className="wr-error">
+              No meeting information found. Please go back to start page.
+            </div>
             <div className="wr-actions">
-              <button className="wr-btn wr-ghost" onClick={() => navigate("/start")}>
+              <button
+                className="wr-btn wr-ghost"
+                onClick={() => navigate("/start")}
+              >
                 Go Back to Start
               </button>
             </div>
@@ -252,16 +286,22 @@ export default function WaitingRoom() {
 
           {/* meeting info */}
           {currentMeeting && (
-            <div className="wr-meeting-info" style={{ 
-              background: '#f3f4f6', 
-              padding: '12px', 
-              borderRadius: '8px', 
-              margin: '16px 0',
-              fontSize: '14px'
-            }}>
-              <strong>Meeting:</strong> {currentMeeting.title || 'Conference Meeting'}<br/>
-              <strong>ID:</strong> {meetingId}<br/>
-              <strong>Status:</strong> {currentMeeting.status || 'waiting'}
+            <div
+              className="wr-meeting-info"
+              style={{
+                background: "#f3f4f6",
+                padding: "12px",
+                borderRadius: "8px",
+                margin: "16px 0",
+                fontSize: "14px",
+              }}
+            >
+              <strong>Meeting:</strong>{" "}
+              {currentMeeting.title || "Conference Meeting"}
+              <br />
+              <strong>ID:</strong> {meetingId}
+              <br />
+              <strong>Status:</strong> {currentMeeting.status || "waiting"}
             </div>
           )}
 
