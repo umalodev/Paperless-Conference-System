@@ -14,10 +14,12 @@ const MeetingLayout = ({
   userRole, 
   socket, 
   mediasoupDevice,
-  className = '' 
+  className = '',
+  meetingTitle = '' 
 }) => {
   // Internal state for screen sharing
   const [screenShareError, setScreenShareError] = useState("");
+  const [title, setTitle] = useState(meetingTitle || "");
   
   // Initialize WebSocket connection for meeting
   useEffect(() => {
@@ -71,6 +73,13 @@ const MeetingLayout = ({
               ×
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Meeting Title - Fixed at top left */}
+      {meetingId && (
+        <div className="meeting-title-container">
+          <h2 className="meeting-title">{title || `Meeting #${meetingId}`}</h2>
         </div>
       )}
 

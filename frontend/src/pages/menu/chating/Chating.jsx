@@ -682,6 +682,15 @@ export default function Chat() {
       userRole={user?.role || "participant"}
       socket={wsRef.current}
       mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${getMeetingId()}`;
+        } catch {
+          return `Meeting #${getMeetingId()}`;
+        }
+      })()}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -689,8 +698,7 @@ export default function Chat() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Chat</h1>
-              <div className="pd-sub">Diskusi selama meeting</div>
+              {/* Judul dan subtitle dihilangkan */}
             </div>
           </div>
           <div className="pd-right">

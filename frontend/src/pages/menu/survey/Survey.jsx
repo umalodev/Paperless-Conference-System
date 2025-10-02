@@ -214,6 +214,15 @@ export default function Survey() {
       userRole={user?.role || "participant"}
       socket={null}
       mediasoupDevice={null}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${meetingId}`;
+        } catch {
+          return `Meeting #${meetingId}`;
+        }
+      })()}
     >
       <div className="pd-app">
         {/* topbar */}
@@ -221,8 +230,7 @@ export default function Survey() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Survey</h1>
-              <div className="pd-sub">Umpan balik peserta</div>
+              {/* Judul dan subtitle dihilangkan */}
             </div>
           </div>
           <div className="pd-right">

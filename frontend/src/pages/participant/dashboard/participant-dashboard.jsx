@@ -202,7 +202,15 @@ export default function ParticipantDashboard() {
         <div className="pd-left">
           <span className="pd-live" aria-hidden />
           <div>
-            <h1 className="pd-title">Conference Meeting</h1>
+            <h1 className="pd-title">{(() => {
+              try {
+                const raw = localStorage.getItem("currentMeeting");
+                const cm = raw ? JSON.parse(raw) : null;
+                return cm?.title || `Meeting #${meetingId}`;
+              } catch {
+                return `Meeting #${meetingId}`;
+              }
+            })()}</h1>
             <div className="pd-sub">ID: {meetingId}</div>
           </div>
         </div>

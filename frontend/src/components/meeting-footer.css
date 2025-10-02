@@ -238,3 +238,9 @@
 @media (max-width: 420px) { .pd-ctrl .pd-label { display: block; } }
 
 /* End of file */
+
+.custom-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}

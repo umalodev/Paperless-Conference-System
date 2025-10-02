@@ -15,6 +15,25 @@ body,
   background: #f8f9fa;
 }
 
+/* Meeting Title Container - Fixed at top left */
+.meeting-title-container {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  padding: 5px 10px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.meeting-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
 /* Menu Section - Always full width */
 .menu-section {
   display: flex;

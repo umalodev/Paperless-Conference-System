@@ -382,6 +382,15 @@ export default function Agenda() {
       userRole={user?.role || "participant"}
       socket={null}
       mediasoupDevice={null}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${meetingId}`;
+        } catch {
+          return `Meeting #${meetingId}`;
+        }
+      })()}
     >
       <div className="pd-app agenda-page">
         {/* Top bar */}
@@ -389,7 +398,7 @@ export default function Agenda() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Agenda Meeting</h1>
+              {/* Judul dihilangkan */}
             </div>
           </div>
           <div className="pd-right">
