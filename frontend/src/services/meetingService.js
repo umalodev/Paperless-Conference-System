@@ -374,6 +374,42 @@ class MeetingService {
     }
   }
 
+  // Ambil display name dari localStorage (per-meeting dulu, lalu global)
+  getDisplayName(meetingId) {
+    const perMeeting = meetingId
+      ? (localStorage.getItem(`meeting:${meetingId}:displayName`) || "").trim()
+      : "";
+    const globalName = (localStorage.getItem("pconf.displayName") || "").trim();
+    return perMeeting || globalName || "";
+  }
+
+  // (opsional) Header auth + X-Display-Name
+  getAuthHeadersWithName(meetingId) {
+    const h = this.getAuthHeaders();
+    const name = this.getDisplayName(meetingId);
+    if (name) h["X-Display-Name"] = name;
+    return h;
+  }
+
+  // Simpan/Update display name ke server (dipanggil sekali saat masuk halaman)
+  async setParticipantDisplayName({ meetingId, displayName }) {
+    const body = {
+      meetingId,
+      displayName: (displayName ?? this.getDisplayName(meetingId)).trim(),
+    };
+    const res = await fetch(`${API_URL}/api/participants/name`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(body),
+    });
+    // biar gampang debug kalau gagal
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `Failed to set participant display name`);
+    }
+    return res.json();
+  }
+
   // Leave meeting (participant only)
   async leaveMeeting(meetingId) {
     try {

@@ -7,6 +7,27 @@ const {
 } = require("../models");
 const { getFilePath } = require("../middleware/upload");
 
+function sanitizeDisplayName(name) {
+  if (name == null) return "";
+  if (typeof name !== "string") name = String(name);
+  name = name.trim().replace(/\s+/g, " ");
+  return name.slice(0, 100);
+}
+
+// Ambil nama dari body, header, atau fallback ke username akun
+function getDisplayName(req, user) {
+  const fromBody = sanitizeDisplayName(req.body?.displayName);
+  const fromHeader = sanitizeDisplayName(req.headers["x-display-name"]);
+  const fromUser = sanitizeDisplayName(user?.username);
+  const name = fromBody || fromHeader || fromUser || "Participant";
+  return name;
+}
+
+// Fallback kalau kita hanya punya object User (tanpa req)
+function nameFromUser(u) {
+  return sanitizeDisplayName(u?.username) || "Participant";
+}
+
 async function getOrCreateDefaultMeeting() {
   let meeting = await Meeting.findOne({
     where: { isDefault: true, flag: "Y" },
@@ -62,6 +83,7 @@ const joinDefaultMeeting = async (req, res) => {
         where: { id: userId },
         include: [{ model: UserRole, as: "UserRole" }],
       });
+      const displayName = getDisplayName(req, user);
       await MeetingParticipant.create({
         meetingId: meeting.meetingId,
         userId,
@@ -73,6 +95,7 @@ const joinDefaultMeeting = async (req, res) => {
             : "participant",
         status: "joined",
         joinTime: new Date(),
+        displayName: displayName,
         isAudioEnabled: true,
         isVideoEnabled: true,
         isScreenSharing: false,
@@ -176,6 +199,7 @@ const createMeeting = async (req, res) => {
     // Add creator as first participant
     const participantStatus = isQuickStart ? "joined" : "scheduled";
     const participantJoinTime = isQuickStart ? new Date() : null;
+    const displayName = getDisplayName(req, user);
 
     const participant = await MeetingParticipant.create({
       meetingId: meeting.meetingId,
@@ -184,6 +208,7 @@ const createMeeting = async (req, res) => {
       status: participantStatus, // 'joined' for quick start, 'scheduled' for scheduled meetings
       joinTime: participantJoinTime, // Set join time for quick start, null for scheduled
       isAudioEnabled: true,
+      displayName: displayName,
       isVideoEnabled: true,
       isScreenSharing: false,
       flag: "Y",
@@ -564,6 +589,8 @@ const joinMeeting = async (req, res) => {
       include: [{ model: UserRole, as: "UserRole" }],
     });
 
+    const displayName = getDisplayName(req, user);
+
     // Add user as participant
     await MeetingParticipant.create({
       meetingId,
@@ -576,6 +603,7 @@ const joinMeeting = async (req, res) => {
           : "participant",
       status: "joined",
       joinTime: new Date(),
+      displayName: displayName,
       isAudioEnabled: true,
       isVideoEnabled: true,
       isScreenSharing: false,
@@ -1361,6 +1389,11 @@ const autoInviteParticipants = async (req, res) => {
         const existingParticipant = await MeetingParticipant.findOne({
           where: { meetingId, userId: participant.id, flag: "Y" },
         });
+        const user = await User.findOne({
+          where: { id: userId },
+          include: [{ model: UserRole, as: "UserRole" }],
+        });
+        const displayName = getDisplayName(req, user);
 
         if (!existingParticipant) {
           // Add participant to meeting
@@ -1371,6 +1404,7 @@ const autoInviteParticipants = async (req, res) => {
             status: "invited", // New status: invited
             joinTime: null, // Will be set when they actually join
             isAudioEnabled: false,
+            displayName: displayName,
             isVideoEnabled: false,
             isScreenSharing: false,
             flag: "Y",
@@ -1478,6 +1512,11 @@ const autoJoinMeeting = async (req, res) => {
         console.log("User already in meeting");
       }
     } else {
+      const user = await User.findOne({
+        where: { id: userId },
+        include: [{ model: UserRole, as: "UserRole" }],
+      });
+      const displayName = getDisplayName(req, user);
       // Add user as participant if not already invited
       await MeetingParticipant.create({
         meetingId,
@@ -1485,6 +1524,7 @@ const autoJoinMeeting = async (req, res) => {
         role: "participant",
         status: "joined",
         joinTime: new Date(),
+        displayName: displayName,
         isAudioEnabled: false,
         isVideoEnabled: false,
         isScreenSharing: false,
