@@ -136,7 +136,16 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
                   <p>🔴 You are sharing your screen</p>
                 </div>
               ) : (
-                <img ref={imageRef} alt="Screen Share" />
+                <img
+                  ref={imageRef}
+                  alt="Screen Share"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain", 
+                    background: "#000",
+                  }}
+                />
               )}
 
          
