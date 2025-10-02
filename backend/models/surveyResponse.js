@@ -48,6 +48,12 @@ module.exports = (sequelize, DataTypes) => {
       targetKey: "surveyId",
       as: "Survey",
     });
+
+    SurveyResponse.belongsTo(models.User, {
+      foreignKey: "userId",
+      as: "User",
+    });
+
     SurveyResponse.hasMany(models.SurveyResponseAnswer, {
       foreignKey: "responseId",
       sourceKey: "responseId",
