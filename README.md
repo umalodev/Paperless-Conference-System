@@ -1,27 +1,64 @@
-# Paperless-Conference-System
+# 📑 Paperless Conference System
 
-## backend set up
+Sistem konferensi tanpa kertas yang terdiri dari **backend** (Node.js/Express) dan **frontend** (React + Vite + Electron).
 
-- cd backend
-- npm install
-- npm install mysql2
-- npm install cors
-- npm install dotenv
-- npm install sequelize sequelize-cli mysql2
+---
 
-- create .env file, isi configurasi database
+## ⚙️ Backend Setup
 
-### running backend
+1. Masuk ke folder backend:
+   ```bash
+   cd backend
+   ```
+2. Install dependencies:
 
-- create table : npm run migrate
-- run be : npm start
+   ```bash
+   npm install
+   npm install mysql2 cors dotenv
+   npm install sequelize sequelize-cli mysql2
+   npm install mediasoup-client socket.io-client
+   ```
 
-## frontend set up
+3. Buat file .env dan isi konfigurasi database
 
-- cd ../frontend
-- npm install
-- npm install react-router-dom
+## 🚀 Menjalankan Backend
 
-### running frontend
+1. Jalankan Sequelize:
 
-- npm run dev
+   ```bash
+   npm start
+   ```
+
+2. Jalankan Seeder:
+
+   ```bash
+   npm run seed
+   ```
+
+3. Jalankan Media Server
+
+   ```bash
+   npm run media
+   ```
+
+4. Jalankan Server
+
+   ```bash
+   npm start
+   ```
+
+## 🎨 Frontend Setup
+
+1. Masuk ke folder frontend:
+   ```bash
+   cd ../frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   npm install react-router-dom
+   ```
+
+### 🚀 Menjalankan Frontend
+
+    npm run dev

@@ -446,7 +446,7 @@ export default function ParticipantsPage() {
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search name, role, or seat…"
+                      placeholder="Search name, or role.."
                       aria-label="Search participants"
                     />
                   </div>

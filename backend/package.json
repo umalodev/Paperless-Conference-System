@@ -5,10 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "migrate": "node migration/migrate.js",
     "start": "node index.js",
     "seed": "node scripts/seedDatabase.js",
-    "create-users": "node scripts/createUsers.js"
+    "media": "node mediaserver.js"
   },
   "keywords": [],
   "author": "",
