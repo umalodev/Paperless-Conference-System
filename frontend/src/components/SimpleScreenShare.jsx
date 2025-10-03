@@ -1,5 +1,6 @@
+// SimpleScreenShare.jsx
 import React, { useState, useEffect, useRef } from "react";
-import simpleScreenShare from "../services/simpleScreenShare";
+import simpleScreenShare, { sendWS } from "../services/simpleScreenShare";
 import "./SimpleScreenShare.css";
 import AnnotateZoomCanvas from "./AnnotateZoomCanvas";
 import { useScreenShare } from "../contexts/ScreenShareContext";
@@ -56,6 +57,7 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
       setReceivedStream({ ...data, timestamp: Date.now() });
       setSharingUser(data.userId);
     };
+
   };
 
   const initializeScreenShare = async () => {
@@ -97,49 +99,60 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
     <div className="simple-screen-share">
       <div className="screen-share-header">
         <h3>Screen Share</h3>
-          <div className="screen-share-controls">
-            {isSharing ? (
-              <button onClick={handleStopShare} className="btn btn-danger">
-                Stop Share
-              </button>
-            ) : someoneElseSharing ? (
-              <button className="btn" disabled>
-                Someone is sharing…
-              </button>
-            ) : (
-              <button
-                onClick={handleStartShare}
-                disabled={isLoading}
-                className="btn btn-primary"
-              >
-                {isLoading ? "Starting..." : "Start Share"}
-              </button>
-            )}
-          </div>
+        <div className="screen-share-controls">
+          {isSharing ? (
+            <button onClick={handleStopShare} className="btn btn-danger">
+              Stop Share
+            </button>
+          ) : someoneElseSharing ? (
+            <button className="btn" disabled>
+              Someone is sharing…
+            </button>
+          ) : (
+            <button
+              onClick={handleStartShare}
+              disabled={isLoading}
+              className="btn btn-primary"
+            >
+              {isLoading ? "Starting..." : "Start Share"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="screen-share-content">
-        {(receivedStream || (isSharing && String(sharingUser) === String(userId))) ? (
+        {(receivedStream || isSharing) ? (
           <div className="received-screen-share">
             <div className="share-info">
               <span className="live-indicator">🔴 LIVE</span>
               <span>
-                {String(sharingUser) === String(userId)
-                  ? "You are sharing"
-                  : `Sharing: ${sharingUser}`}
+                {isSharing ? "You are sharing" : `Sharing: ${sharingUser}`}
               </span>
             </div>
 
             <div className="video-container" ref={overlayRef}>
-              {String(sharingUser) === String(userId) ? (
-                <div className="sharing-placeholder">
-                  <p>🔴 You are sharing your screen</p>
-                </div>
-              ) : (
-                <img ref={imageRef} alt="Screen Share" />
-              )}
+{isSharing ? (
+  <>
+    <div className="sharing-placeholder">
+      <p>🔴 You are sharing your screen</p>
+    </div>
+    {/* 🔹 Sharer juga menerima coretan viewer */}
+    <AnnotateZoomCanvas attachTo={overlayRef} mode="receive-only" />
+  </>
 
-         
+) : (
+  <>
+    <img
+      ref={imageRef}
+      alt="Screen Share"
+      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+    />
+    {isAnnotating && (
+      <AnnotateZoomCanvas attachTo={overlayRef} mode="full" />
+    )}
+  </>
+)}
+
             </div>
           </div>
         ) : (

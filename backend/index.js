@@ -394,29 +394,34 @@ wss.on("connection", (ws, req) => {
         }
 
         if (data.type === "annotate") {
-        console.log(`Annotate from ${data.userId} in meeting ${meetingId}`);
+  console.log(`Annotate from ${data.userId} in meeting ${meetingId}`);
 
-        wss.clients.forEach((client) => {
-          if (
-            client !== ws &&
-            client.readyState === WebSocket.OPEN &&
-            client.meetingId === meetingId
-          ) {
-            client.send(
-              JSON.stringify({
-                type: "annotate",
-                userId: data.userId,
-                meetingId: meetingId,
-                x: data.x,
-                y: data.y,
-                color: data.color,
-                size: data.size,
-                action: data.action, // "start", "draw", "end"
-              })
-            );
-          }
-        });
-      }
+  const meeting = getMeeting(meetingId);
+
+  wss.clients.forEach((client) => {
+    const isSharer =
+      meeting.sharerId && String(client.userId) === String(meeting.sharerId);
+
+    // kirim ke semua viewer lain (bukan sender), atau ke sharer
+    if (
+      client.readyState === WebSocket.OPEN &&
+      client.meetingId === meetingId &&
+      (client !== ws || isSharer)
+    ) {
+      client.send(
+        JSON.stringify({
+          type: "anno:commit",
+          userId: data.userId,
+          meetingId,
+          shape: data.shape,
+        })
+      );
+    }
+  });
+}
+
+
+
 
         // Handle meeting end
         if (data.type === "meeting-end") {
@@ -443,6 +448,82 @@ wss.on("connection", (ws, req) => {
           });
         }
       });
+
+      const m = getMeeting(meetingId);
+
+      switch (data.type) {
+        case "screen_share_start":
+          m.sharerId = data.from || ws.userId;
+          break;
+
+        case "screen_share_stop":
+          if (!m.sharerId || m.sharerId === (data.from || ws.userId)) {
+            m.sharerId = null;
+          }
+          break;
+
+        case "anno:preview":
+        case "anno:commit":
+        case "anno:clear":
+        case "anno:undo":
+        case "anno:redo":
+          // forward saja ke peserta lain di meeting yang sama
+          broadcastToMeeting(meetingId, {
+            ...data,
+            from: data.from || ws.userId,
+          }, ws);
+          return; // sudah dibroadcast, tidak perlu lanjut ke broadcast generic
+      }
+
+      // ====== Broadcast generic (kamu sudah punya) ======
+      // (boleh tetap dipakai untuk tipe lain yang sudah ada)
+      let clientCount = 0;
+      wss.clients.forEach((client) => {
+        if (
+          client !== ws &&
+          client.readyState === WebSocket.OPEN &&
+          client.meetingId === meetingId
+        ) {
+          client.send(JSON.stringify(data));
+          clientCount++;
+        }
+      });
+
+      // Handler khusus participant_ready_to_receive kamu tetap seperti semula...
+      if (data.type === "participant_ready_to_receive") {
+        wss.clients.forEach((client) => {
+          if (
+            client !== ws &&
+            client.readyState === WebSocket.OPEN &&
+            client.meetingId === meetingId
+          ) {
+            client.send(JSON.stringify({
+              type: "participant_ready_to_receive",
+              from: data.from,
+              meetingId
+            }));
+          }
+        });
+      }
+
+      ws.on("close", () => {
+        const meetingId = ws.meetingId;
+        const userId = ws.userId || ws.user?.id;
+        const m = getMeeting(meetingId);
+
+        // Jika yang disconnect adalah current sharer → paksa semua viewer berhenti
+        if (m.sharerId && String(m.sharerId) === String(userId)) {
+          m.sharerId = null;
+          broadcastToMeeting(meetingId, {
+            type: "screen_share_force_stop",
+            meetingId,
+            byDisconnect: true,
+            from: userId
+          });
+        }
+      });
+
+
     } catch (error) {
       console.error("Error parsing WebSocket message:", error);
     }
@@ -522,6 +603,32 @@ function buildAllowedOrigins() {
   }
   return base;
 }
+
+  const meetingState = new Map(); 
+  function getMeeting(meetingId) {
+    if (!meetingState.has(meetingId)) {
+      meetingState.set(meetingId, { sharerId: null });
+    }
+    return meetingState.get(meetingId);
+  }
+
+  // Helper broadcast ke semua client di meeting sama (kecuali pengirim)
+  function broadcastToMeeting(meetingId, payload, exceptWs = null) {
+    let count = 0;
+    wss.clients.forEach((client) => {
+      if (
+        client !== exceptWs &&
+        client.readyState === WebSocket.OPEN &&
+        client.meetingId === meetingId
+      ) {
+        client.send(JSON.stringify(payload));
+        count++;
+      }
+    });
+    return count;
+  }
+
+
 
 const ALLOWED_ORIGINS = buildAllowedOrigins();
 

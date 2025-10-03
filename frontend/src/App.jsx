@@ -22,6 +22,7 @@ import ScreenSharePage from "./pages/menu/screenshare/ScreenShare.jsx";
 import { MediaRoomProvider } from "./contexts/MediaRoomContext.jsx";
 import { ScreenShareProvider } from "./contexts/ScreenShareContext";
 import Whiteboard from "./pages/menu/whiteboard/whiteboards.jsx";
+import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
 
 
 function App() {
@@ -67,6 +68,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <GlobalAnnotationOverlay />
         </ScreenShareProvider>
       </MediaRoomProvider>
     </HashRouter>
