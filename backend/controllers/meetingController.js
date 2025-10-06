@@ -1530,7 +1530,6 @@ const autoJoinMeeting = async (req, res) => {
         isScreenSharing: false,
         flag: "Y",
       });
-      console.log("User added and auto-joined meeting");
     }
 
     // Get updated participant count

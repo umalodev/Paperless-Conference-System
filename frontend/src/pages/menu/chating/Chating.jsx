@@ -16,7 +16,6 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
-// Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Chat() {
   const [user, setUser] = useState(null);
@@ -35,13 +34,14 @@ export default function Chat() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
-  // Screen sharing UI moved to dedicated page
-
   // chat mode
   const [chatMode, setChatMode] = useState("global"); // 'global' or 'private'
   const [selectedParticipant, setSelectedParticipant] = useState(null);
+
+  // participants (sumber kebenaran nama dari DB)
   const [participants, setParticipants] = useState([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [participantsLoaded, setParticipantsLoaded] = useState(false);
 
   const listRef = useRef(null);
   const wsRef = useRef(null);
@@ -73,138 +73,91 @@ export default function Chat() {
   const getMeetingId = () => {
     try {
       const raw = localStorage.getItem("currentMeeting");
-      console.log("=== MEETING ID DEBUG ===");
-      console.log("Raw currentMeeting from localStorage:", raw);
       const cm = raw ? JSON.parse(raw) : null;
-      console.log("Parsed currentMeeting object:", cm);
-      console.log("Meeting ID from cm.id:", cm?.id);
-      console.log("Meeting ID from cm.meetingId:", cm?.meetingId);
       const meetingId = cm?.id || cm?.meetingId || null;
-      console.log("Final extracted meeting ID:", meetingId);
-      console.log("Meeting ID type:", typeof meetingId);
       return meetingId;
-    } catch (error) {
-      console.error("Error parsing currentMeeting:", error);
+    } catch {
       return null;
     }
   };
 
-  // Load participants for private chat
-  const loadParticipants = async () => {
-    const meetingId = getMeetingId();
-    console.log("=== LOAD PARTICIPANTS DEBUG ===");
-    console.log("Loading participants for meeting:", meetingId);
-    console.log("Meeting ID type:", typeof meetingId);
-    if (!meetingId) {
-      console.log("No meeting ID found, returning early");
-      return;
-    }
+  // Cache meetingId (menghindari panggilan berulang)
+  const meetingIdMemo = useMemo(() => getMeetingId(), []);
 
+  // Fallback display name lokal (jaga2 bila DB belum tersedia)
+  const fallbackLocalName = useMemo(() => {
+    return (
+      (localStorage.getItem("pconf.displayName") || "").trim() ||
+      user?.username ||
+      "Participant"
+    );
+  }, [user]);
+
+  // === Ambil daftar peserta dari API yang sama seperti halaman Participants
+  const loadParticipants = async () => {
+    const meetingId = meetingIdMemo || getMeetingId();
+    if (!meetingId) return;
     try {
       setLoadingParticipants(true);
-      const url = `${API_URL}/api/chat/meeting/${meetingId}/participants`;
-      console.log("=== API CALL DEBUG ===");
-      console.log("API_URL:", API_URL);
-      console.log("Meeting ID for API:", meetingId);
-      console.log("Full API URL:", url);
+      setParticipantsLoaded(false);
 
-      const res = await fetch(url, {
+      const qs = `?meetingId=${encodeURIComponent(meetingId)}`;
+      let res = await fetch(`${API_URL}/api/participants/list${qs}`, {
         headers: {
           "Content-Type": "application/json",
-          ...meetingService.getAuthHeaders(),
+          ...(meetingService.getAuthHeaders?.() || {}),
         },
+        credentials: "include",
       });
 
-      console.log("=== API RESPONSE DEBUG ===");
-      console.log("Response status:", res.status);
-      console.log("Response ok:", res.ok);
-      console.log("Response headers:", res.headers);
+      // fallback dev-only (menyerupai ParticipantsPage)
+      if (!res.ok) {
+        res = await fetch(`${API_URL}/api/participants/test-data`, {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      if (res.ok) {
-        const json = await res.json();
-        console.log("=== API RESPONSE DATA ===");
-        console.log("Full response:", json);
-        console.log("Response success:", json.success);
-        console.log("Response message:", json.message);
-        console.log("Response data:", json.data);
-        console.log("Data type:", typeof json.data);
-        console.log("Data length:", json.data?.length);
-        console.log("Data is array:", Array.isArray(json.data));
-
-        if (json.success && json.data) {
-          // Filter out current user
-          console.log("=== USER FILTERING DEBUG ===");
-          const currentUserId = user?.id;
-          console.log("Current user ID:", currentUserId);
-          console.log("Current user ID type:", typeof currentUserId);
-          console.log("Current user object:", user);
-          console.log("All participants before filtering:", json.data);
-          console.log(
-            "Number of participants before filtering:",
-            json.data.length
-          );
-
-          const filteredParticipants = json.data.filter((p) => {
-            const participantUserId = p.userId; // Use userId from transformed data
-            const currentUserIdNum = parseInt(currentUserId);
-            const participantUserIdNum = parseInt(participantUserId);
-            console.log(`=== FILTERING COMPARISON ===`);
-            console.log(`Participant: ${p.name} (ID: ${participantUserId})`);
-            console.log(
-              `Current user ID: ${currentUserId} -> parsed: ${currentUserIdNum}`
-            );
-            console.log(
-              `Participant user ID: ${participantUserId} -> parsed: ${participantUserIdNum}`
-            );
-            console.log(
-              `Comparison: ${participantUserIdNum} !== ${currentUserIdNum} = ${
-                participantUserIdNum !== currentUserIdNum
-              }`
-            );
-            const shouldInclude = participantUserIdNum !== currentUserIdNum;
-            console.log(`Should include in list: ${shouldInclude}`);
-            return shouldInclude;
-          });
-          console.log("=== FILTERING RESULT ===");
-          console.log("Filtered participants:", filteredParticipants);
-          console.log(
-            "Number of participants after filtering:",
-            filteredParticipants.length
-          );
-          setParticipants(filteredParticipants);
-        }
+      const json = await res.json();
+      if (json.success) {
+        const raw = Array.isArray(json.data) ? json.data : [];
+        const normalized = raw.map((p) => ({
+          ...p,
+          id: String(p.id ?? p.participantId ?? p.userId),
+          userId: String(p.userId ?? p.id ?? p.participantId),
+          displayName: p.displayName || p.name || p.username || "Participant",
+          mic: p.mic ?? !!p.isAudioEnabled,
+          cam: p.cam ?? !!p.isVideoEnabled,
+        }));
+        // JANGAN filter diri sendiri di state (agar peta nama mencakup user saat ini)
+        setParticipants(normalized);
       } else {
-        const errorText = await res.text();
-        console.log("=== API ERROR ===");
-        console.error("Participants API error:", res.status, errorText);
-        console.log("Error response text:", errorText);
+        setParticipants([]);
       }
     } catch (error) {
       console.error("Error loading participants:", error);
+      setParticipants([]);
     } finally {
       setLoadingParticipants(false);
+      setParticipantsLoaded(true);
     }
   };
 
+  // who am I
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Load participants when component mounts or user changes
+  // Load participants when user changes
   useEffect(() => {
-    console.log("=== USEEFFECT DEBUG ===");
-    console.log("useEffect triggered - user:", user);
-    console.log("User ID:", user?.id);
     if (user?.id) {
-      console.log("Loading participants because user is available");
       loadParticipants();
-    } else {
-      console.log("User not available yet");
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
-  // Ambil menu dari API buat nav bawah
+  // BottomNav menus
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -238,7 +191,23 @@ export default function Chat() {
     };
   }, []);
 
-  // Load messages based on chat mode
+  // === Peta nama berdasarkan daftar participants (userId -> displayName)
+  const nameByUserId = useMemo(() => {
+    const m = new Map();
+    (participants || []).forEach((p) => {
+      const nm = p.displayName || p.name || p.username || "Participant";
+      if (p.userId != null) m.set(String(p.userId), nm);
+    });
+    return m;
+  }, [participants]);
+
+  // Nama saya dari DB
+  const myDbDisplayName = useMemo(() => {
+    if (!user?.id) return "";
+    return nameByUserId.get(String(user.id)) || "";
+  }, [nameByUserId, user?.id]);
+
+  // Load messages (setelah participants siap agar nama terpetakan dari DB)
   const loadMessages = async (
     mode = chatMode,
     participantId = selectedParticipant?.userId
@@ -247,14 +216,10 @@ export default function Chat() {
       setLoadingMsg(true);
       setErrMsg("");
 
-      const meetingId = getMeetingId();
-      if (!meetingId) {
-        throw new Error("Meeting ID tidak ditemukan");
-      }
+      const meetingId = meetingIdMemo || getMeetingId();
+      if (!meetingId) throw new Error("Meeting ID tidak ditemukan");
 
       let url = `${API_URL}/api/chat/meeting/${meetingId}/messages?limit=50`;
-
-      // Add userReceiveId for private chat
       if (mode === "private" && participantId) {
         url += `&userReceiveId=${participantId}`;
       }
@@ -270,19 +235,28 @@ export default function Chat() {
       const json = await res.json();
 
       if (json.success && json.data?.messages) {
-        const data = json.data.messages.map((msg) => ({
-          id: msg.meetingChatId,
-          userId: msg.userId,
-          name: msg.Sender?.username || "Unknown",
-          text: msg.textMessage || "",
-          ts: new Date(msg.sendTime).getTime(),
-          messageType: msg.messageType,
-          filePath: msg.filePath,
-          originalName: msg.originalName,
-          mimeType: msg.mimeType,
-          userReceiveId: msg.userReceiveId,
-        }));
+        const data = json.data.messages.map((msg) => {
+          const senderName =
+            nameByUserId.get(String(msg.userId)) ||
+            msg.Sender?.displayName ||
+            msg.Sender?.name ||
+            msg.Sender?.fullName ||
+            msg.Sender?.username ||
+            "Unknown";
 
+          return {
+            id: msg.meetingChatId,
+            userId: msg.userId,
+            name: senderName,
+            text: msg.textMessage || "",
+            ts: new Date(msg.sendTime).getTime(),
+            messageType: msg.messageType,
+            filePath: msg.filePath,
+            originalName: msg.originalName,
+            mimeType: msg.mimeType,
+            userReceiveId: msg.userReceiveId,
+          };
+        });
         setMessages(data);
       } else {
         setMessages([]);
@@ -294,15 +268,27 @@ export default function Chat() {
     }
   };
 
-  // Load messages when component mounts or chat mode changes
+  // TUNDA loadMessages sampai participantsLoaded
   useEffect(() => {
+    if (!participantsLoaded) return;
     loadMessages();
-  }, [chatMode, selectedParticipant]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participantsLoaded, chatMode, selectedParticipant]);
+
+  // Remap nama pesan lama ketika daftar participants berubah
+  useEffect(() => {
+    if (!participants.length) return;
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        name: nameByUserId.get(String(m.userId)) || m.name,
+      }))
+    );
+  }, [participants, nameByUserId]);
 
   // WebSocket connection untuk real-time chat
   useEffect(() => {
-    const meetingId = getMeetingId();
-
+    const meetingId = meetingIdMemo || getMeetingId();
     if (!meetingId) return;
 
     let reconnectAttempts = 0;
@@ -310,7 +296,6 @@ export default function Chat() {
     let reconnectTimeout = null;
 
     const connectWebSocket = () => {
-      // Clear any existing connection
       if (wsRef.current) {
         wsRef.current.close();
       }
@@ -320,20 +305,19 @@ export default function Chat() {
         /^http/,
         "ws"
       )}/meeting/${meetingId}?token=${encodeURIComponent(token)}`;
-      console.log("Connecting to WebSocket:", wsUrl);
+
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log("WebSocket connected for chat");
-        reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+        reconnectAttempts = 0;
 
-        // Send participant identification
+        // Kirim identitas dengan displayName dari DB (jika ada)
         if (user?.id) {
           wsRef.current.send(
             JSON.stringify({
               type: "participant_joined",
               participantId: user.id,
-              username: user.username,
+              displayName: myDbDisplayName || fallbackLocalName,
             })
           );
         }
@@ -342,13 +326,19 @@ export default function Chat() {
       wsRef.current.onmessage = (evt) => {
         try {
           const data = JSON.parse(evt.data);
-          console.log("WebSocket message received:", data);
 
           if (data?.type === "chat_message") {
+            const senderName =
+              nameByUserId.get(String(data.userId)) ||
+              data.displayName ||
+              data.name ||
+              data.username ||
+              "Unknown";
+
             const newMessage = {
               id: data.messageId,
               userId: data.userId,
-              name: data.username,
+              name: senderName,
               text: data.message,
               ts: data.timestamp,
               messageType: data.messageType,
@@ -358,98 +348,58 @@ export default function Chat() {
               userReceiveId: data.userReceiveId,
             };
 
-            // Filter messages based on current chat mode
+            // Filter messages berdasarkan mode
             let shouldAddMessage = false;
-
             if (chatMode === "global") {
-              // In global mode, only show messages without userReceiveId (global messages)
               shouldAddMessage = !data.userReceiveId;
-              console.log(
-                "Global mode: message has userReceiveId?",
-                !!data.userReceiveId,
-                "should add:",
-                shouldAddMessage
-              );
             } else if (chatMode === "private" && selectedParticipant) {
-              // In private mode, only show messages between current user and selected participant
               const isFromSelectedParticipant =
-                data.userId === selectedParticipant.userId;
+                String(data.userId) === String(selectedParticipant.userId);
               const isToSelectedParticipant =
-                data.userReceiveId === selectedParticipant.userId;
-              const isFromCurrentUser = data.userId === user?.id;
-              const isToCurrentUser = data.userReceiveId === user?.id;
+                String(data.userReceiveId) ===
+                String(selectedParticipant.userId);
+              const isFromCurrentUser =
+                String(data.userId) === String(user?.id);
+              const isToCurrentUser =
+                String(data.userReceiveId) === String(user?.id);
 
               shouldAddMessage =
                 (isFromSelectedParticipant && isToCurrentUser) ||
                 (isFromCurrentUser && isToSelectedParticipant);
-
-              console.log(
-                "Private mode: from selected?",
-                isFromSelectedParticipant,
-                "to current?",
-                isToCurrentUser,
-                "should add:",
-                shouldAddMessage
-              );
             }
 
-            if (!shouldAddMessage) {
-              console.log("Message filtered out based on chat mode");
-              return;
-            }
+            if (!shouldAddMessage) return;
 
             // Prevent duplicate messages
             setMessages((prev) => {
               const isDuplicate = prev.some(
                 (msg) =>
                   msg.id === newMessage.id ||
-                  (msg.userId === newMessage.userId &&
+                  (String(msg.userId) === String(newMessage.userId) &&
                     msg.text === newMessage.text &&
                     Math.abs(msg.ts - newMessage.ts) < 1000)
               );
-
-              if (isDuplicate) {
-                console.log("Duplicate message prevented:", newMessage);
-                return prev;
-              }
-
-              console.log("Adding new message:", newMessage);
+              if (isDuplicate) return prev;
               return [...prev, newMessage];
             });
           }
 
-          // Handle screen sharing events
+          // Forward event lain
           else if (data.type === "screen-share-started") {
-            console.log("Screen share started by:", data.userId);
-            // Dispatch event for screen share components
             window.dispatchEvent(
-              new CustomEvent("screen-share-started", {
-                detail: data,
-              })
+              new CustomEvent("screen-share-started", { detail: data })
             );
           } else if (data.type === "screen-share-stopped") {
-            console.log("Screen share stopped by:", data.userId);
-            // Dispatch event for screen share components
             window.dispatchEvent(
-              new CustomEvent("screen-share-stopped", {
-                detail: data,
-              })
+              new CustomEvent("screen-share-stopped", { detail: data })
             );
           } else if (data.type === "screen-share-producer-created") {
-            console.log("Screen share producer created:", data);
-            // Dispatch event for screen share components
             window.dispatchEvent(
-              new CustomEvent("screen-share-producer-created", {
-                detail: data,
-              })
+              new CustomEvent("screen-share-producer-created", { detail: data })
             );
           } else if (data.type === "screen-share-producer-closed") {
-            console.log("Screen share producer closed:", data);
-            // Dispatch event for screen share components
             window.dispatchEvent(
-              new CustomEvent("screen-share-producer-closed", {
-                detail: data,
-              })
+              new CustomEvent("screen-share-producer-closed", { detail: data })
             );
           }
         } catch (error) {
@@ -458,22 +408,10 @@ export default function Chat() {
       };
 
       wsRef.current.onclose = (event) => {
-        console.log("WebSocket disconnected:", event.code, event.reason);
-
-        // Don't reconnect for normal closure
-        if (event.code === 1000) {
-          return;
-        }
-
-        // Retry connection with exponential backoff
+        if (event.code === 1000) return; // normal close
         if (reconnectAttempts < maxReconnectAttempts) {
           reconnectAttempts++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Max 10 seconds
-
-          console.log(
-            `WebSocket reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`
-          );
-
+          const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000);
           reconnectTimeout = setTimeout(() => {
             if (
               !wsRef.current ||
@@ -492,18 +430,22 @@ export default function Chat() {
       };
     };
 
-    // Initial connection
     connectWebSocket();
 
     return () => {
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      if (wsRef.current) {
-        wsRef.current.close(1000, "Component unmounting");
-      }
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (wsRef.current) wsRef.current.close(1000, "Component unmounting");
     };
-  }, [user, getMeetingId]);
+    // Sertakan dependensi yang mempengaruhi identitas & filter
+  }, [
+    user?.id,
+    meetingIdMemo,
+    chatMode,
+    selectedParticipant,
+    nameByUserId,
+    myDbDisplayName,
+    fallbackLocalName,
+  ]);
 
   // Auto scroll ke bawah saat ada pesan baru
   useEffect(() => {
@@ -519,7 +461,6 @@ export default function Chat() {
     [menus]
   );
 
-  // aktifkan slug 'chat' atau 'exchange' (tergantung data DB)
   const activeSlug = useMemo(
     () => (visibleMenus.some((m) => m.slug === "chat") ? "chat" : "exchange"),
     [visibleMenus]
@@ -531,8 +472,7 @@ export default function Chat() {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
 
-    const meetingId = getMeetingId();
-
+    const meetingId = meetingIdMemo || getMeetingId();
     if (!meetingId) {
       setErrMsg("Meeting ID tidak ditemukan");
       return;
@@ -543,7 +483,7 @@ export default function Chat() {
     const newMsg = {
       id: tempId,
       userId: me.id || me.username,
-      name: me.username || "You",
+      name: myDbDisplayName || fallbackLocalName, // pakai nama DB
       text: trimmed,
       ts: Date.now(),
       _optimistic: true,
@@ -554,18 +494,13 @@ export default function Chat() {
     setSending(true);
 
     try {
-      // Prepare request body
       const requestBody = { textMessage: trimmed };
-
-      // Add userReceiveId for private chat
       if (chatMode === "private" && selectedParticipant?.userId) {
         requestBody.userReceiveId = selectedParticipant.userId;
       }
 
-      // Kirim ke backend API
       const res = await fetch(`${API_URL}/api/chat/meeting/${meetingId}/send`, {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
           ...meetingService.getAuthHeaders(),
@@ -577,7 +512,6 @@ export default function Chat() {
       const json = await res.json();
 
       if (json.success) {
-        // replace temp msg id -> server id
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempId
@@ -585,14 +519,10 @@ export default function Chat() {
               : m
           )
         );
-
-        // Note: WebSocket is only for receiving messages from other users
-        // Our own message is already added to the list above
       } else {
         throw new Error(json.message || "Gagal mengirim pesan");
       }
     } catch (e) {
-      // tandai gagal
       setMessages((prev) =>
         prev.map((m) => (m.id === tempId ? { ...m, _error: true } : m))
       );
@@ -613,8 +543,7 @@ export default function Chat() {
     const file = event.target.files[0];
     if (!file) return;
 
-    const meetingId = getMeetingId();
-
+    const meetingId = meetingIdMemo || getMeetingId();
     if (!meetingId) {
       setErrMsg("Meeting ID tidak ditemukan");
       return;
@@ -623,7 +552,6 @@ export default function Chat() {
     const formData = new FormData();
     formData.append("file", file);
 
-    // Add userReceiveId for private chat
     if (chatMode === "private" && selectedParticipant?.userId) {
       formData.append("userReceiveId", selectedParticipant.userId);
     }
@@ -647,7 +575,7 @@ export default function Chat() {
         const newMessage = {
           id: json.data.meetingChatId,
           userId: user?.id,
-          name: user?.username || "You",
+          name: myDbDisplayName || fallbackLocalName, // pakai nama DB
           text: "",
           ts: new Date(json.data.sendTime).getTime(),
           messageType: json.data.messageType,
@@ -655,11 +583,7 @@ export default function Chat() {
           originalName: json.data.originalName,
           mimeType: json.data.mimeType,
         };
-
         setMessages((prev) => [...prev, newMessage]);
-
-        // Note: WebSocket is only for receiving messages from other users
-        // Our own file message is already added to the list above
       } else {
         throw new Error(json.message || "Gagal mengupload file");
       }
@@ -667,22 +591,19 @@ export default function Chat() {
       setErrMsg(String(e.message || e));
     } finally {
       setSending(false);
-      // Reset file input
       event.target.value = "";
     }
   };
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
-  // Screen sharing controls handled elsewhere
-
   return (
     <MeetingLayout
-      meetingId={getMeetingId()}
+      meetingId={meetingIdMemo}
       userId={user?.id}
       userRole={user?.role || "participant"}
       socket={wsRef.current}
-      mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
+      mediasoupDevice={null}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -703,13 +624,17 @@ export default function Chat() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(user?.username || "US").slice(0, 2).toUpperCase()}
+                {(myDbDisplayName || fallbackLocalName || "US")
+                  .slice(0, 2)
+                  .toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {user?.username || "Participant"}
+                  {myDbDisplayName || fallbackLocalName}
                 </div>
-                <div className="pd-user-role">Participant</div>
+                <div className="pd-user-role">
+                  {user?.role || "Participant"}
+                </div>
               </div>
             </div>
           </div>
@@ -729,7 +654,7 @@ export default function Chat() {
                   {chatMode === "global"
                     ? "Ruang Chat"
                     : `Chat dengan ${
-                        selectedParticipant?.name || "Participant"
+                        selectedParticipant?.displayName || "Participant"
                       }`}
                 </span>
               </div>
@@ -739,18 +664,9 @@ export default function Chat() {
                     chatMode === "private" ? "active" : ""
                   }`}
                   onClick={() => {
-                    console.log("=== PRIVATE CHAT BUTTON CLICKED ===");
                     setChatMode("private");
                     setSelectedParticipant(null);
-                    // Load participants when switching to private mode
-                    if (user?.id) {
-                      console.log("User available, loading participants");
-                      loadParticipants();
-                    } else {
-                      console.log(
-                        "User not available for loading participants"
-                      );
-                    }
+                    if (user?.id) loadParticipants();
                   }}
                   title="Chat Pribadi"
                 >
@@ -779,56 +695,38 @@ export default function Chat() {
                   <div className="pd-empty">Memuat participants...</div>
                 ) : participants.length > 0 ? (
                   <div className="participant-list">
-                    {participants.map((participant) => (
-                      <button
-                        key={participant.id}
-                        className="participant-item"
-                        onClick={() => {
-                          console.log("=== PARTICIPANT CLICKED ===");
-                          console.log("Selected participant:", participant);
-                          setSelectedParticipant(participant);
-                          // Load messages for private chat with this participant
-                          loadMessages("private", participant.userId);
-                        }}
-                      >
-                        <div className="participant-avatar">
-                          {(participant.name || "U").slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="participant-info">
-                          <div className="participant-name">
-                            {participant.name}
+                    {participants
+                      .filter((p) => String(p.userId) !== String(user?.id)) // sembunyikan diri sendiri di daftar
+                      .map((participant) => (
+                        <button
+                          key={participant.id}
+                          className="participant-item"
+                          onClick={() => {
+                            setSelectedParticipant(participant);
+                            loadMessages("private", participant.userId);
+                          }}
+                        >
+                          <div className="participant-avatar">
+                            {(participant.displayName || "U")
+                              .slice(0, 2)
+                              .toUpperCase()}
                           </div>
-                          <div className="participant-role">
-                            {participant.role}
+                          <div className="participant-info">
+                            <div className="participant-name">
+                              {participant.displayName}
+                            </div>
+                            <div className="participant-role">
+                              {participant.role}
+                            </div>
+                            <div className="participant-status">
+                              <span
+                                className={`status-dot ${participant.status}`}
+                              ></span>
+                              {participant.status}
+                            </div>
                           </div>
-                          <div className="participant-seat">
-                            {participant.seat}
-                          </div>
-                          <div className="participant-status">
-                            <span
-                              className={`status-dot ${participant.status}`}
-                            ></span>
-                            {participant.status}
-                          </div>
-                        </div>
-                        <div className="participant-controls">
-                          <div
-                            className={`control-icon mic ${
-                              participant.mic ? "active" : "inactive"
-                            }`}
-                          >
-                            🎤
-                          </div>
-                          <div
-                            className={`control-icon cam ${
-                              participant.cam ? "active" : "inactive"
-                            }`}
-                          >
-                            📹
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      ))}
                   </div>
                 ) : (
                   <div className="pd-empty">Tidak ada participant lain</div>
@@ -865,14 +763,14 @@ export default function Chat() {
                       <MessageItem
                         key={`${m.id}-${m.userId}-${m.ts}-${index}`}
                         msg={m}
-                        isMine={(user?.id || user?.username) === m.userId}
+                        isMine={String(user?.id) === String(m.userId)}
                       />
                     ))}
                   </div>
 
                   <div className="chat-composer">
                     <div className="composer-left">
-                      <label className="chat-iconbtn" title="Lampirkan File">
+                      {/* <label className="chat-iconbtn" title="Lampirkan File">
                         <Icon
                           slug="attach"
                           iconUrl="/img/icons/attach.svg"
@@ -882,16 +780,9 @@ export default function Chat() {
                           type="file"
                           style={{ display: "none" }}
                           onChange={handleFileUpload}
-                          accept="*/*"
+                          
                         />
-                      </label>
-                      <button className="chat-iconbtn" title="Emoji">
-                        <Icon
-                          slug="emoji"
-                          iconUrl="/img/icons/emoji.svg"
-                          size={20}
-                        />
-                      </button>
+                      </label> */}
                     </div>
                     <textarea
                       className="chat-input"
