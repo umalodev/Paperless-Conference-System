@@ -172,8 +172,8 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background-color: #000000;
-  color: #b91c1c;
+  background-color: #0f750f;
+  color: #000000;
 }
 
 .pd-tile-label {
