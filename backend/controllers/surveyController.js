@@ -427,6 +427,143 @@ module.exports = (models, sequelize) => {
       }
     },
 
+    // GET /api/surveys/:surveyId/stats/mc
+    choiceStats: async (req, res) => {
+      try {
+        const {
+          Survey,
+          SurveyQuestion,
+          SurveyQuestionType,
+          SurveyOption,
+          SurveyResponseAnswer,
+        } = models;
+        const { surveyId } = req.params;
+
+        // izin hanya host/admin
+        const role = (req.user?.role || "").toLowerCase();
+        if (!["host", "admin"].includes(role)) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Forbidden: host/admin only" });
+        }
+
+        // Ambil semua pertanyaan + opsi, filter multiple_choice saja
+        const survey = await Survey.findOne({
+          where: { surveyId, flag: "Y" },
+          include: [
+            {
+              model: SurveyQuestion,
+              as: "Questions",
+              where: { flag: "Y" },
+              required: false,
+              include: [
+                { model: SurveyQuestionType, as: "Type" },
+                {
+                  model: SurveyOption,
+                  as: "Options",
+                  where: { flag: "Y" },
+                  required: false,
+                },
+              ],
+              order: [["seq", "ASC"]],
+            },
+          ],
+        });
+        if (!survey) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Survey not found" });
+        }
+
+        const mcQuestions = (survey.Questions || []).filter(
+          (q) => (q.Type?.name || "").toLowerCase() === "multiple_choice"
+        );
+
+        // Hitung count per optionId untuk setiap pertanyaan MC
+        const out = [];
+        for (const q of mcQuestions) {
+          // Agregasi jawaban di table SurveyResponseAnswer
+          const rows = await SurveyResponseAnswer.findAll({
+            attributes: [
+              "selectedOptionId",
+              [Sequelize.fn("COUNT", Sequelize.col("*")), "count"],
+            ],
+            where: {
+              flag: "Y",
+              questionId: q.questionId,
+              // Abaikan jawaban kosong (belum memilih)
+              selectedOptionId: { [Sequelize.Op.ne]: null },
+            },
+            group: ["selectedOptionId"],
+            raw: true,
+          });
+
+          // Kamus optionId -> label
+          const labelById = new Map(
+            (q.Options || []).map((o) => [
+              String(o.optionId),
+              o.optionBody || "",
+            ])
+          );
+
+          // Bentuk array options {optionId,label,count,percent}
+          const counts = rows.map((r) => ({
+            optionId: Number(r.selectedOptionId),
+            label:
+              labelById.get(String(r.selectedOptionId)) ??
+              `(Option ${r.selectedOptionId})`,
+            count: Number(r.count || 0),
+          }));
+
+          const total = counts.reduce((s, it) => s + it.count, 0);
+          const options = counts
+            .sort((a, b) => a.optionId - b.optionId)
+            .map((it) => ({
+              ...it,
+              percent:
+                total > 0 ? Math.round((it.count * 10000) / total) / 100 : 0,
+            }));
+
+          // Sertakan opsi yang tidak dipilih sama sekali (count=0)
+          for (const o of q.Options || []) {
+            const exists = options.find((x) => x.optionId === o.optionId);
+            if (!exists) {
+              options.push({
+                optionId: o.optionId,
+                label: o.optionBody || "",
+                count: 0,
+                percent: 0,
+              });
+            }
+          }
+
+          // urutkan sesuai seq opsi
+          options.sort((a, b) => {
+            const ao = (q.Options || []).find((x) => x.optionId === a.optionId);
+            const bo = (q.Options || []).find((x) => x.optionId === b.optionId);
+            return (ao?.seq ?? 0) - (bo?.seq ?? 0);
+          });
+
+          out.push({
+            questionId: q.questionId,
+            text: q.questionBody,
+            seq: q.seq ?? 0,
+            total,
+            options,
+          });
+        }
+
+        // urutkan pertanyaan MC sesuai seq
+        out.sort((a, b) => a.seq - b.seq);
+
+        return res.json({ success: true, data: out });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
     // POST /api/surveys/:surveyId/questions
     addQuestion: async (req, res) => {
       const t = await sequelize.transaction();

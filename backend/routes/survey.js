@@ -72,4 +72,6 @@ router.get(
   controller.exportResponsesCSV
 );
 
+router.get("/:surveyId/stats/mc", auth.isAuthenticated, controller.choiceStats);
+
 module.exports = router;

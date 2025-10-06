@@ -117,3 +117,8 @@ export async function downloadResponsesCSV(surveyId, filename) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+export async function getMcStats(surveyId) {
+  const json = await http(`/api/surveys/${surveyId}/stats/mc`);
+  return Array.isArray(json?.data) ? json.data : [];
+}
