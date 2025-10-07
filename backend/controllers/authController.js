@@ -1,7 +1,12 @@
 // controllers/authController.js
 const bcrypt = require("bcrypt");
+const axios = require("axios"); 
 const { User, UserRole } = require("../models");
 const { signUser } = require("../utils/jwt"); // pakai util yang sudah kamu buat
+
+const CONTROL_SERVER_URL =
+  process.env.CONTROL_SERVER_URL;
+
 
 const authController = {
   // POST /api/auth/login
@@ -42,6 +47,28 @@ const authController = {
         role: user.UserRole?.nama || "participant",
       });
 
+      const accountInfo = {
+        id: user.id,
+        username: user.username,
+        role: user.UserRole?.nama || "participant",
+      };
+
+
+      // 🔹 Kirim data login ke Control Server (non-blocking)
+      axios
+        .post(`${CONTROL_SERVER_URL}/api/control/sync-login`, {
+          token,
+          account: accountInfo,
+        })
+        .then(() =>
+          console.log(`✅ Synced login: ${user.username} → Control Server`)
+        )
+        .catch((err) =>
+          console.warn("⚠️ Gagal sync ke Control Server:", err.message)
+        );
+
+
+
       return res.json({
         success: true,
         message: "Login berhasil",
@@ -70,7 +97,7 @@ const authController = {
       const userId = req.params.id;
       const user = await User.findByPk(userId, {
         include: [{ model: UserRole, as: "UserRole", attributes: ["nama"] }],
-        attributes: ["id", "username", "created_at", "name", "email"],
+        attributes: ["id", "username", "created_at"]
       });
 
       if (!user) {
@@ -111,7 +138,7 @@ const authController = {
       // Ambil fresh dari DB agar info terbaru
       const user = await User.findByPk(req.user.id, {
         include: [{ model: UserRole, as: "UserRole", attributes: ["nama"] }],
-        attributes: ["id", "username", "created_at", "name", "email"],
+        attributes: ["id", "username", "created_at"]
       });
 
       if (!user) {

@@ -64,8 +64,6 @@ function createWindow() {
       allowRunningInsecureContent: true,
       experimentalFeatures: true,
       // Enable screen capture APIs
-      enableRemoteModule: false,
-      webSecurity: false,
       // Additional permissions for screen sharing
       additionalArguments: ["--enable-features=VaapiVideoDecoder"]
     }
@@ -87,7 +85,7 @@ function createWindow() {
   });
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
     console.log(`[main] Permission requested: ${permission}`);
-    if (permission === "media" || permission === "display-capture" || permission === "camera" || permission === "microphone") {
+    if (permission === "media") {
       console.log(`[main] Granting permission: ${permission}`);
       return cb(true);
     }
@@ -96,7 +94,7 @@ function createWindow() {
   });
   session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, _details) => {
     console.log(`[main] Permission check: ${permission}`);
-    if (permission === "media" || permission === "display-capture" || permission === "camera" || permission === "microphone") {
+    if (permission === "media") {
       return true;
     }
     return true;
