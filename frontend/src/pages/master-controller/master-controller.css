@@ -1,0 +1,68 @@
+.mc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.mc-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.mc-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  margin-bottom: 4px;
+}
+
+.mc-os {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.mc-user {
+  color: #475569;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.mc-account {
+  background: #f0fdf4;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+
+.mc-account--warn {
+  background: #fef9c3;
+}
+
+.mc-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mc-btn {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  color: #fff;
+  cursor: pointer;
+}
+
+.mc-btn--blue { background: #3b82f6; }
+.mc-btn--gray { background: #64748b; }
+.mc-btn--yellow { background: #eab308; }
+.mc-btn--red { background: #dc2626; }
+
+.mc-btn:hover {
+  opacity: 0.9;
+}

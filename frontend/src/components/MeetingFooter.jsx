@@ -1,12 +1,10 @@
 // src/components/MeetingFooter.jsx
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
 import { useScreenShare } from "../contexts/ScreenShareContext";
 import "./meeting-footer.css";
-import { useLocation } from "react-router-dom";
-
 
 export default function MeetingFooter({
   userRole = "participant",
@@ -20,14 +18,11 @@ export default function MeetingFooter({
   onToggleCam,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // 🔹 Ambil state global screen share
-  const {
-    sharingUser,
-    screenShareOn,
-    isAnnotating,
-    setIsAnnotating,
-  } = useScreenShare();
+  const { sharingUser, screenShareOn, isAnnotating, setIsAnnotating } =
+    useScreenShare();
 
   const currentUserId = (() => {
     try {
@@ -48,20 +43,18 @@ export default function MeetingFooter({
       return null;
     }
   };
-  const getMeetingId = (cm) => cm?.meetingId || cm?.id || cm?.code;
 
-  // Role & meeting flags
-  const isHost = userRole === "host" || userRole === "admin";
+  const getMeetingId = (cm) => cm?.meetingId || cm?.id || cm?.code;
   const cm = getCurrentMeeting();
   const meetingId = getMeetingId(cm);
-  const isDefaultMeeting =
-    Boolean(cm?.isDefault) || String(meetingId) === "1000";
 
-  const location = useLocation();
+  const isHost = userRole === "host" || userRole === "admin";
+  const isDefaultMeeting = Boolean(cm?.isDefault) || String(meetingId) === "1000";
+
   // Common cleanup
   const cleanupRealtime = () => {
     try {
-      if (window.simpleScreenShare && window.simpleScreenShare.isSharing) {
+      if (window.simpleScreenShare?.isSharing) {
         window.simpleScreenShare.stopScreenShare();
       }
     } catch {}
@@ -72,26 +65,21 @@ export default function MeetingFooter({
     } catch {}
   };
 
+  // Default behaviors
   const defaultBack = async () => {
     try {
       cleanupRealtime();
-      if (meetingId) {
-        await meetingService.leaveMeeting(meetingId);
-      }
+      if (meetingId) await meetingService.leaveMeeting(meetingId);
     } finally {
       localStorage.removeItem("currentMeeting");
-      if (isHost) navigate("/setup");
-      else navigate("/start");
+      navigate(isHost ? "/setup" : "/start");
     }
   };
 
   const defaultEndMeeting = async () => {
     try {
       if (!window.confirm("Are you sure you want to end this meeting?")) return;
-      if (!meetingId) {
-        alert("Meeting ID not found. Cannot end meeting.");
-        return;
-      }
+      if (!meetingId) return alert("Meeting ID not found.");
       cleanupRealtime();
       await meetingService.endMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
@@ -105,10 +93,7 @@ export default function MeetingFooter({
   const defaultLeaveMeeting = async () => {
     try {
       if (!window.confirm("Are you sure you want to leave this meeting?")) return;
-      if (!meetingId) {
-        alert("Meeting ID not found. Cannot leave meeting.");
-        return;
-      }
+      if (!meetingId) return alert("Meeting ID not found.");
       cleanupRealtime();
       await meetingService.leaveMeeting(meetingId);
       localStorage.removeItem("currentMeeting");
@@ -129,33 +114,46 @@ export default function MeetingFooter({
 
   return (
     <footer className="pd-bottombar">
+      {/* 🔹 Left Control Group (Mic / Camera) */}
       <div className="pd-controls-left">
         <button
           className={`pd-ctrl ${micOn === false ? "is-off" : ""}`}
-          title={micOn === false ? "Mic Off" : "Mic"}
+          title={micOn === false ? "Mic Off" : "Mic On"}
           onClick={onToggleMic}
         >
           <Icon slug="mic" />
         </button>
+
         <button
           className={`pd-ctrl ${camOn === false ? "is-off" : ""}`}
-          title={camOn === false ? "Camera Off" : "Camera"}
+          title={camOn === false ? "Camera Off" : "Camera On"}
           onClick={onToggleCam}
         >
           <Icon slug="camera" />
         </button>
       </div>
 
+      {/* 🔹 Right Control Group */}
       <div className="pd-controls-right">
+        {/* Screen Share */}
         <button
           className="pd-ctrl"
-          title="Open Screen Share Page"
+          title="Screen Share"
           onClick={() => navigate("/menu/screenshare")}
-          style={{ position: "relative" }}
         >
           <Icon slug="screen-share" />
+        </button>
 
-          {/* 🔴 Badge merah kalau ada orang lain share */}
+        {/* Master Controller */}
+        <button
+          className="pd-ctrl"
+          title="Master Controller"
+          onClick={() => navigate("/master-controller")}
+          style={{ position: "relative" }}
+        >
+          <Icon slug="master-controller" />
+
+          {/* 🔴 Badge jika ada orang lain share */}
           {screenShareOn && String(sharingUser) !== String(currentUserId) && (
             <>
               <span
@@ -170,8 +168,6 @@ export default function MeetingFooter({
                   boxShadow: "0 0 6px rgba(0,0,0,0.4)",
                 }}
               />
-              
-              {/* 🔹 Tooltip hanya muncul kalau bukan di halaman screenshare */}
               {location.pathname !== "/menu/screenshare" && (
                 <div
                   style={{
@@ -208,33 +204,32 @@ export default function MeetingFooter({
           )}
         </button>
 
+        {/* Annotation Button */}
+        {screenShareOn && (
+          <button
+            className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
+            title={
+              isAnnotating
+                ? String(sharingUser) === String(currentUserId)
+                  ? "Stop Annotating Your Screen"
+                  : "Stop Annotating Viewer Mode"
+                : String(sharingUser) === String(currentUserId)
+                ? "Annotate My Screen"
+                : "Annotate Shared Screen"
+            }
+            onClick={() => setIsAnnotating(!isAnnotating)}
+          >
+            <Icon slug="annotate" />
+          </button>
+        )}
 
-{screenShareOn && (
-  <button
-    className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
-    title={
-      isAnnotating
-        ? (String(sharingUser) === String(currentUserId)
-            ? "Stop Annotating Your Screen"
-            : "Stop Annotating Viewer Mode")
-        : (String(sharingUser) === String(currentUserId)
-            ? "Annotate My Screen"
-            : "Annotate Shared Screen")
-    }
-    onClick={() => setIsAnnotating(!isAnnotating)}
-  >
-    <Icon slug="annotate" />
-  </button>
-)}
-
-
-
+        {/* Menu / Back / End */}
         <button className="pd-ghost" onClick={handleMenu}>
           Menu
         </button>
 
         {showBackButton && (
-          <button className="pd-outline" onClick={handleBack} title="Back">
+          <button className="pd-outline" onClick={handleBack}>
             Home
           </button>
         )}
