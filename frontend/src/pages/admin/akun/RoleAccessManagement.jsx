@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "./RoleAccessManagement.css";
 import { API_URL } from "../../../config";
-import meetingService from '../../../services/meetingService';
+import meetingService from "../../../services/meetingService";
 
 const RoleAccessManagement = () => {
   const [roles, setRoles] = useState([]);
@@ -86,9 +86,10 @@ const RoleAccessManagement = () => {
 
       const res = await fetch(url, {
         method,
-        
-        headers: { "Content-Type": "application/json" ,
-          ...meetingService.getAuthHeaders()
+
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
         },
         body:
           method === "POST"
@@ -114,13 +115,14 @@ const RoleAccessManagement = () => {
       const allMenuIds = menus.map((m) => m.menuId);
       const granted = Array.from(accessMap.get(String(roleId)) ?? []);
       const missing = allMenuIds.filter((id) => !granted.includes(String(id)));
-      
+
       if (missing.length) {
         const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
           method: "POST",
-          headers: { "Content-Type": "application/json",
-            ...meetingService.getAuthHeaders()
-           },
+          headers: {
+            "Content-Type": "application/json",
+            ...meetingService.getAuthHeaders(),
+          },
           body: JSON.stringify({
             userRoleId: roleId,
             menuIds: missing,
@@ -139,14 +141,15 @@ const RoleAccessManagement = () => {
   const handleBulkRevokeAccess = async (roleId) => {
     try {
       const granted = Array.from(accessMap.get(String(roleId)) ?? []);
-      
+
       if (granted.length) {
         const res = await fetch(`${API_URL}/api/menu/role-access/bulk`, {
           method: "POST",
-          
-          headers: { "Content-Type": "application/json",
-            ...meetingService.getAuthHeaders()
-           },
+
+          headers: {
+            "Content-Type": "application/json",
+            ...meetingService.getAuthHeaders(),
+          },
           body: JSON.stringify({
             userRoleId: roleId,
             menuIds: granted.map((x) => Number(x)),
@@ -162,26 +165,41 @@ const RoleAccessManagement = () => {
     }
   };
 
+  const normalize = (s) => (s || "").toLowerCase().trim();
+  const ORDER = ["participant", "host", "assist", "admin"]; // urutan yang diinginkan
+
+  const orderedRoles = useMemo(() => {
+    return [...roles].sort((a, b) => {
+      const ai = ORDER.indexOf(normalize(a.nama));
+      const bi = ORDER.indexOf(normalize(b.nama));
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }, [roles]);
+
   if (loading)
     return <div className="loading">Loading role access data...</div>;
 
   return (
     <div className="role-access-management">
-
       {error && <div className="error-message">{error}</div>}
 
       {/* Role Cards */}
       <div className="role-cards">
-        {roles.map((role) => (
+        {orderedRoles.map((role) => (
           <div key={role.userRoleId} className="role-card">
             <div className="role-header">
-              <h3>{role.nama?.charAt(0).toUpperCase() + role.nama?.slice(1)}</h3>
-              <span className="menu-badge">{getMenuAccessCount(role.userRoleId)} Menu</span>
+              <h3>
+                {role.nama?.charAt(0).toUpperCase() + role.nama?.slice(1)}
+              </h3>
+              <span className="menu-badge">
+                {getMenuAccessCount(role.userRoleId)} Menu
+              </span>
             </div>
             <p className="role-description">
               {role.nama === "admin" && "Full access to all features"}
               {role.nama === "host" && "Access to most features"}
-              {role.nama === "participant" && "Basic access to files, chat, and materials"}
+              {role.nama === "participant" &&
+                "Basic access to files, chat, and materials"}
             </p>
             <div className="role-actions">
               <button
@@ -201,14 +219,19 @@ const RoleAccessManagement = () => {
         ))}
       </div>
 
-
       {/* Permissions Table */}
       <div className="permissions-table">
-        <table>
+        <table
+          style={{
+            // 1 kolom "Menu" ~ 220px + tiap role ~ 160px
+            minWidth: `${220 + orderedRoles.length * 160}px`,
+            tableLayout: "auto",
+          }}
+        >
           <thead>
             <tr>
               <th>Menu</th>
-              {roles.map((role) => (
+              {orderedRoles.map((role) => (
                 <th key={role.userRoleId}>
                   {role.nama?.charAt(0).toUpperCase() + role.nama?.slice(1)}
                 </th>
@@ -221,7 +244,7 @@ const RoleAccessManagement = () => {
                 <td className="menu-name">
                   <strong>{menu.displayLabel}</strong>
                 </td>
-                {roles.map((role) => {
+                {orderedRoles.map((role) => {
                   const hasAccess = hasMenuAccess(role.userRoleId, menu.menuId);
                   return (
                     <td key={role.userRoleId} className="access-cell">
@@ -229,7 +252,13 @@ const RoleAccessManagement = () => {
                         <input
                           type="checkbox"
                           checked={hasAccess}
-                          onChange={() => handleMenuToggle(role.userRoleId, menu.menuId, hasAccess)}
+                          onChange={() =>
+                            handleMenuToggle(
+                              role.userRoleId,
+                              menu.menuId,
+                              hasAccess
+                            )
+                          }
                         />
                         <span className="slider"></span>
                       </label>
