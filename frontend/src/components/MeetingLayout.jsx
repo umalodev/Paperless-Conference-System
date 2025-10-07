@@ -14,10 +14,12 @@ const MeetingLayout = ({
   userRole, 
   socket, 
   mediasoupDevice,
-  className = '' 
+  className = '',
+  meetingTitle = '' 
 }) => {
   // Internal state for screen sharing
   const [screenShareError, setScreenShareError] = useState("");
+  const [title, setTitle] = useState(meetingTitle || "");
   
   // Initialize WebSocket connection for meeting
   useEffect(() => {

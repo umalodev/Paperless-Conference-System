@@ -320,17 +320,31 @@ export default function Services() {
       meetingId={resolveMeetingId()}
       userId={user?.id || user?.userId || null}
       userRole={user?.role || "participant"}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${resolveMeetingId()}`;
+        } catch {
+          return `Meeting #${resolveMeetingId()}`;
+        }
+      })()}
     >
       <div className="pd-app">
         <header className="pd-topbar">
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Services</h1>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
               <div className="pd-sub">
                 {isAssist
                   ? "Assist console — handle participants' requests"
-                  : "Request assistance during the session"}
+                  : "Services"}
               </div>
             </div>
           </div>

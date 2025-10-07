@@ -137,14 +137,22 @@ export default function MeetingFooter({
           title={micOn === false ? "Mic Off" : "Mic"}
           onClick={onToggleMic}
         >
-          <Icon slug="mic" />
+          {micOn === false ? (
+            <img src="/img/mute.png" alt="Mic Off" style={{ width: '20px', height: '20px' }} />
+          ) : (
+            <Icon slug="mic" />
+          )}
         </button>
         <button
           className={`pd-ctrl ${camOn === false ? "is-off" : ""}`}
           title={camOn === false ? "Camera Off" : "Camera"}
           onClick={onToggleCam}
         >
-          <Icon slug="camera" />
+          {camOn === false ? (
+            <img src="/img/offcam.png" alt="Camera Off" style={{ width: '20px', height: '20px' }} />
+          ) : (
+            <Icon slug="camera" />
+          )}
         </button>
       </div>
 

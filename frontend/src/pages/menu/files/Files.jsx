@@ -283,6 +283,15 @@ export default function Files() {
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${meetingId}`;
+        } catch {
+          return `Meeting #${meetingId}`;
+        }
+      })()}
     >
       <div className="pd-app">
         {/* Topbar */}
@@ -290,8 +299,8 @@ export default function Files() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Files</h1>
-              <div className="pd-sub">Berbagi file selama meeting</div>
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Files</div>
             </div>
           </div>
           <div className="pd-right">
