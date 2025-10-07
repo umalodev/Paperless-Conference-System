@@ -76,13 +76,6 @@ const MeetingLayout = ({
         </div>
       )}
 
-      {/* Meeting Title - Fixed at top left */}
-      {meetingId && (
-        <div className="meeting-title-container">
-          <h2 className="meeting-title">{title || `Meeting #${meetingId}`}</h2>
-        </div>
-      )}
-
       {/* Menu Content - Always full width */}
       <div className="menu-section">
         {/* Menu content */}

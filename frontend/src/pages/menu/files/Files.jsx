@@ -299,7 +299,8 @@ export default function Files() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              {/* Judul dan subtitle dihilangkan */}
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Files</div>
             </div>
           </div>
           <div className="pd-right">

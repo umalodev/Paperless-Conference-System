@@ -61,7 +61,6 @@ export default function ParticipantsPage() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
-              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               iconUrl: m.iconMenu || null,
@@ -86,43 +85,29 @@ export default function ParticipantsPage() {
 
     const loadParticipants = async () => {
       try {
-        if (!meetingId) return;
         setLoadingList(true);
         setErrList("");
 
-        const qs = `?meetingId=${encodeURIComponent(meetingId)}`;
-        let res = await fetch(`${API_URL}/api/participants/list${qs}`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(meetingService.getAuthHeaders?.() || {}),
-          },
+        const qs = meetingId
+          ? `?meetingId=${encodeURIComponent(meetingId)}`
+          : "";
+        let res = await fetch(`${API_URL}/api/participants/joined${qs}`, {
           credentials: "include",
+          headers: { "Content-Type": "application/json" },
         });
 
-        // fallback dev-only
         if (!res.ok) {
           res = await fetch(`${API_URL}/api/participants/test-data`, {
             headers: { "Content-Type": "application/json" },
           });
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const json = await res.json();
 
         if (!cancel) {
           if (json.success) {
-            const raw = Array.isArray(json.data) ? json.data : [];
-
-            // normalisasi: pastikan ada displayName
-            const fresh = raw.map((p) => ({
-              ...p,
-              id: p.id ?? p.participantId ?? p.userId, // jaga2
-              displayName:
-                p.displayName || p.name || p.username || "Participant",
-              mic: p.mic ?? !!p.isAudioEnabled,
-              cam: p.cam ?? !!p.isVideoEnabled,
-            }));
-
+            const fresh = Array.isArray(json.data) ? json.data : [];
             setParticipants((prev) => {
               if (prev.length === 0) {
                 return [...fresh].sort((a, b) => {
@@ -171,7 +156,7 @@ export default function ParticipantsPage() {
     if (!q) return participants;
     return participants.filter(
       (p) =>
-        (p.displayName || "").toLowerCase().includes(q) ||
+        (p.name || "").toLowerCase().includes(q) ||
         (p.role || "").toLowerCase().includes(q)
     );
   }, [participants, query]);
@@ -239,89 +224,6 @@ export default function ParticipantsPage() {
     camOn
   );
 
-  // Peta nama berdasarkan participantId & userId dari data DB
-  const nameByParticipantId = useMemo(() => {
-    const m = new Map();
-    participants.forEach((p) => m.set(String(p.id), p.displayName));
-    return m;
-  }, [participants]);
-
-  const nameByUserId = useMemo(() => {
-    const m = new Map();
-    participants.forEach((p) => m.set(String(p.userId), p.displayName));
-    return m;
-  }, [participants]);
-
-  // (Opsional) Peta nama dari metadata remotePeers jika ada
-  const nameByPeerId = useMemo(() => {
-    const m = new Map();
-    remotePeers.forEach((obj, pid) => {
-      const metaName =
-        obj.displayName ||
-        obj?.meta?.displayName ||
-        obj?.metadata?.displayName ||
-        null;
-      if (metaName) m.set(String(pid), metaName);
-    });
-    return m;
-  }, [remotePeers]);
-
-  // Fallback tambahan: kalau peerId == userId
-  const nameByPidAsUserId = useMemo(() => {
-    const m = new Map();
-    participants.forEach((p) => m.set(String(p.userId), p.displayName));
-    return m;
-  }, [participants]);
-
-  // Helper: deep scan metadata peer utk ambil displayName/participantId/userId
-  const extractPeerMeta = useCallback((obj) => {
-    if (!obj || typeof obj !== "object") return {};
-    const seen = new Set();
-    const stack = [obj];
-    let displayName, participantId, userId;
-    let hops = 0;
-
-    const isIdLike = (x) =>
-      ["string", "number"].includes(typeof x) && String(x).length > 0;
-
-    while (stack.length && hops < 200) {
-      const cur = stack.pop();
-      hops++;
-      if (!cur || typeof cur !== "object" || seen.has(cur)) continue;
-      seen.add(cur);
-
-      for (const [k, v] of Object.entries(cur)) {
-        const key = String(k).toLowerCase();
-
-        if (
-          !displayName &&
-          key.includes("displayname") &&
-          typeof v === "string"
-        ) {
-          displayName = v.trim();
-        }
-        if (
-          !participantId &&
-          key.includes("participant") &&
-          key.includes("id") &&
-          isIdLike(v)
-        ) {
-          participantId = v;
-        }
-        if (
-          !userId &&
-          (key === "userid" || key.endsWith(".userid")) &&
-          isIdLike(v)
-        ) {
-          userId = v;
-        }
-
-        if (v && typeof v === "object") stack.push(v);
-      }
-    }
-    return { displayName, participantId, userId };
-  }, []);
-
   const totals = useMemo(() => {
     const total = participants.length;
     const liveMic =
@@ -332,12 +234,12 @@ export default function ParticipantsPage() {
       Array.from(remotePeers.values()).filter((v) => v.videoActive).length;
     return { total, micOn: liveMic, camOn: liveCam };
   }, [participants.length, remotePeers, micOn, camOn]);
-
   // wiring tombol footer -> media produce/close + update DB flag utk current user
   const onToggleMic = useCallback(() => {
     if (!mediaReady) return;
     if (micOn) {
       stopMic();
+      // optional: update DB status untuk diri sendiri (jika ada id participant)
     } else {
       startMic();
     }
@@ -354,32 +256,6 @@ export default function ParticipantsPage() {
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
-  const displayName = useMemo(() => {
-    const byMeeting = meetingId
-      ? localStorage.getItem(`meeting:${meetingId}:displayName`)
-      : null;
-    return (
-      (byMeeting && byMeeting.trim()) ||
-      (localStorage.getItem("pconf.displayName") || "").trim() ||
-      user?.username ||
-      "Participant"
-    );
-  }, [meetingId, user]);
-
-  // Sinkronkan displayName ke server (tidak mengganggu UI)
-  useEffect(() => {
-    if (!meetingId) return;
-
-    const byMeeting = localStorage.getItem(`meeting:${meetingId}:displayName`);
-    const globalName = localStorage.getItem("pconf.displayName");
-    const name = (byMeeting || globalName || "").trim();
-    if (!name) return;
-
-    meetingService
-      .setParticipantDisplayName({ meetingId, displayName: name })
-      .catch(() => {});
-  }, [meetingId]);
-
   return (
     <MeetingLayout
       meetingId={meetingId}
@@ -387,22 +263,15 @@ export default function ParticipantsPage() {
       userRole={user?.role || "participant"}
       socket={null}
       mediasoupDevice={null}
-      meetingTitle={(() => {
-        try {
-          const raw = localStorage.getItem("currentMeeting");
-          const cm = raw ? JSON.parse(raw) : null;
-          return cm?.title || `Meeting #${meetingId}`;
-        } catch {
-          return `Meeting #${meetingId}`;
-        }
-      })()}
     >
       <div className="pd-app">
+        {/* Top bar */}
         <header className="pd-topbar">
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              {/* Judul dan subtitle dihilangkan */}
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Participant</div>
             </div>
           </div>
           <div className="pd-right">
@@ -414,17 +283,18 @@ export default function ParticipantsPage() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(displayName || "US").slice(0, 2).toUpperCase()}
+                {(user?.username || "US").slice(0, 2).toUpperCase()}
               </div>
               <div>
-                <div className="pd-user-name">{displayName}</div>
-                <div className="pd-user-role">
-                  {user?.role || "Participant"}
+                <div className="pd-user-name">
+                  {user?.username || "Participant"}
                 </div>
+                <div className="pd-user-role">Participant</div>
               </div>
             </div>
           </div>
         </header>
+
         <main className="pd-main">
           <section className="prt-wrap">
             {/* TAB BAR */}
@@ -439,14 +309,16 @@ export default function ParticipantsPage() {
                 className={`prt-tab${activeTab === "video" ? " active" : ""}`}
                 onClick={() => setActiveTab("video")}
               >
-                Camera
+                Video Grid
               </button>
             </div>
 
-            {/* CONTENT: LIST */}
+            {/* CONTENT: LIST (existing) */}
             {activeTab === "list" && (
               <>
                 <div className="prt-header">
+                  <div className="prt-title">
+                  </div>
                   <div className="prt-search">
                     <span className="prt-search-icon">
                       <Icon slug="search" />
@@ -470,6 +342,10 @@ export default function ParticipantsPage() {
                           }
                         }}
                       >
+                        {/* Hapus baris di bawah ini untuk menghilangkan kotak */}
+                        {/* <Icon slug="mic-off" /> */}
+
+                        {/* Gunakan hanya gambar yang sudah kamu tambahkan */}
                         <img
                           src="/img/mute.png"
                           alt="Mute icon"
@@ -528,10 +404,10 @@ export default function ParticipantsPage() {
                       return (
                         <div key={p.id} className="prt-item">
                           <div className="prt-avatar">
-                            {(p.displayName || "??").slice(0, 2).toUpperCase()}
+                            {(p.name || "?").slice(0, 2).toUpperCase()}
                           </div>
                           <div className="prt-info">
-                            <div className="prt-name">{p.displayName}</div>
+                            <div className="prt-name">{p.name}</div>
                             <div className="prt-meta">
                               <span className="prt-role">{p.role}</span>
                             </div>
@@ -552,15 +428,33 @@ export default function ParticipantsPage() {
                               }
                               onClick={() => {
                                 if (String(p.id) === String(myPeerId)) {
+                                  // kontrol mic sendiri biar sinkron dengan mediasoup
                                   live.mic ? stopMic() : startMic();
                                 } else {
+                                  // opsional: tetap update DB kalau butuh
                                   updateParticipantStatus(p.id, {
                                     mic: !live.mic,
                                   });
                                 }
                               }}
                             >
-                              <Icon slug="mic" />
+                              {live.mic ? (
+                                <Icon
+                                  slug="mic"
+                                  style={{
+                                    color: "#4CAF50",
+                                    fontSize: "18px",
+                                    filter:
+                                      "drop-shadow(0 0 2px rgba(76, 175, 80, 0.5))",
+                                  }}
+                                />
+                              ) : (
+                                <img
+                                  src="/img/mute.png"
+                                  alt="Mic Off"
+                                  style={{ width: "16px", height: "16px" }}
+                                />
+                              )}
                             </button>
                             <button
                               className={`prt-pill ${live.cam ? "on" : "off"}`}
@@ -579,7 +473,23 @@ export default function ParticipantsPage() {
                                 }
                               }}
                             >
-                              <Icon slug="camera" />
+                              {live.cam ? (
+                                <Icon
+                                  slug="camera"
+                                  style={{
+                                    color: "#4CAF50",
+                                    fontSize: "18px",
+                                    filter:
+                                      "drop-shadow(0 0 2px rgba(76, 175, 80, 0.5))",
+                                  }}
+                                />
+                              ) : (
+                                <img
+                                  src="/img/offcam.png"
+                                  alt="Camera Off"
+                                  style={{ width: "16px", height: "16px" }}
+                                />
+                              )}
                             </button>
                           </div>
                           <div className="prt-actions-right"></div>
@@ -625,49 +535,24 @@ export default function ParticipantsPage() {
                     {/* Local preview: tampilkan jika cam aktif */}
                     <VideoTile
                       key="__local__"
-                      name={displayName + (camOn ? "" : " (camera off)")}
+                      name={
+                        (user?.username || "Me") +
+                        (camOn ? "" : " (camera off)")
+                      }
                       stream={localStream}
                       placeholder={!camOn}
                       localPreview={camOn}
                     />
-
                     {/* Remote peers */}
                     {Array.from(remotePeers.entries()).map(([pid, obj]) => {
-                      const peerId = String(pid);
-
-                      // 1) deep-scan metadata peer
-                      const {
-                        displayName: metaName,
-                        participantId: metaPid,
-                        userId: metaUid,
-                      } = extractPeerMeta(obj);
-
-                      // 2) ambil dari peta2 yang ada
-                      const byPeerId = nameByPeerId.get(peerId);
-                      const byParticipant =
-                        (metaPid && nameByParticipantId.get(String(metaPid))) ||
-                        nameByParticipantId.get(peerId); // jaga2 pid==participantId
-
-                      const byUser =
-                        (metaUid && nameByUserId.get(String(metaUid))) ||
-                        nameByUserId.get(peerId); // jaga2 pid==userId
-
-                      // 3) fallback tambahan: peerId == userId
-                      const byPidAsUser = nameByPidAsUserId.get(peerId);
-
-                      const name =
-                        metaName ||
-                        byParticipant ||
-                        byUser ||
-                        byPeerId ||
-                        byPidAsUser ||
-                        `User ${peerId.slice(-4)}`;
-
+                      const found = participants.find(
+                        (p) => String(p.id) === String(pid)
+                      );
+                      const name = found?.name || `User ${pid.slice(-4)}`;
                       return (
                         <VideoTile key={pid} name={name} stream={obj.stream} />
                       );
                     })}
-
                     {remotePeers.size === 0 && (
                       <div
                         className="pd-empty"
@@ -682,6 +567,7 @@ export default function ParticipantsPage() {
             )}
           </section>
         </main>
+
         {/* Bottom nav dari DB */}
         {!loadingMenus && !errMenus && (
           <BottomNav
@@ -690,6 +576,7 @@ export default function ParticipantsPage() {
             onSelect={handleSelectNav}
           />
         )}
+
         {/* Wiring tombol mic/cam ke mediasoup */}
         <MeetingFooter
           userRole={user?.role || "participant"}

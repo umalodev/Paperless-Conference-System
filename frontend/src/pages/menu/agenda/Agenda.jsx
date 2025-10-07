@@ -399,7 +399,8 @@ export default function Agenda() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              {/* Judul dihilangkan */}
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Agenda</div>
             </div>
           </div>
           <div className="pd-right">

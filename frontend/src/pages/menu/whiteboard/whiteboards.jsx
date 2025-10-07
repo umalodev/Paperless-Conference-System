@@ -436,8 +436,8 @@ export default function Whiteboard() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Whiteboard</h1>
-              <div className="pd-sub">Pribadi — hanya kamu yang melihat</div>
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Whiteboard</div>
             </div>
           </div>
           <div className="pd-right">

@@ -218,7 +218,6 @@ export default function Chat() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
-              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               flag: m.flag ?? "Y",
@@ -683,15 +682,6 @@ export default function Chat() {
       userRole={user?.role || "participant"}
       socket={wsRef.current}
       mediasoupDevice={null} // MediaSoup will be auto-initialized by simpleScreenShare
-      meetingTitle={(() => {
-        try {
-          const raw = localStorage.getItem("currentMeeting");
-          const cm = raw ? JSON.parse(raw) : null;
-          return cm?.title || `Meeting #${getMeetingId()}`;
-        } catch {
-          return `Meeting #${getMeetingId()}`;
-        }
-      })()}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -699,7 +689,8 @@ export default function Chat() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              {/* Judul dan subtitle dihilangkan */}
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Chat</div>
             </div>
           </div>
           <div className="pd-right">

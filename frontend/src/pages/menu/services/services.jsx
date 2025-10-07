@@ -335,11 +335,16 @@ export default function Services() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              {/* Judul dan subtitle dihilangkan */}
-              <div>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
+              <div className="pd-sub">
                 {isAssist
                   ? "Assist console — handle participants' requests"
-                  : "Request assistance during the session"}
+                  : "Services"}
               </div>
             </div>
           </div>

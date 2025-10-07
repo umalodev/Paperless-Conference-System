@@ -279,7 +279,8 @@ export default function Notes() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden="true" />
             <div>
-              {/* Judul dan subtitle dihilangkan */}
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Notes</div>
             </div>
           </div>
           <div className="pd-right">
