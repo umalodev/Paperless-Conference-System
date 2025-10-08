@@ -1,4 +1,3 @@
-
-export const API_URL = "http://192.168.1.5:3000";
-export const MEDIA_URL = "http://192.168.1.5:3002";
-
+export const API_URL = "http://10.109.18.108:3000";
+export const MEDIA_URL = "http://10.109.18.108:3002";
+export const CONTROL_URL = "http://10.109.18.108:4000";

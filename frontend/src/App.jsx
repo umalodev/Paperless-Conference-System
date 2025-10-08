@@ -23,6 +23,7 @@ import { MediaRoomProvider } from "./contexts/MediaRoomContext.jsx";
 import { ScreenShareProvider } from "./contexts/ScreenShareContext";
 import Whiteboard from "./pages/menu/whiteboard/whiteboards.jsx";
 import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
+import MasterController from "./pages/master-controller/MasterController.jsx";
 
 
 function App() {
@@ -65,6 +66,7 @@ function App() {
           <Route path="/menu/services" element={<Services />} />
           <Route path="/menu/screenshare" element={<ScreenSharePage />} />
           <Route path="/menu/whiteboard" element={<Whiteboard />} />
+          <Route path="/master-controller" element={<MasterController />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

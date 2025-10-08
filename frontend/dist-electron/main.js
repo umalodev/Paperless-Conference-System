@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow, ipcMain, desktopCapturer, session } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -64,8 +64,6 @@ function createWindow() {
       allowRunningInsecureContent: true,
       experimentalFeatures: true,
       // Enable screen capture APIs
-      enableRemoteModule: false,
-      webSecurity: false,
       // Additional permissions for screen sharing
       additionalArguments: ["--enable-features=VaapiVideoDecoder"]
     }
@@ -87,7 +85,7 @@ function createWindow() {
   });
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
     console.log(`[main] Permission requested: ${permission}`);
-    if (permission === "media" || permission === "display-capture" || permission === "camera" || permission === "microphone") {
+    if (permission === "media") {
       console.log(`[main] Granting permission: ${permission}`);
       return cb(true);
     }
@@ -96,7 +94,7 @@ function createWindow() {
   });
   session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, _details) => {
     console.log(`[main] Permission check: ${permission}`);
-    if (permission === "media" || permission === "display-capture" || permission === "camera" || permission === "microphone") {
+    if (permission === "media") {
       return true;
     }
     return true;
@@ -130,6 +128,16 @@ app.commandLine.appendSwitch("--enable-usermedia-screen-capture");
 app.commandLine.appendSwitch("--disable-features", "VizDisplayCompositor");
 app.commandLine.appendSwitch("--enable-features", "VaapiVideoDecoder");
 app.commandLine.appendSwitch("--autoplay-policy", "no-user-gesture-required");
+ipcMain.handle("capture-screen", async () => {
+  const sources = await desktopCapturer.getSources({
+    types: ["screen"],
+    thumbnailSize: { width: 640, height: 360 }
+  });
+  if (!sources.length) return null;
+  const image = sources[0].thumbnail;
+  const img = image.toJPEG(70).toString("base64");
+  return img;
+});
 app.whenReady().then(createWindow);
 export {
   MAIN_DIST,

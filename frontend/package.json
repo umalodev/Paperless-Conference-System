@@ -10,15 +10,19 @@
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
+    "bufferutil": "^4.0.9",
     "mediasoup-client": "^3.16.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.3",
-    "socket.io-client": "^4.8.1"
+    "screenshot-desktop": "^1.15.2",
+    "socket.io-client": "^4.8.1",
+    "utf-8-validate": "^6.0.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
+    "@types/screenshot-desktop": "^1.15.0",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "@vitejs/plugin-react": "^4.2.1",
