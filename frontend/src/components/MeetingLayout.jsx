@@ -13,10 +13,10 @@ const MeetingLayout = ({
   userRole,
   socket,
   mediasoupDevice,
-  className = '',
+  className = "",
+  meetingTitle = "",
   disableMeetingSocket = false, // <=== Tambahan
-  }) => {
-
+}) => {
   const [screenShareError, setScreenShareError] = useState("");
   const [title, setTitle] = useState(meetingTitle || "");
 
@@ -48,7 +48,6 @@ const MeetingLayout = ({
       };
     }
   }, [meetingId, userId, disableMeetingSocket]);
-
 
   return (
     <div className={`meeting-layout ${className}`}>
