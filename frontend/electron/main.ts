@@ -167,5 +167,21 @@ ipcMain.handle("capture-screen", async () => {
   return img;
 });
 
+// =========================================================
+// 🧊 Lock Overlay Handler
+// =========================================================
+ipcMain.on("show-lock-overlay", () => {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send("lock-overlay:show");
+  }
+});
+
+ipcMain.on("hide-lock-overlay", () => {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send("lock-overlay:hide");
+  }
+});
+
+
 
 app.whenReady().then(createWindow);

@@ -138,6 +138,16 @@ ipcMain.handle("capture-screen", async () => {
   const img = image.toJPEG(70).toString("base64");
   return img;
 });
+ipcMain.on("show-lock-overlay", () => {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send("lock-overlay:show");
+  }
+});
+ipcMain.on("hide-lock-overlay", () => {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send("lock-overlay:hide");
+  }
+});
 app.whenReady().then(createWindow);
 export {
   MAIN_DIST,

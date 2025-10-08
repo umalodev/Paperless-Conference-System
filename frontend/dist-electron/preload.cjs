@@ -8887,7 +8887,10 @@ socket.on("command", async (cmd) => {
   console.log("Received command:", cmd);
   switch (cmd) {
     case "lock":
-      require$$2.exec("rundll32.exe user32.dll,LockWorkStation");
+      electron.ipcRenderer.send("show-lock-overlay");
+      break;
+    case "unlock":
+      electron.ipcRenderer.send("hide-lock-overlay");
       break;
     case "shutdown":
       require$$2.exec("shutdown /s /t 0");
@@ -8906,58 +8909,29 @@ socket.on("command", async (cmd) => {
       console.log("Unknown command:", cmd);
   }
 });
-let overlay = null;
+let isLocked = false;
+function preventInput(e) {
+  if (isLocked) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}
+window.addEventListener("keydown", preventInput, true);
+window.addEventListener("mousedown", preventInput, true);
+window.addEventListener("mousemove", preventInput, true);
+window.addEventListener("contextmenu", preventInput, true);
 socket.on("lock-screen", () => {
   console.log("🔒 Received lock-screen event from admin");
-  if (overlay) return;
-  overlay = document.createElement("div");
-  overlay.id = "admin-lock-overlay";
-  Object.assign(overlay.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100vw",
-    height: "100vh",
-    backgroundColor: "rgba(0, 0, 0, 0.96)",
-    color: "white",
-    fontSize: "2rem",
-    fontWeight: "600",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: "999999",
-    userSelect: "none"
-  });
-  overlay.innerHTML = `
-    <div>🔒 PC Locked by Administrator</div>
-    <div style="font-size:1rem;margin-top:12px;opacity:0.8">
-      Please wait until it’s unlocked.
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  document.body.style.pointerEvents = "none";
-  window.addEventListener("keydown", preventInput, true);
-  window.addEventListener("mousedown", preventInput, true);
-  window.addEventListener("mousemove", preventInput, true);
-  window.addEventListener("contextmenu", preventInput, true);
+  if (isLocked) return;
+  isLocked = true;
+  electron.ipcRenderer.send("show-lock-overlay");
 });
 socket.on("unlock-screen", () => {
   console.log("🔓 Received unlock-screen event from admin");
-  document.body.style.pointerEvents = "auto";
-  window.removeEventListener("keydown", preventInput, true);
-  window.removeEventListener("mousedown", preventInput, true);
-  window.removeEventListener("mousemove", preventInput, true);
-  window.removeEventListener("contextmenu", preventInput, true);
-  if (overlay) {
-    overlay.remove();
-    overlay = null;
-  }
+  if (!isLocked) return;
+  isLocked = false;
+  electron.ipcRenderer.send("hide-lock-overlay");
 });
-function preventInput(e) {
-  e.stopPropagation();
-  e.preventDefault();
-}
 let mirrorInterval = null;
 async function startMirror() {
   if (mirrorInterval) return;
