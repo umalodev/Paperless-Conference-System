@@ -1,0 +1,189 @@
+/* ====== CORE LAYER ====== */
+.kp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(2px);
+  animation: kp-fade-in 120ms ease-out;
+}
+
+.kp-modal {
+  width: min(560px, calc(100vw - 32px));
+  border-radius: 16px;
+  background: var(--kp-bg, #fff);
+  color: var(--kp-fg, #0a0a0a);
+  border: 1px solid var(--kp-border, #e5e7eb);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transform: scale(0.98);
+  opacity: 0;
+  animation: kp-scale-in 150ms ease-out forwards;
+}
+
+/* Optional: lock scroll saat modal muncul */
+.kp-modal-open {
+  overflow: hidden;
+}
+
+/* ====== SECTIONS ====== */
+.kp-modal__header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 20px;
+  background: var(--kp-head-bg, #eff6ff);
+  color: var(--kp-head-fg, #1e3a8a);
+}
+.kp-modal__title {
+  font-weight: 600;
+  line-height: 1.35;
+  font-size: 15px;
+}
+.kp-modal__desc {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.kp-modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: end;
+  padding: 14px 20px 16px;
+  background: var(--kp-act-bg, #fff);
+}
+
+/* ====== VARIANTS ====== */
+.kp-confirm {
+  --kp-head-bg: #eff6ff;
+  --kp-head-fg: #1e3a8a;
+}
+.kp-info {
+  --kp-head-bg: #eff6ff;
+  --kp-head-fg: #1e3a8a;
+}
+.kp-success {
+  --kp-head-bg: #ecfdf5;
+  --kp-head-fg: #065f46;
+}
+.kp-warning {
+  --kp-head-bg: #fffbeb;
+  --kp-head-fg: #92400e;
+}
+.kp-error {
+  --kp-head-bg: #fef2f2;
+  --kp-head-fg: #991b1b;
+}
+.kp-destructive {
+  --kp-head-bg: #fef2f2;
+  --kp-head-fg: #991b1b;
+}
+
+/* ====== BUTTONS ====== */
+.kp-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.15s ease;
+  line-height: 1;
+}
+.kp-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kp-btn--primary {
+  background: #0a0a0a;
+  color: #fff;
+  border-color: #0a0a0a;
+}
+.kp-btn--primary:hover {
+  background: #1f1f1f;
+}
+
+.kp-btn--secondary {
+  background: #fff;
+  color: #111827;
+  border-color: #d1d5db;
+}
+.kp-btn--secondary:hover {
+  background: #f9fafb;
+}
+
+.kp-btn--warning {
+  background: #f59e0b;
+  color: #fff;
+  border-color: #f59e0b;
+}
+.kp-btn--danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+.kp-btn--danger:hover {
+  background: #b91c1c;
+}
+
+/* ====== ICON ====== */
+.kp-modal__icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ====== DARK MODE (auto) ====== */
+@media (prefers-color-scheme: dark) {
+  .kp-modal {
+    --kp-bg: #0b0b0b;
+    --kp-fg: #f4f4f5;
+    --kp-border: #27272a;
+    --kp-act-bg: #0b0b0b;
+  }
+  .kp-confirm,
+  .kp-info {
+    --kp-head-bg: #0b1a2f;
+    --kp-head-fg: #bfdbfe;
+  }
+  .kp-success {
+    --kp-head-bg: #062818;
+    --kp-head-fg: #a7f3d0;
+  }
+  .kp-warning {
+    --kp-head-bg: #2a2106;
+    --kp-head-fg: #fde68a;
+  }
+  .kp-error {
+    --kp-head-bg: #2a0b0b;
+    --kp-head-fg: #fecaca;
+  }
+}
+
+/* ====== ANIM ====== */
+@keyframes kp-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes kp-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

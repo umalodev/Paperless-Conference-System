@@ -5,6 +5,7 @@ import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
 import { useScreenShare } from "../contexts/ScreenShareContext";
 import "./meeting-footer.css";
+import { useModal } from "../contexts/ModalProvider.jsx";
 
 export default function MeetingFooter({
   userRole = "participant",
@@ -19,6 +20,7 @@ export default function MeetingFooter({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { confirm, notify } = useModal();
 
   // 🔹 Ambil state global screen share
   const { sharingUser, screenShareOn, isAnnotating, setIsAnnotating } =
@@ -44,12 +46,13 @@ export default function MeetingFooter({
     }
   };
 
-  const getMeetingId = (cm) => cm?.meetingId || cm?.id || cm?.code;
   const cm = getCurrentMeeting();
+  const getMeetingId = (cm) => cm?.meetingId || cm?.id || cm?.code;
   const meetingId = getMeetingId(cm);
 
   const isHost = userRole === "host" || userRole === "admin";
-  const isDefaultMeeting = Boolean(cm?.isDefault) || String(meetingId) === "1000";
+  const isDefaultMeeting =
+    Boolean(cm?.isDefault) || String(meetingId) === "1000";
 
   // Common cleanup
   const cleanupRealtime = () => {
@@ -77,32 +80,59 @@ export default function MeetingFooter({
   };
 
   const defaultEndMeeting = async () => {
-    try {
-      if (!window.confirm("Are you sure you want to end this meeting?")) return;
-      if (!meetingId) return alert("Meeting ID not found.");
-      cleanupRealtime();
-      await meetingService.endMeeting(meetingId);
+    const ok = await confirm({
+      title: "End this meeting?",
+      message:
+        "All participants will be disconnected. This action cannot be undone.",
+      destructive: true,
+      okText: "End Meeting",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        if (!meetingId) throw new Error("Meeting ID not found.");
+        cleanupRealtime();
+        await meetingService.endMeeting(meetingId); // jika error, modal tetap terbuka & loading berhenti
+      },
+    });
+
+    if (ok) {
+      // sukses end meeting
       localStorage.removeItem("currentMeeting");
-      alert("Meeting ended successfully!");
+      await notify({
+        variant: "success",
+        title: "Meeting Ended",
+        message: "The meeting has been ended successfully.",
+        autoCloseMs: 1000,
+      });
       navigate("/setup");
-    } catch (err) {
-      alert(`Failed to end meeting: ${err?.message || err}`);
+    } else {
+      // user cancel -> tidak melakukan apa-apa
     }
   };
 
   const defaultLeaveMeeting = async () => {
-    try {
-      if (!window.confirm("Are you sure you want to leave this meeting?")) return;
-      if (!meetingId) return alert("Meeting ID not found.");
-      cleanupRealtime();
-      await meetingService.leaveMeeting(meetingId);
+    const ok = await confirm({
+      title: "Leave this meeting?",
+      message: "You will disconnect from this session.",
+      okText: "Leave",
+      cancelText: "Stay",
+      onConfirm: async () => {
+        if (!meetingId) throw new Error("Meeting ID not found.");
+        cleanupRealtime();
+        await meetingService.leaveMeeting(meetingId);
+      },
+    });
+
+    if (ok) {
       localStorage.removeItem("currentMeeting");
+      await notify({
+        variant: "info",
+        title: "Left Meeting",
+        message: "You have left the meeting.",
+        autoCloseMs: 900,
+      });
       navigate("/start");
-    } catch (err) {
-      alert(`Failed to leave meeting: ${err?.message || err}`);
     }
   };
-
   const handleEnd = onEndMeeting || defaultEndMeeting;
   const handleLeave = onLeaveMeeting || defaultLeaveMeeting;
   const handleBack = defaultBack;
@@ -122,7 +152,11 @@ export default function MeetingFooter({
           onClick={onToggleMic}
         >
           {micOn === false ? (
-            <img src="/img/mute.png" alt="Mic Off" style={{ width: '20px', height: '20px' }} />
+            <img
+              src="/img/mute.png"
+              alt="Mic Off"
+              style={{ width: "20px", height: "20px" }}
+            />
           ) : (
             <Icon slug="mic" />
           )}
@@ -134,7 +168,11 @@ export default function MeetingFooter({
           onClick={onToggleCam}
         >
           {camOn === false ? (
-            <img src="/img/offcam.png" alt="Camera Off" style={{ width: '20px', height: '20px' }} />
+            <img
+              src="/img/offcam.png"
+              alt="Camera Off"
+              style={{ width: "20px", height: "20px" }}
+            />
           ) : (
             <Icon slug="camera" />
           )}
@@ -213,7 +251,6 @@ export default function MeetingFooter({
             )}
           </button>
         )}
-
 
         {/* Annotation Button */}
         {screenShareOn && (

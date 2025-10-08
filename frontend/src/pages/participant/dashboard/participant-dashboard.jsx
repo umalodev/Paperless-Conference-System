@@ -13,6 +13,7 @@ import meetingService from "../../../services/meetingService.js";
 import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
@@ -22,6 +23,7 @@ export default function ParticipantDashboard() {
   const [displayName, setDisplayName] = useState("");
   const [currentMeeting, setCurrentMeeting] = useState(null);
   const navigate = useNavigate();
+  const { confirm, notify } = useModal();
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -48,6 +50,16 @@ export default function ParticipantDashboard() {
       }
     }
   }, []);
+
+  const cleanupRealtime = () => {
+    try {
+      if (window.simpleScreenShare?.isSharing)
+        window.simpleScreenShare.stopScreenShare();
+    } catch {}
+    try {
+      window.meetingWebSocket?.close?.();
+    } catch {}
+  };
 
   // Immediate check meeting status when component mounts
   const checkMeetingStatusImmediately = async (meetingId) => {
@@ -156,12 +168,38 @@ export default function ParticipantDashboard() {
     [menus]
   );
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("pconf.displayName");
-    localStorage.removeItem("pconf.useAccountName");
-    localStorage.removeItem("currentMeeting");
-    window.location.href = "/";
+  const handleLogout = async () => {
+    const ok = await confirm({
+      title: "Logout dari sesi ini?",
+      message: "Anda akan keluar dan kembali ke halaman awal.",
+      destructive: true,
+      okText: "Logout",
+      cancelText: "Batal",
+      onConfirm: async () => {
+        cleanupRealtime();
+        if (meetingId) await meetingService.leaveMeeting(meetingId);
+        try {
+          if (typeof meetingService.logout === "function") {
+            await meetingService.logout();
+          }
+        } catch {}
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("pconf.displayName");
+        localStorage.removeItem("pconf.useAccountName");
+        localStorage.removeItem("currentMeeting");
+      },
+    });
+
+    if (ok) {
+      await notify({
+        variant: "success",
+        title: "Signed out",
+        message: "See you soon.",
+        autoCloseMs: 900,
+      });
+      navigate("/");
+    }
   };
 
   const handleLeaveMeeting = async () => {
@@ -207,15 +245,17 @@ export default function ParticipantDashboard() {
         <div className="pd-left">
           <span className="pd-live" aria-hidden />
           <div>
-            <h1 className="pd-title">{(() => {
-              try {
-                const raw = localStorage.getItem("currentMeeting");
-                const cm = raw ? JSON.parse(raw) : null;
-                return cm?.title || `Meeting #${meetingId}`;
-              } catch {
-                return `Meeting #${meetingId}`;
-              }
-            })()}</h1>
+            <h1 className="pd-title">
+              {(() => {
+                try {
+                  const raw = localStorage.getItem("currentMeeting");
+                  const cm = raw ? JSON.parse(raw) : null;
+                  return cm?.title || `Meeting #${meetingId}`;
+                } catch {
+                  return `Meeting #${meetingId}`;
+                }
+              })()}
+            </h1>
             <div className="pd-sub">ID: {meetingId}</div>
           </div>
         </div>
