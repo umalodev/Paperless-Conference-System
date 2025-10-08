@@ -197,6 +197,7 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #e2e8f0;
+  min-height: 52px; /* menjaga tinggi konsisten */
 }
 
 .mc-pc-info {

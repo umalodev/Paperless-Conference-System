@@ -144,65 +144,68 @@ export default function MeetingFooter({
           <Icon slug="screen-share" />
         </button>
 
-        {/* Master Controller */}
-        <button
-          className="pd-ctrl"
-          title="Master Controller"
-          onClick={() => navigate("/master-controller")}
-          style={{ position: "relative" }}
-        >
-          <Icon slug="master-controller" />
+        {/* Master Controller — hanya untuk Host/Admin */}
+        {isHost && (
+          <button
+            className="pd-ctrl"
+            title="Master Controller"
+            onClick={() => navigate("/master-controller")}
+            style={{ position: "relative" }}
+          >
+            <Icon slug="master-controller" />
 
-          {/* 🔴 Badge jika ada orang lain share */}
-          {screenShareOn && String(sharingUser) !== String(currentUserId) && (
-            <>
-              <span
-                style={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: "red",
-                  boxShadow: "0 0 6px rgba(0,0,0,0.4)",
-                }}
-              />
-              {location.pathname !== "/menu/screenshare" && (
-                <div
+            {/* 🔴 Badge jika ada orang lain share */}
+            {screenShareOn && String(sharingUser) !== String(currentUserId) && (
+              <>
+                <span
                   style={{
                     position: "absolute",
-                    top: -36,
-                    left: "50%",
-                    transform: "translateX(-50%)",
+                    top: 6,
+                    right: 6,
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
                     background: "red",
-                    color: "white",
-                    fontSize: 12,
-                    padding: "4px 8px",
-                    borderRadius: 6,
-                    whiteSpace: "nowrap",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+                    boxShadow: "0 0 6px rgba(0,0,0,0.4)",
                   }}
-                >
-                  Someone is sharing
+                />
+                {location.pathname !== "/menu/screenshare" && (
                   <div
                     style={{
                       position: "absolute",
-                      bottom: -6,
+                      top: -36,
                       left: "50%",
                       transform: "translateX(-50%)",
-                      width: 0,
-                      height: 0,
-                      borderLeft: "6px solid transparent",
-                      borderRight: "6px solid transparent",
-                      borderTop: "6px solid red",
+                      background: "red",
+                      color: "white",
+                      fontSize: 12,
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
                     }}
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </button>
+                  >
+                    Someone is sharing
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: -6,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        width: 0,
+                        height: 0,
+                        borderLeft: "6px solid transparent",
+                        borderRight: "6px solid transparent",
+                        borderTop: "6px solid red",
+                      }}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </button>
+        )}
+
 
         {/* Annotation Button */}
         {screenShareOn && (

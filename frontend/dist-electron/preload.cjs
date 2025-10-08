@@ -8873,10 +8873,10 @@ socket.on("connect", () => {
   console.log("[preload] Registering participant:", payload);
 });
 socket.on("disconnect", () => {
-  console.warn("❌ Disconnected from Control Server");
+  console.warn(" Disconnected from Control Server");
 });
 socket.io.on("reconnect", () => {
-  console.log("🔁 Reconnected to Control Server, re-registering...");
+  console.log(" Reconnected to Control Server, re-registering...");
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
@@ -8886,7 +8886,7 @@ socket.io.on("reconnect", () => {
   socket.emit("register", payload);
 });
 socket.on("command", async (cmd) => {
-  console.log("⚙️ Received command:", cmd);
+  console.log(" Received command:", cmd);
   switch (cmd) {
     case "lock":
       require$$2.exec("rundll32.exe user32.dll,LockWorkStation");
@@ -8910,7 +8910,7 @@ socket.on("command", async (cmd) => {
 let mirrorInterval = null;
 async function startMirror() {
   if (mirrorInterval) return;
-  console.log("🪞 Mirror started");
+  console.log(" Mirror started");
   mirrorInterval = setInterval(async () => {
     try {
       const img = await electron.ipcRenderer.invoke("capture-screen");
@@ -8926,7 +8926,7 @@ function stopMirror() {
   if (mirrorInterval) {
     clearInterval(mirrorInterval);
     mirrorInterval = null;
-    console.log("🪞 Mirror stopped");
+    console.log(" Mirror stopped");
   }
 }
 async function getScreenSources() {
@@ -8986,4 +8986,4 @@ electron.contextBridge.exposeInMainWorld("ipc", {
   invoke: (...args) => electron.ipcRenderer.invoke(...args)
 });
 globalThis.__PRELOAD_OK__ = true;
-console.log("[preload] ✅ screenAPI & controlAPI exposed");
+console.log("[preload]  screenAPI & controlAPI exposed");
