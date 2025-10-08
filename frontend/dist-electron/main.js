@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, session } from "electron";
+import { app, BrowserWindow, ipcMain, screen, desktopCapturer, session } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
+let lockWindows = [];
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
@@ -129,24 +130,95 @@ app.commandLine.appendSwitch("--disable-features", "VizDisplayCompositor");
 app.commandLine.appendSwitch("--enable-features", "VaapiVideoDecoder");
 app.commandLine.appendSwitch("--autoplay-policy", "no-user-gesture-required");
 ipcMain.handle("capture-screen", async () => {
+  const primary = screen.getPrimaryDisplay();
+  const { width, height } = primary.size;
+  const maxWidth = 1920;
+  const maxHeight = 1080;
+  const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+  const captureWidth = Math.floor(width * scale);
+  const captureHeight = Math.floor(height * scale);
   const sources = await desktopCapturer.getSources({
     types: ["screen"],
-    thumbnailSize: { width: 640, height: 360 }
+    thumbnailSize: { width: captureWidth, height: captureHeight }
   });
   if (!sources.length) return null;
   const image = sources[0].thumbnail;
-  const img = image.toJPEG(70).toString("base64");
+  const img = image.toJPEG(90).toString("base64");
   return img;
 });
 ipcMain.on("show-lock-overlay", () => {
-  if (win && !win.isDestroyed()) {
-    win.webContents.send("lock-overlay:show");
-  }
+  if (lockWindows.length > 0) return;
+  const displays = screen.getAllDisplays();
+  console.log(`🖥️ Creating lock overlay on ${displays.length} screen(s)`);
+  lockWindows = displays.map((d, idx) => {
+    const { width, height, x, y } = d.bounds;
+    const win2 = new BrowserWindow({
+      x,
+      y,
+      width,
+      height,
+      frame: false,
+      fullscreen: true,
+      kiosk: true,
+      // mode terkunci — tidak bisa di-Alt+Tab
+      transparent: false,
+      alwaysOnTop: true,
+      movable: false,
+      resizable: false,
+      skipTaskbar: true,
+      backgroundColor: "#000000",
+      webPreferences: {
+        contextIsolation: true
+      }
+    });
+    win2.loadURL(
+      `data:text/html;charset=utf-8,` + encodeURIComponent(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Locked</title>
+            <style>
+              body {
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: #000;
+                color: #fff;
+                font-family: sans-serif;
+              }
+              h1 { font-size: 32px; margin: 12px 0; }
+              p { opacity: 0.7; }
+              .icon { font-size: 80px; }
+              @keyframes blink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.3; }
+              }
+              .blink { animation: blink 2s infinite; }
+            </style>
+          </head>
+          <body>
+            <h1>Device Locked by Administrator</h1>
+            <p>Please wait until admin unlocks your screen.</p>
+          </body>
+        </html>
+      `)
+    );
+    win2.setAlwaysOnTop(true, "screen-saver");
+    win2.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    win2.fullScreen = true;
+    console.log(`🖥️ Lock overlay created on display ${idx + 1}`);
+    return win2;
+  });
 });
 ipcMain.on("hide-lock-overlay", () => {
-  if (win && !win.isDestroyed()) {
-    win.webContents.send("lock-overlay:hide");
-  }
+  if (lockWindows.length === 0) return;
+  console.log("🔓 Removing lock overlays...");
+  lockWindows.forEach((w) => {
+    if (!w.isDestroyed()) w.close();
+  });
+  lockWindows = [];
 });
 app.whenReady().then(createWindow);
 export {

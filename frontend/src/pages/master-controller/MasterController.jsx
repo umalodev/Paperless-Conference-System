@@ -358,30 +358,47 @@ export default function MasterController() {
         </main>
 
         {/* === Fullscreen Mirror === */}
-        {fullscreenId && mirrorFrames[fullscreenId] && (
-          <div
-            className="mc-fullscreen-overlay"
-            onClick={() => setFullscreenId(null)}
-          >
-            <div className="mc-fullscreen-container">
-              <button
-                className="mc-fullscreen-close"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenId(null);
-                }}
-                title="Close fullscreen"
-              >
-                ✖
-              </button>
-              <img
-                src={`data:image/jpeg;base64,${mirrorFrames[fullscreenId]}`}
-                alt="Fullscreen mirror"
-                className="mc-fullscreen-img"
-              />
+        {fullscreenId && mirrorFrames[fullscreenId] && (() => {
+          const p = participants.find((x) => x.id === fullscreenId);
+          return (
+            <div
+              className="mc-fullscreen-overlay"
+              onClick={() => setFullscreenId(null)}
+            >
+              <div className="mc-fullscreen-container">
+                <button
+                  className="mc-fullscreen-close"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFullscreenId(null);
+                  }}
+                  title="Close fullscreen"
+                >
+                  ✖
+                </button>
+
+                {/* Layar mirror */}
+                <img
+                  src={`data:image/jpeg;base64,${mirrorFrames[fullscreenId]}`}
+                  alt="Fullscreen mirror"
+                  className="mc-fullscreen-img"
+                />
+
+                {/* === Info Pemilik Layar === */}
+                {p && (
+                  <div className="mc-fullscreen-info">
+                    <h2>{p.hostname || "Unknown Device"}</h2>
+                    <p>
+                      👤 {p.account?.username || "No User"}{" "}
+                      {p.account?.role ? `(${p.account.role})` : ""}
+                    </p>
+                    <small>OS: {p.os || "N/A"}</small>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {!loadingMenus && !errMenus && (
           <BottomNav
