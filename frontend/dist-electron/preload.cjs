@@ -8872,11 +8872,9 @@ socket.on("connect", () => {
   socket.emit("register", payload);
   console.log("[preload] Registering participant:", payload);
 });
-socket.on("disconnect", () => {
-  console.warn(" Disconnected from Control Server");
-});
+socket.on("disconnect", () => console.warn("Disconnected from Control Server"));
 socket.io.on("reconnect", () => {
-  console.log(" Reconnected to Control Server, re-registering...");
+  console.log("Reconnected — re-registering...");
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
@@ -8886,7 +8884,7 @@ socket.io.on("reconnect", () => {
   socket.emit("register", payload);
 });
 socket.on("command", async (cmd) => {
-  console.log(" Received command:", cmd);
+  console.log("Received command:", cmd);
   switch (cmd) {
     case "lock":
       require$$2.exec("rundll32.exe user32.dll,LockWorkStation");
@@ -8895,6 +8893,7 @@ socket.on("command", async (cmd) => {
       require$$2.exec("shutdown /s /t 0");
       break;
     case "reboot":
+    case "restart":
       require$$2.exec("shutdown /r /t 0");
       break;
     case "mirror-start":
@@ -8907,15 +8906,66 @@ socket.on("command", async (cmd) => {
       console.log("Unknown command:", cmd);
   }
 });
+let overlay = null;
+socket.on("lock-screen", () => {
+  console.log("🔒 Received lock-screen event from admin");
+  if (overlay) return;
+  overlay = document.createElement("div");
+  overlay.id = "admin-lock-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.96)",
+    color: "white",
+    fontSize: "2rem",
+    fontWeight: "600",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: "999999",
+    userSelect: "none"
+  });
+  overlay.innerHTML = `
+    <div>🔒 PC Locked by Administrator</div>
+    <div style="font-size:1rem;margin-top:12px;opacity:0.8">
+      Please wait until it’s unlocked.
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.style.pointerEvents = "none";
+  window.addEventListener("keydown", preventInput, true);
+  window.addEventListener("mousedown", preventInput, true);
+  window.addEventListener("mousemove", preventInput, true);
+  window.addEventListener("contextmenu", preventInput, true);
+});
+socket.on("unlock-screen", () => {
+  console.log("🔓 Received unlock-screen event from admin");
+  document.body.style.pointerEvents = "auto";
+  window.removeEventListener("keydown", preventInput, true);
+  window.removeEventListener("mousedown", preventInput, true);
+  window.removeEventListener("mousemove", preventInput, true);
+  window.removeEventListener("contextmenu", preventInput, true);
+  if (overlay) {
+    overlay.remove();
+    overlay = null;
+  }
+});
+function preventInput(e) {
+  e.stopPropagation();
+  e.preventDefault();
+}
 let mirrorInterval = null;
 async function startMirror() {
   if (mirrorInterval) return;
-  console.log(" Mirror started");
-  mirrorInterval = setInterval(async () => {
+  console.log("[mirror] Started");
+  mirrorInterval = window.setInterval(async () => {
     try {
       const img = await electron.ipcRenderer.invoke("capture-screen");
       if (!img) return;
-      console.log(`[mirror] sending frame, size=${img.length}`);
       socket.emit("mirror-frame", img);
     } catch (err) {
       console.error("Mirror error:", err);
@@ -8923,10 +8973,10 @@ async function startMirror() {
   }, 1e3 / MIRROR_FPS);
 }
 function stopMirror() {
-  if (mirrorInterval) {
-    clearInterval(mirrorInterval);
+  if (mirrorInterval !== null) {
+    window.clearInterval(mirrorInterval);
     mirrorInterval = null;
-    console.log(" Mirror stopped");
+    console.log("[mirror] Stopped");
   }
 }
 async function getScreenSources() {
@@ -8939,11 +8989,11 @@ async function getDisplayMedia() {
     thumbnailSize: { width: 1920, height: 1080 }
   });
   if (!sources.length) throw new Error("No screen sources");
-  const source = sources[0];
+  const src2 = sources[0];
   return {
-    id: source.id,
-    name: source.name,
-    thumbnail: source.thumbnail.toDataURL()
+    id: src2.id,
+    name: src2.name,
+    thumbnail: src2.thumbnail.toDataURL()
   };
 }
 async function createScreenStream(sourceId) {
@@ -8964,7 +9014,7 @@ async function createScreenStream(sourceId) {
   return stream;
 }
 function testPreload() {
-  console.log("[preload] Test function called - preload is working!");
+  console.log("[preload] Test function called!");
   return "Preload test successful";
 }
 electron.contextBridge.exposeInMainWorld("screenAPI", {
@@ -8986,4 +9036,4 @@ electron.contextBridge.exposeInMainWorld("ipc", {
   invoke: (...args) => electron.ipcRenderer.invoke(...args)
 });
 globalThis.__PRELOAD_OK__ = true;
-console.log("[preload]  screenAPI & controlAPI exposed");
+console.log("[preload] screenAPI & controlAPI exposed successfully");
