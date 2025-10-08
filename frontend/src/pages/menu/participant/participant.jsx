@@ -22,6 +22,7 @@ export default function ParticipantsPage() {
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
+  const [displayName, setDisplayName] = useState("");
 
   const [query, setQuery] = useState("");
   const [participants, setParticipants] = useState([]);
@@ -45,6 +46,8 @@ export default function ParticipantsPage() {
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
+    const dn = localStorage.getItem("pconf.displayName");
+    if (dn) setDisplayName(dn);
   }, []);
 
   // BottomNav menus (unchanged)
@@ -113,12 +116,17 @@ export default function ParticipantsPage() {
           if (json.success) {
             const raw = Array.isArray(json.data) ? json.data : [];
 
-            // normalisasi: pastikan ada displayName
+            const stableIdOf = (p) =>
+              String(p.participantId ?? p.userId ?? p.peerId ?? p.id);
+
             const fresh = raw.map((p) => ({
               ...p,
-              id: p.id ?? p.participantId ?? p.userId, // jaga2
+              id: stableIdOf(p),
               displayName:
-                p.displayName || p.name || p.username || "Participant",
+                p.displayName ||
+                localStorage.getItem(`meeting:${meetingId}:displayName`) ||
+                p.name ||
+                "Participant",
               mic: p.mic ?? !!p.isAudioEnabled,
               cam: p.cam ?? !!p.isVideoEnabled,
             }));
@@ -354,18 +362,6 @@ export default function ParticipantsPage() {
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
-  const displayName = useMemo(() => {
-    const byMeeting = meetingId
-      ? localStorage.getItem(`meeting:${meetingId}:displayName`)
-      : null;
-    return (
-      (byMeeting && byMeeting.trim()) ||
-      (localStorage.getItem("pconf.displayName") || "").trim() ||
-      user?.username ||
-      "Participant"
-    );
-  }, [meetingId, user]);
-
   // Sinkronkan displayName ke server (tidak mengganggu UI)
   useEffect(() => {
     if (!meetingId) return;
@@ -393,8 +389,12 @@ export default function ParticipantsPage() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Participants</h1>
-              <div className="pd-sub">Manage attendees & seats</div>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
             </div>
           </div>
           <div className="pd-right">
@@ -446,7 +446,7 @@ export default function ParticipantsPage() {
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search name, or role.."
+                      placeholder="Search name, role, or seat…"
                       aria-label="Search participants"
                     />
                   </div>

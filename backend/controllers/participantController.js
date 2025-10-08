@@ -55,7 +55,7 @@ const getJoinedParticipants = async (req, res) => {
       ],
     });
 
-    const transformedParticipants = realParticipants.map((p) => {
+    const transformedParticipants = participants.map((p) => {
       const name = p.displayName || p.User?.username || "Participant";
       return {
         id: p.participantId,
@@ -655,7 +655,7 @@ const getParticipantsWithNames = async (req, res) => {
     const data = rows.map((p) => ({
       id: p.participantId,
       userId: p.userId,
-      displayName: p.displayName, // ← ini yang dipakai FE
+      displayName: p.displayName,
       role: p.role,
       status: p.status,
       mic: !!p.isAudioEnabled,

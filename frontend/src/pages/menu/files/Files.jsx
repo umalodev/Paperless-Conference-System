@@ -22,6 +22,7 @@ import {
   deleteFile,
 } from "../../../services/filesService.js";
 import meetingService from "../../../services/meetingService.js";
+import { use } from "react";
 
 const absolutize = (u) => {
   if (!u) return "";
@@ -37,6 +38,7 @@ export default function Files() {
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
+  const [displayName, setDisplayName] = useState("");
 
   const [files, setFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(true);
@@ -93,6 +95,8 @@ export default function Files() {
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
+    const dn = localStorage.getItem("pconf.displayName") || "";
+    setDisplayName(dn);
   }, []);
 
   // menus
@@ -283,6 +287,15 @@ export default function Files() {
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${meetingId}`;
+        } catch {
+          return `Meeting #${meetingId}`;
+        }
+      })()}
     >
       <div className="pd-app">
         {/* Topbar */}
@@ -290,8 +303,12 @@ export default function Files() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Files</h1>
-              <div className="pd-sub">Berbagi file selama meeting</div>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
             </div>
           </div>
           <div className="pd-right">
@@ -303,13 +320,13 @@ export default function Files() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(user?.username || "US").slice(0, 2).toUpperCase()}
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {user?.username || "Participant"}
+                  {displayName || "Participant"}
                 </div>
-                <div className="pd-user-role">Participant</div>
+                <div className="pd-user-role">{user?.role}</div>
               </div>
             </div>
           </div>

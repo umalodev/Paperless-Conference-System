@@ -8850,8 +8850,8 @@ Object.assign(lookup, {
   io: lookup,
   connect: lookup
 });
-const CONTROL_SERVER = "http://10.109.18.108:4000";
-const MIRROR_FPS = 1;
+const CONTROL_SERVER = "http://192.168.1.23:4000";
+const MIRROR_FPS = 2;
 const socket = lookup(CONTROL_SERVER, { transports: ["websocket"] });
 function getToken() {
   try {
@@ -8980,7 +8980,9 @@ function stopMirror() {
   }
 }
 async function getScreenSources() {
-  const sources = await electron.desktopCapturer.getSources({ types: ["screen", "window"] });
+  const sources = await electron.desktopCapturer.getSources({
+    types: ["screen", "window"]
+  });
   return sources.map((s) => ({ id: s.id, name: s.name }));
 }
 async function getDisplayMedia() {

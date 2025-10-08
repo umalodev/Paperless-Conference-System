@@ -24,12 +24,12 @@
 /* Top Header */
 .top-header {
   background: white;
-  padding: 20px 30px;
+  padding: 25px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   z-index: 10;
   position: sticky;
   top: 0;
@@ -90,13 +90,11 @@
 
 /* Dashboard Content */
 .dashboard-content {
-  padding: 30px;
+  padding: 20px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  /* Custom scrollbar */
-  scrollbar-width: thin;
-  scrollbar-color: #c1c1c1 #f1f1f1;
+  max-height: calc(100vh - 80px);
 }
 
 .dashboard-content::-webkit-scrollbar {
@@ -131,18 +129,37 @@
 .stats-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 40px;
+  gap: 30px;
+  margin-bottom: 50px;
 }
 
 .stat-card {
   background: white;
-  padding: 25px;
-  border-radius: 25px;
-  box-shadow: 0 10px 8px rgba(0, 180, 0, 0.3);
+  padding: 18px;
+  border-radius: 15px;
+  box-shadow: 0 6px 8px rgba(0, 180, 0, 0.25);
   text-align: center;
+  transition: transform 0.2s;
   position: relative;
-  
+  overflow: hidden;
+  border-top: 4px solid #10b981;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 60px;
+  height: 60px;
+  background: rgba(46, 204, 113, 0.1);
+  border-radius: 50%;
+  z-index: 0;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 16px rgba(46, 204, 113, 0.2);
 }
 
 .stat-card h3 {
@@ -154,9 +171,10 @@
 
 .stat-number {
   margin: 0;
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: #000;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #0a5c36;
+  line-height: 1.2;
 }
 
 .stat-status {
@@ -205,14 +223,34 @@
 }
 
 .action-btn.primary {
-  background: #00ff88;
-  color: #1a1a2e;
-  border-radius: 25px;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: bold;
+  box-shadow: 0 4px 8px rgba(46, 204, 113, 0.3);
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn.primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: 0.5s;
 }
 
 .action-btn.primary:hover {
-  background: #00e67a;
-  border-radius: 21px;
+  background: linear-gradient(135deg, #27ae60, #219653);
+  transform: translateY(-2px);
+}
+
+.action-btn.primary:hover::after {
+  left: 100%;
 }
 
 .action-btn.secondary {
@@ -318,6 +356,21 @@
 
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .stats-section {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+  
+  .stat-card {
+    padding: 20px;
+  }
+  
+  .stat-number {
+    font-size: 2.8rem;
+  }
+}
+
 @media (max-width: 768px) {
   .admin-dashboard {
     height: 100vh;
@@ -327,7 +380,7 @@
   .main-content {
     margin-left: 0;
     height: 100vh;
-    overflow-y: auto;
+    overflow: hidden;
   }
   
   .main-content.sidebar-closed {
@@ -335,30 +388,69 @@
   }
   
   .top-header {
-    flex-direction: column;
-    gap: 15px;
-    text-align: center;
+    flex-direction: row;
+    gap: 10px;
+    text-align: left;
     flex-shrink: 0;
+    padding: 15px;
+  }
+  
+  .header-left h1 {
+    font-size: 1.5rem;
+  }
+  
+  .header-left p {
+    font-size: 0.8rem;
+  }
+  
+  .time {
+    font-size: 1.2rem;
   }
   
   .dashboard-content {
-    padding: 20px;
+    padding: 15px;
     min-height: auto;
+    max-height: calc(100vh - 70px);
   }
   
   .stats-section {
     grid-template-columns: 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .stat-card {
+    padding: 15px;
+  }
+  
+  .stat-number {
+    font-size: 2.5rem;
   }
   
   .action-buttons {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   
   .action-btn {
-    width: 100%;
+    width: calc(50% - 4px);
+    padding: 10px;
+    font-size: 0.9rem;
   }
   
   .management-cards {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-header {
+    flex-direction: column;
+    padding: 10px;
+  }
+  
+  .action-btn {
+    width: 100%;
   }
 }
