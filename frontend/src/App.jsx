@@ -2,6 +2,10 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/login/login.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
+import LockOverlay from "./components/LockOverlay.jsx";
+import "./components/LockOverlay.css";
+
+
 // Import role-specific dashboards
 import AdminDashboard from "./pages/admin/dashboard/admin-dashboard.jsx";
 
