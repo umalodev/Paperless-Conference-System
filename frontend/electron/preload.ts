@@ -6,8 +6,8 @@ import screenshot from "screenshot-desktop";
 import { io } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://192.168.1.5:4000"; // Ganti sesuai IP server
-const MIRROR_FPS = 2; // 2 frame per detik
+const CONTROL_SERVER = "http://10.109.18.108:4000"; // Ganti sesuai IP server
+const MIRROR_FPS = 1; // 2 frame per detik
 
 // ====== SOCKET.IO CLIENT ======
 const socket = io(CONTROL_SERVER, { transports: ["websocket"] });
@@ -25,7 +25,7 @@ function getToken() {
 
 // === Saat connect ke control server ===
 socket.on("connect", () => {
-  console.log("✅ Connected to Control Server:", socket.id);
+  console.log("Connected to Control Server:", socket.id);
 
   const hostname = os.hostname();
   const user = os.userInfo().username;
@@ -42,12 +42,12 @@ socket.on("connect", () => {
 
 // === Handle disconnect ===
 socket.on("disconnect", () => {
-  console.warn("❌ Disconnected from Control Server");
+  console.warn(" Disconnected from Control Server");
 });
 
 // === Auto re-register saat reconnect ===
 socket.io.on("reconnect", () => {
-  console.log("🔁 Reconnected to Control Server, re-registering...");
+  console.log(" Reconnected to Control Server, re-registering...");
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
@@ -59,7 +59,7 @@ socket.io.on("reconnect", () => {
 
 // === Command handling ===
 socket.on("command", async (cmd: string) => {
-  console.log("⚙️ Received command:", cmd);
+  console.log(" Received command:", cmd);
   switch (cmd) {
     case "lock":
       exec("rundll32.exe user32.dll,LockWorkStation");
@@ -85,13 +85,16 @@ socket.on("command", async (cmd: string) => {
 let mirrorInterval: NodeJS.Timer | null = null;
 
 async function startMirror() {
-  if (mirrorInterval) return; // prevent duplicates
-  console.log("🪞 Mirror started");
+  if (mirrorInterval) return;
+  console.log(" Mirror started");
 
   mirrorInterval = setInterval(async () => {
     try {
-      const imgBuffer = await screenshot();
-      const img = imgBuffer.toString("base64");
+      // Panggil handler di main process
+      const img = await ipcRenderer.invoke("capture-screen");
+      if (!img) return;
+
+      console.log(`[mirror] sending frame, size=${img.length}`);
       socket.emit("mirror-frame", img);
     } catch (err) {
       console.error("Mirror error:", err);
@@ -99,11 +102,13 @@ async function startMirror() {
   }, 1000 / MIRROR_FPS);
 }
 
+
+
 function stopMirror() {
   if (mirrorInterval) {
     clearInterval(mirrorInterval as any);
     mirrorInterval = null;
-    console.log("🪞 Mirror stopped");
+    console.log(" Mirror stopped");
   }
 }
 
@@ -174,4 +179,4 @@ contextBridge.exposeInMainWorld("ipc", {
 
 // Debug marker
 (globalThis as any).__PRELOAD_OK__ = true;
-console.log("[preload] ✅ screenAPI & controlAPI exposed");
+console.log("[preload]  screenAPI & controlAPI exposed");

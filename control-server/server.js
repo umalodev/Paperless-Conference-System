@@ -14,7 +14,7 @@ const server = http.createServer(app);
 const PORT = process.env.CONTROL_PORT || 4000;
 const BACKEND_URL = process.env.BACKEND_URL;
 
-console.log("🌐 BACKEND_URL:", BACKEND_URL);
+console.log("BACKEND_URL:", BACKEND_URL);
 
 // ====== Socket.IO setup ======
 const io = new Server(server, {
@@ -29,20 +29,20 @@ const participants = {};
 
 // ====== SOCKET CONNECTION HANDLER ======
 io.on("connection", (socket) => {
-  console.log(`🖥️ Control client connected: ${socket.id}`);
+  console.log(`Control client connected: ${socket.id}`);
 
   // ================= REGISTER =================
   socket.on("register", async (data) => {
     const { hostname, user, os, token } = data;
     let account = null;
 
-    console.log("📥 Register data received:", data);
-    console.log("🔑 Token from client:", token ? token.slice(0, 40) + "..." : "NONE");
+    console.log("Register data received:", data);
+    console.log("Token from client:", token ? token.slice(0, 40) + "..." : "NONE");
 
     // 🔹 PRIORITY 1: pakai data login terakhir (sync dari backend)
     if (global.lastLogin && global.lastLogin.account) {
       account = global.lastLogin.account;
-      console.log(`🧩 Linked participant with last login: ${account.username}`);
+      console.log(`Linked participant with last login: ${account.username}`);
     }
 
     // 🔹 PRIORITY 2: validasi token langsung ke backend
@@ -55,43 +55,52 @@ io.on("connection", (socket) => {
 
         if (response.data.success && response.data.user) {
           account = response.data.user;
-          console.log(`✅ Authenticated via token: ${account.username} (${account.role})`);
+          console.log(`Authenticated via token: ${account.username} (${account.role})`);
         } else {
-          console.warn("⚠️ Invalid token or user not found");
+          console.warn("Invalid token or user not found");
         }
       } catch (err) {
-        console.error("🚨 Error validating token:", err.response?.data || err.message);
+        console.error("Error validating token:", err.response?.data || err.message);
       }
     } else {
-      console.warn("⚠️ No token provided from Electron");
+      console.warn("No token provided from Electron");
     }
 
     // Simpan participant
     participants[socket.id] = { id: socket.id, hostname, user, os, account };
     io.emit("participants", Object.values(participants));
 
-    console.log(`📡 Registered participant: ${hostname} (${account?.username || "no account"})`);
+    console.log(`Registered participant: ${hostname} (${account?.username || "no account"})`);
   });
 
   // ================= MIRROR FRAME =================
   socket.on("mirror-frame", (frame) => {
-    io.emit("mirror-update", { id: socket.id, frame });
+    if (!frame) return;
+    console.log(`Mirror frame received from ${socket.id}, size: ${frame.length}`);
+    
+    // Broadcast ke semua (termasuk admin dashboard)
+    io.emit("mirror-frame", { from: socket.id, frame });
   });
+
 
   // ================= EXECUTE COMMAND =================
   socket.on("execute-command", (payload) => {
     const target = io.sockets.sockets.get(payload.targetId);
     if (target) {
-      console.log(`⚙️ Sending command '${payload.command}' to ${payload.targetId}`);
+      console.log(`Sending command '${payload.command}' to ${payload.targetId}`);
       target.emit("command", payload.command);
+      if (payload.command === "mirror-stop") {
+        // Broadcast ke semua client bahwa mirror user ini sudah berhenti
+        io.emit("mirror-stop", { from: payload.targetId });
+      }
     } else {
-      console.warn(`⚠️ Target ${payload.targetId} not found`);
+      console.warn(`Target ${payload.targetId} not found`);
     }
   });
 
   // ================= DISCONNECT =================
   socket.on("disconnect", () => {
-    console.log(`❌ Participant disconnected: ${socket.id}`);
+    console.log(`Participant disconnected: ${socket.id}`);
     delete participants[socket.id];
     io.emit("participants", Object.values(participants));
   });
@@ -111,8 +120,8 @@ app.get("/health", (req, res) => {
 
 // ====== Start Server ======
 server.listen(PORT, () => {
-  console.log(`🚀 Control Server running on port ${PORT}`);
-  console.log(`🔌 Socket.IO listening at ws://0.0.0.0:${PORT}`);
+  console.log(`Control Server running on port ${PORT}`);
+  console.log(`Socket.IO listening at ws://0.0.0.0:${PORT}`);
 });
 
 // ====== Export globals ======

@@ -10,7 +10,7 @@ const socket = io(CONTROL_SERVER_URL, {
 });
 
 socket.on("connect", () => {
-  console.log(`🖥️ Connected to control server as ${socket.id}`);
+  console.log(`Connected to control server as ${socket.id}`);
 
   // Kirim data registrasi seperti PC sungguhan
   socket.emit("register", {
@@ -22,17 +22,17 @@ socket.on("connect", () => {
 });
 
 socket.on("disconnect", () => {
-  console.log("❌ Disconnected from control server");
+  console.log("Disconnected from control server");
 });
 
 // Dengar event perintah dari admin
 socket.on("command", (cmd) => {
-  console.log(`⚙️ Received command: ${cmd}`);
+  console.log(`Received command: ${cmd}`);
 });
 
 // Simulasi kirim mirror frame setiap 5 detik
 setInterval(() => {
   const frame = `FRAME_${Date.now()}`;
   socket.emit("mirror-frame", frame);
-  console.log(`📸 Sending mirror frame: ${frame}`);
+  console.log(`Sending mirror frame: ${frame}`);
 }, 5000);

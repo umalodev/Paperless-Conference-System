@@ -2,6 +2,7 @@ import { app, BrowserWindow, session } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
+import { ipcMain, desktopCapturer } from "electron";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname, "..");
@@ -152,5 +153,19 @@ app.commandLine.appendSwitch('--enable-usermedia-screen-capture');
 app.commandLine.appendSwitch('--disable-features', 'VizDisplayCompositor');
 app.commandLine.appendSwitch('--enable-features', 'VaapiVideoDecoder');
 app.commandLine.appendSwitch('--autoplay-policy', 'no-user-gesture-required');
+
+ipcMain.handle("capture-screen", async () => {
+  const sources = await desktopCapturer.getSources({
+    types: ["screen"],
+    thumbnailSize: { width: 640, height: 360 },
+  });
+
+  if (!sources.length) return null;
+
+  const image = sources[0].thumbnail;
+  const img = image.toJPEG(70).toString("base64");
+  return img;
+});
+
 
 app.whenReady().then(createWindow);
