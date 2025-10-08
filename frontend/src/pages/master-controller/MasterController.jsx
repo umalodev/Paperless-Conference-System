@@ -5,6 +5,7 @@ import MeetingLayout from "../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../components/MeetingFooter.jsx";
 import BottomNav from "../../components/BottomNav.jsx";
 import meetingService from "../../services/meetingService.js";
+import { useNavigate } from "react-router-dom"; // ⬅️ di atas file
 import "./master-controller.css";
 
 export default function MasterController() {
@@ -16,9 +17,12 @@ export default function MasterController() {
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
+  const [mirrorFrames, setMirrorFrames] = useState({});
+  const [fullscreenId, setFullscreenId] = useState(null);
+  const navigate = useNavigate();
 
   // =====================================================
-  // 🧩 LOAD USER + MENUS (sama seperti Services.jsx)
+  // LOAD USER + MENUS
   // =====================================================
   useEffect(() => {
     try {
@@ -67,19 +71,45 @@ export default function MasterController() {
   );
 
   // =====================================================
-  // ⚙️ SOCKET.IO SETUP
+  // SOCKET.IO SETUP
   // =====================================================
   useEffect(() => {
     const s = io(CONTROL_URL, { transports: ["websocket"] });
-    s.on("connect", () => console.log("✅ Connected to Control Server"));
-    s.on("disconnect", () => console.log("❌ Disconnected from Control Server"));
+
+    s.on("connect", () => console.log("🟢 Connected to Control Server"));
+    s.on("disconnect", () => console.log("🔴 Disconnected from Control Server"));
+
+    // 🧩 Update participant list
     s.on("participants", (data) => setParticipants(data || []));
+
+    // 🪞 Mirror frames
+    s.on("mirror-frame", ({ from, frame }) => {
+      setMirrorFrames((prev) => ({ ...prev, [from]: frame }));
+    });
+
+    // 🛑 Mirror stop
+    s.on("mirror-stop", ({ from }) => {
+      setMirrorFrames((prev) => {
+        const copy = { ...prev };
+        delete copy[from];
+        return copy;
+      });
+    });
+
+    // 🔒 Update lock/unlock status realtime
+    s.on("participant-lock", ({ id, isLocked }) => {
+      console.log("🔒 participant-lock:", id, isLocked);
+      setParticipants((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, isLocked } : p))
+      );
+    });
+
     setSocket(s);
     return () => s.disconnect();
   }, []);
 
   // =====================================================
-  // 🔁 FETCH PARTICIPANTS MANUAL
+  // FETCH PARTICIPANTS (MANUAL)
   // =====================================================
   const fetchParticipants = useCallback(async () => {
     setLoading(true);
@@ -101,10 +131,29 @@ export default function MasterController() {
   }, [fetchParticipants]);
 
   // =====================================================
-  // 🧠 COMMAND HANDLER
+  // COMMAND HANDLER
   // =====================================================
   const sendCommand = async (targetId, action) => {
     try {
+      // Optimistic UI update
+      if (action === "mirror-stop") {
+        setMirrorFrames((prev) => {
+          const copy = { ...prev };
+          delete copy[targetId];
+          return copy;
+        });
+      }
+      if (action === "lock") {
+        setParticipants((prev) =>
+          prev.map((p) => (p.id === targetId ? { ...p, isLocked: true } : p))
+        );
+      }
+      if (action === "unlock") {
+        setParticipants((prev) =>
+          prev.map((p) => (p.id === targetId ? { ...p, isLocked: false } : p))
+        );
+      }
+
       const res = await fetch(`${CONTROL_URL}/api/control/command/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,23 +161,24 @@ export default function MasterController() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      alert(`✅ ${data.message || "Command executed successfully"}`);
+      console.log(`${data.message || "Command executed successfully"}`);
     } catch (err) {
-      console.error(`❌ Failed to send '${action}':`, err);
-      alert(`❌ Failed to send '${action}'`);
+      console.error(`Failed to send '${action}':`, err);
     }
   };
 
   // =====================================================
-  // 🎨 UI SECTION
+  // UI SECTION
   // =====================================================
   return (
     <MeetingLayout
+      disableMeetingSocket={true}
       meetingId={1000}
       userId={user?.id || user?.userId || null}
       userRole={user?.role || "admin"}
     >
       <div className="pd-app">
+        {/* === Header === */}
         <header className="pd-topbar">
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
@@ -141,15 +191,18 @@ export default function MasterController() {
           </div>
           <div className="pd-right">
             <button
-              className="pd-btn"
-              onClick={fetchParticipants}
-              disabled={loading}
+              className="note-btn ghost"
+              onClick={() => window.location.reload()}
+              title="Refresh"
+              aria-label="Refresh"
             >
-              🔄 Refresh
+              <img src="/img/refresh.png" alt="Refresh" className="action-icon" />
+              <span>Refresh</span>
             </button>
           </div>
         </header>
 
+        {/* === Main Content === */}
         <main className="pd-main">
           {loading ? (
             <div className="pd-empty">Loading participants...</div>
@@ -158,50 +211,144 @@ export default function MasterController() {
           ) : participants.length === 0 ? (
             <div className="pd-empty">No participants connected.</div>
           ) : (
-            <div className="mc-grid">
+            <div className="mc-pc-grid">
               {participants.map((p) => (
-                <div key={p.id} className="mc-card">
-                  <h2 className="mc-title">
-                    {p.hostname || "Unknown"}{" "}
-                    <span className="mc-os">({p.os})</span>
-                  </h2>
-                  <p className="mc-user">{p.user || "No user"}</p>
-
-                  {p.account ? (
-                    <div className="mc-account">
-                      <strong>User:</strong> {p.account.username} <br />
-                      <strong>Role:</strong> {p.account.role}
+                <div
+                  key={p.id}
+                  className={`mc-pc-card ${p.isLocked ? "locked" : ""}`}
+                >
+                  {/* === Toolbar atas === */}
+                  <div className="mc-pc-header">
+                    <div className="mc-pc-info">
+                      <strong>{p.hostname || "Unknown"}</strong>
+                      <span className="mc-pc-os">({p.os})</span>
                     </div>
-                  ) : (
-                    <div className="mc-account mc-account--warn">
-                      <em>Not authenticated</em>
+                    <div className="mc-pc-user">
+                      {p.account ? (
+                        <>
+                          👤 {p.account.username}{" "}
+                          <span>({p.account.role})</span>
+                        </>
+                      ) : (
+                        <span className="text-red-500 italic">
+                          Not authenticated
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
 
-                  <div className="mc-actions">
+                  {/* === Mirror layar besar === */}
+                  <div
+                    className="mc-pc-screen"
+                    onClick={() => setFullscreenId(p.id)}
+                  >
+                    {mirrorFrames[p.id] ? (
+                      <img
+                        src={`data:image/jpeg;base64,${mirrorFrames[p.id]}`}
+                        alt="Screen mirror"
+                        className="mc-pc-img"
+                        title="Click to view fullscreen"
+                      />
+                    ) : (
+                      <div className="mc-pc-no-screen">
+                        <div className="no-screen-icon">
+                          <img src="/img/screen.png" alt="No mirror" />
+                        </div>
+                        <div className="no-screen-text">
+                          <h3>No Mirror Active</h3>
+                          <p>
+                            Click{" "}
+                            <img
+                              src="/img/expand.png"
+                              alt="Start Mirror"
+                              className="mc-icon-inline"
+                            />{" "}
+                            to start screen mirroring
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* === Tombol kontrol bawah (ikon saja) === */}
+                  <div className="mc-pc-actions">
+                    {/* Tombol Mirror dinamis */}
+                    {mirrorFrames[p.id] ? (
+                      <button
+                        className="mc-icon-btn mc-btn--red"
+                        onClick={() => sendCommand(p.id, "mirror-stop")}
+                        title="Stop Mirror"
+                      >
+                        <img
+                          src="/img/cross.png"
+                          alt="Stop Mirror"
+                          className="mc-icon-img"
+                        />
+                      </button>
+                    ) : (
+                      <button
+                        className="mc-icon-btn mc-btn--blue"
+                        onClick={() => sendCommand(p.id, "mirror-start")}
+                        title="Start Mirror"
+                      >
+                        <img
+                          src="/img/expand.png"
+                          alt="Start Mirror"
+                          className="mc-icon-img"
+                        />
+                      </button>
+                    )}
+
+                    {/* Tombol Lock/Unlock */}
+                    {p.isLocked ? (
+                      <button
+                        className="mc-icon-btn mc-btn--gray"
+                        onClick={() => sendCommand(p.id, "unlock")}
+                        title="Unlock PC"
+                      >
+                        <img
+                          src="/img/unlock.png"
+                          alt="Unlock"
+                          className="mc-icon-img"
+                        />
+                      </button>
+                    ) : (
+                      <button
+                        className="mc-icon-btn mc-btn--gray"
+                        onClick={() => sendCommand(p.id, "lock")}
+                        title="Lock PC"
+                      >
+                        <img
+                          src="/img/lock.png"
+                          alt="Lock"
+                          className="mc-icon-img"
+                        />
+                      </button>
+                    )}
+
+                    {/* Tombol Restart & Shutdown */}
                     <button
-                      className="mc-btn mc-btn--blue"
-                      onClick={() => sendCommand(p.id, "mirror-start")}
-                    >
-                      Mirror
-                    </button>
-                    <button
-                      className="mc-btn mc-btn--gray"
-                      onClick={() => sendCommand(p.id, "mirror-stop")}
-                    >
-                      Stop
-                    </button>
-                    <button
-                      className="mc-btn mc-btn--yellow"
+                      className="mc-icon-btn mc-btn--yellow"
                       onClick={() => sendCommand(p.id, "restart")}
+                      title="Restart PC"
                     >
-                      Restart
+                      <img
+                        src="/img/refresh.png"
+                        alt="Restart"
+                        className="mc-icon-img"
+                      />
                     </button>
+
                     <button
-                      className="mc-btn mc-btn--red"
+                      className="mc-icon-btn mc-btn--gray"
                       onClick={() => sendCommand(p.id, "shutdown")}
+                      title="Shutdown PC"
                     >
-                      Shutdown
+                      <img
+                        src="/img/power.png"
+                        alt="Shutdown"
+                        className="mc-icon-img"
+                      />
                     </button>
                   </div>
                 </div>
@@ -210,11 +357,37 @@ export default function MasterController() {
           )}
         </main>
 
+        {/* === Fullscreen Mirror === */}
+        {fullscreenId && mirrorFrames[fullscreenId] && (
+          <div
+            className="mc-fullscreen-overlay"
+            onClick={() => setFullscreenId(null)}
+          >
+            <div className="mc-fullscreen-container">
+              <button
+                className="mc-fullscreen-close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFullscreenId(null);
+                }}
+                title="Close fullscreen"
+              >
+                ✖
+              </button>
+              <img
+                src={`data:image/jpeg;base64,${mirrorFrames[fullscreenId]}`}
+                alt="Fullscreen mirror"
+                className="mc-fullscreen-img"
+              />
+            </div>
+          </div>
+        )}
+
         {!loadingMenus && !errMenus && (
           <BottomNav
             items={visibleMenus}
             active="master-controller"
-            onSelect={(item) => (window.location.href = `/menu/${item.slug}`)}
+            onSelect={(item) => navigate(`/menu/${item.slug}`)} // ⬅️ tanpa reload
           />
         )}
 

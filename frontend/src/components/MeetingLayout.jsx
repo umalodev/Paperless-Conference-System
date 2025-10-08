@@ -13,9 +13,10 @@ const MeetingLayout = ({
   userRole,
   socket,
   mediasoupDevice,
-  className = "",
-  meetingTitle = "",
-}) => {
+  className = '',
+  disableMeetingSocket = false, // <=== Tambahan
+  }) => {
+
   const [screenShareError, setScreenShareError] = useState("");
   const [title, setTitle] = useState(meetingTitle || "");
 
@@ -35,6 +36,8 @@ const MeetingLayout = ({
   const annotateHostRef = useRef(null);
 
   useEffect(() => {
+    if (disableMeetingSocket) return;
+
     if (meetingId && userId) {
       if (typeof window !== "undefined") {
         window.meetingWebSocketService = meetingWebSocketService;
@@ -44,7 +47,8 @@ const MeetingLayout = ({
         meetingWebSocketService.disconnect();
       };
     }
-  }, [meetingId, userId]);
+  }, [meetingId, userId, disableMeetingSocket]);
+
 
   return (
     <div className={`meeting-layout ${className}`}>

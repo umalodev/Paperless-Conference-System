@@ -3,6 +3,7 @@
  * Handle participants listing, command execution, and login sync
  */
 
+// ========================== GET PARTICIPANTS ==========================
 exports.getParticipants = (req, res) => {
   const list = Object.values(global.participants || {});
   return res.json({
@@ -12,6 +13,7 @@ exports.getParticipants = (req, res) => {
   });
 };
 
+// ========================== SEND COMMAND ==========================
 /**
  * Send command to target participant
  * @route POST /api/control/command/:action
@@ -45,6 +47,7 @@ exports.sendCommand = (req, res) => {
   });
 };
 
+// ========================== SYNC LOGIN ==========================
 /**
  * Sync login data from backend (triggered after successful user login)
  * @route POST /api/control/sync-login
@@ -64,8 +67,26 @@ exports.syncLogin = (req, res) => {
   global.lastLogin = { token, account, time: new Date() };
   console.log(`🔄 Synced login from backend: ${account.username}`);
 
+  // === Integrasi tambahan ===
+  // Langsung hubungkan account ke participant yang belum punya akun
+  if (global.participants && Object.keys(global.participants).length > 0) {
+    const participants = Object.values(global.participants);
+    // Ambil participant terakhir yang belum punya akun
+    const target = participants.reverse().find((p) => !p.account);
+    if (target) {
+      target.account = account;
+      console.log(`🧩 Linked account '${account.username}' → ${target.hostname}`);
+      // Update realtime ke semua client React
+      if (global.io) {
+        global.io.emit("participants", Object.values(global.participants));
+      }
+    } else {
+      console.log("ℹ️ No pending participant to link — maybe already synced");
+    }
+  }
+
   return res.json({
     success: true,
-    message: "Login synced successfully",
+    message: "Login synced successfully and linked to participant (if available)",
   });
 };

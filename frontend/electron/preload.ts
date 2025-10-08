@@ -15,7 +15,6 @@ const socket = io(CONTROL_SERVER, { transports: ["websocket"] });
 // === Helper: ambil token login dari localStorage ===
 function getToken() {
   try {
-    // diambil dari localStorage yang diset waktu login.jsx
     return localStorage.getItem("token");
   } catch (err) {
     console.warn("[preload] Gagal ambil token:", err);
@@ -25,7 +24,7 @@ function getToken() {
 
 // === Saat connect ke control server ===
 socket.on("connect", () => {
-  console.log("✅ Connected to Control Server:", socket.id);
+  console.log("Connected to Control Server:", socket.id);
 
   const hostname = os.hostname();
   const user = os.userInfo().username;
@@ -35,19 +34,13 @@ socket.on("connect", () => {
   const payload: any = { hostname, user, os: platform };
   if (token) payload.token = token;
 
-  // Kirim identitas PC + token user ke control-server
   socket.emit("register", payload);
   console.log("[preload] Registering participant:", payload);
 });
 
-// === Handle disconnect ===
-socket.on("disconnect", () => {
-  console.warn("❌ Disconnected from Control Server");
-});
-
-// === Auto re-register saat reconnect ===
+socket.on("disconnect", () => console.warn("Disconnected from Control Server"));
 socket.io.on("reconnect", () => {
-  console.log("🔁 Reconnected to Control Server, re-registering...");
+  console.log("Reconnected — re-registering...");
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
@@ -57,17 +50,21 @@ socket.io.on("reconnect", () => {
   socket.emit("register", payload);
 });
 
-// === Command handling ===
+// =====================================================
+// 🧩 COMMAND HANDLING
+// =====================================================
 socket.on("command", async (cmd: string) => {
-  console.log("⚙️ Received command:", cmd);
+  console.log("Received command:", cmd);
   switch (cmd) {
     case "lock":
+      // Windows built-in lock
       exec("rundll32.exe user32.dll,LockWorkStation");
       break;
     case "shutdown":
       exec("shutdown /s /t 0");
       break;
     case "reboot":
+    case "restart":
       exec("shutdown /r /t 0");
       break;
     case "mirror-start":
@@ -81,17 +78,85 @@ socket.on("command", async (cmd: string) => {
   }
 });
 
-// === Mirror (screen streaming) ===
-let mirrorInterval: NodeJS.Timer | null = null;
+// =====================================================
+// 🧱  LOCK / UNLOCK BY ADMIN (overlay mode)
+// =====================================================
+let overlay: HTMLDivElement | null = null;
+
+socket.on("lock-screen", () => {
+  console.log("🔒 Received lock-screen event from admin");
+
+  if (overlay) return; // already locked
+
+  overlay = document.createElement("div");
+  overlay.id = "admin-lock-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.96)",
+    color: "white",
+    fontSize: "2rem",
+    fontWeight: "600",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: "999999",
+    userSelect: "none",
+  });
+  overlay.innerHTML = `
+    <div>🔒 PC Locked by Administrator</div>
+    <div style="font-size:1rem;margin-top:12px;opacity:0.8">
+      Please wait until it’s unlocked.
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Disable input
+  document.body.style.pointerEvents = "none";
+  window.addEventListener("keydown", preventInput, true);
+  window.addEventListener("mousedown", preventInput, true);
+  window.addEventListener("mousemove", preventInput, true);
+  window.addEventListener("contextmenu", preventInput, true);
+});
+
+socket.on("unlock-screen", () => {
+  console.log("🔓 Received unlock-screen event from admin");
+
+  // Re-enable input
+  document.body.style.pointerEvents = "auto";
+  window.removeEventListener("keydown", preventInput, true);
+  window.removeEventListener("mousedown", preventInput, true);
+  window.removeEventListener("mousemove", preventInput, true);
+  window.removeEventListener("contextmenu", preventInput, true);
+
+  if (overlay) {
+    overlay.remove();
+    overlay = null;
+  }
+});
+
+function preventInput(e: Event) {
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+// =====================================================
+// 🪞 SCREEN MIRROR STREAM
+// =====================================================
+let mirrorInterval: number | null = null;
 
 async function startMirror() {
-  if (mirrorInterval) return; // prevent duplicates
-  console.log("🪞 Mirror started");
+  if (mirrorInterval) return;
+  console.log("[mirror] Started");
 
-  mirrorInterval = setInterval(async () => {
+  mirrorInterval = window.setInterval(async () => {
     try {
-      const imgBuffer = await screenshot();
-      const img = imgBuffer.toString("base64");
+      const img = await ipcRenderer.invoke("capture-screen");
+      if (!img) return;
       socket.emit("mirror-frame", img);
     } catch (err) {
       console.error("Mirror error:", err);
@@ -100,14 +165,16 @@ async function startMirror() {
 }
 
 function stopMirror() {
-  if (mirrorInterval) {
-    clearInterval(mirrorInterval as any);
+  if (mirrorInterval !== null) {
+    window.clearInterval(mirrorInterval);
     mirrorInterval = null;
-    console.log("🪞 Mirror stopped");
+    console.log("[mirror] Stopped");
   }
 }
 
-// ====== EXISTING SCREEN API ======
+// =====================================================
+// 🧰 SCREEN CAPTURE HELPERS
+// =====================================================
 async function getScreenSources() {
   const sources = await desktopCapturer.getSources({
     types: ["screen", "window"],
@@ -121,11 +188,11 @@ async function getDisplayMedia() {
     thumbnailSize: { width: 1920, height: 1080 },
   });
   if (!sources.length) throw new Error("No screen sources");
-  const source = sources[0];
+  const src = sources[0];
   return {
-    id: source.id,
-    name: source.name,
-    thumbnail: source.thumbnail.toDataURL(),
+    id: src.id,
+    name: src.name,
+    thumbnail: src.thumbnail.toDataURL(),
   };
 }
 
@@ -147,12 +214,17 @@ async function createScreenStream(sourceId: string) {
   return stream;
 }
 
+// =====================================================
+// 🧩 DEBUG TESTS
+// =====================================================
 function testPreload() {
-  console.log("[preload] Test function called - preload is working!");
+  console.log("[preload] Test function called!");
   return "Preload test successful";
 }
 
-// ====== EXPOSE APIs TO RENDERER ======
+// =====================================================
+// 🌍 EXPOSE TO RENDERER
+// =====================================================
 contextBridge.exposeInMainWorld("screenAPI", {
   isElectron: true,
   getScreenSources,
@@ -177,6 +249,5 @@ contextBridge.exposeInMainWorld("ipc", {
     ipcRenderer.invoke(...args),
 });
 
-// Debug marker
 (globalThis as any).__PRELOAD_OK__ = true;
-console.log("[preload] ✅ screenAPI & controlAPI exposed");
+console.log("[preload] screenAPI & controlAPI exposed successfully");

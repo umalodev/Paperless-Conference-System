@@ -1,9 +1,40 @@
 import { defineConfig } from "vite";
 import path from "node:path";
+import fs from "node:fs";
 import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
 
-// https://vitejs.dev/config/
+/**
+ * 🔹 Plugin custom untuk copy file .bat ke dist-electron setelah build
+ */
+function batCopyPlugin() {
+  return {
+    name: "copy-electron-extras",
+    closeBundle() {
+      const extraFiles = [
+        "screenCapture_1.3.2.bat",
+        "app.manifest"  // ← tambahkan ini
+      ];
+
+      for (const file of extraFiles) {
+        const src = path.join(__dirname, "electron", file);
+        const dest = path.join(__dirname, "dist-electron", file);
+        try {
+          if (fs.existsSync(src)) {
+            fs.copyFileSync(src, dest);
+            console.log(`📄 Copied ${file} → dist-electron/`);
+          } else {
+            console.warn(`⚠️ Missing ${file} in electron/`);
+          }
+        } catch (err) {
+          console.error(`❌ Failed to copy ${file}:`, err);
+        }
+      }
+    },
+  };
+}
+
+
 export default defineConfig({
   server: {
     proxy: {
@@ -18,14 +49,21 @@ export default defineConfig({
     react(),
     electron({
       main: {
-        // Shortcut of `build.lib.entry`.
         entry: "electron/main.ts",
+        vite: {
+          build: {
+            outDir: "dist-electron",
+            rollupOptions: {
+              input: {
+                main: path.join(__dirname, "electron/main.ts"),
+                preload: path.join(__dirname, "electron/preload.ts"),
+              },
+            },
+          },
+        },
       },
       preload: {
-        // Shortcut of `build.rollupOptions.input`.
-        // Preload scripts may contain Web assets, so use the `build.rollupOptions.input` instead `build.lib.entry`.
         input: path.join(__dirname, "electron/preload.ts"),
-        // Ensure preload builds to CommonJS to avoid ESM loader issues
         vite: {
           build: {
             rollupOptions: {
@@ -37,14 +75,7 @@ export default defineConfig({
           },
         },
       },
-      // Ployfill the Electron and Node.js API for Renderer process.
-      // If you want use Node.js in Renderer process, the `nodeIntegration` needs to be enabled in the Main process.
-      // See 👉 https://github.com/electron-vite/vite-plugin-electron-renderer
-      renderer:
-        process.env.NODE_ENV === "test"
-          ? // https://github.com/electron-vite/vite-plugin-electron-renderer/issues/78#issuecomment-2053600808
-            undefined
-          : {},
     }),
+    batCopyPlugin(), // ✅ Tambahkan plugin di luar electron()
   ],
 });
