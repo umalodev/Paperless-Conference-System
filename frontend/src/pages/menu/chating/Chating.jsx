@@ -171,7 +171,6 @@ export default function Chat() {
         const json = await res.json();
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
-              menuId: m.menuId,
               slug: m.slug,
               label: m.displayLabel,
               flag: m.flag ?? "Y",
@@ -611,8 +610,8 @@ export default function Chat() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Chat</h1>
-              <div className="pd-sub">Diskusi selama meeting</div>
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Chat</div>
             </div>
           </div>
           <div className="pd-right">

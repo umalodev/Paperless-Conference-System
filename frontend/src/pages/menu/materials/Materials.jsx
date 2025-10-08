@@ -306,6 +306,15 @@ export default function Materials() {
       userRole={user?.role || "participant"}
       socket={null}
       mediasoupDevice={null}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${meetingId}`;
+        } catch {
+          return `Meeting #${meetingId}`;
+        }
+      })()}
     >
       <div className="pd-app">
         {/* Top bar */}
@@ -313,8 +322,8 @@ export default function Materials() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Materials</h1>
-              <div className="pd-sub">All meeting files</div>
+              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
+              <div className="pd-sub">Materials</div>
             </div>
           </div>
           <div className="pd-right">

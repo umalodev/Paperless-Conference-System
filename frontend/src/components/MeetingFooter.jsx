@@ -121,7 +121,11 @@ export default function MeetingFooter({
           title={micOn === false ? "Mic Off" : "Mic On"}
           onClick={onToggleMic}
         >
-          <Icon slug="mic" />
+          {micOn === false ? (
+            <img src="/img/mute.png" alt="Mic Off" style={{ width: '20px', height: '20px' }} />
+          ) : (
+            <Icon slug="mic" />
+          )}
         </button>
 
         <button
@@ -129,7 +133,11 @@ export default function MeetingFooter({
           title={camOn === false ? "Camera Off" : "Camera On"}
           onClick={onToggleCam}
         >
-          <Icon slug="camera" />
+          {camOn === false ? (
+            <img src="/img/offcam.png" alt="Camera Off" style={{ width: '20px', height: '20px' }} />
+          ) : (
+            <Icon slug="camera" />
+          )}
         </button>
       </div>
 
