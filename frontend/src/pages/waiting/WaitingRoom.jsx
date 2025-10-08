@@ -67,14 +67,9 @@ export default function WaitingRoom() {
       const name = (localStorage.getItem("pconf.displayName") || "").trim();
       if (!name) return;
       try {
-        const headers = {
-          "Content-Type": "application/json",
-          ...(meetingService.getAuthHeaders?.() || {}),
-        };
-        await fetch(`${API_URL}/api/participants/name`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ meetingId, displayName: name }),
+        await meetingService.setParticipantDisplayName({
+          meetingId,
+          displayName: name,
         });
         // optional: simpan juga per-meeting
         localStorage.setItem(`meeting:${meetingId}:displayName`, name);
@@ -83,6 +78,10 @@ export default function WaitingRoom() {
       }
     };
     pushName();
+
+    // Re-sync display name whenever it changes
+    const interval = setInterval(pushName, 5000);
+    return () => clearInterval(interval);
   }, [meetingId]);
   // cek status + polling untuk participant
   useEffect(() => {

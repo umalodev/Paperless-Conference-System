@@ -14,6 +14,7 @@ export default function Services() {
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
   const navigate = useNavigate();
+  const [displayName, setDisplayName] = useState("");
 
   // Services state
   const [selectedService, setSelectedService] = useState(null);
@@ -33,6 +34,8 @@ export default function Services() {
     try {
       const raw = localStorage.getItem("user");
       if (raw) setUser(JSON.parse(raw));
+      const dn = localStorage.getItem("pconf.displayName");
+      if (dn) setDisplayName(dn);
     } catch {}
 
     let cancel = false;
@@ -344,7 +347,7 @@ export default function Services() {
               <div className="pd-sub">
                 {isAssist
                   ? "Assist console — handle participants' requests"
-                  : "Services"}
+                  : ""}
               </div>
             </div>
           </div>
@@ -357,11 +360,11 @@ export default function Services() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(user?.username || "US").slice(0, 2).toUpperCase()}
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {user?.username || "Participant"}
+                  {displayName || "Participant"}
                 </div>
                 <div className="pd-user-role">
                   {user?.role || "Participant"}

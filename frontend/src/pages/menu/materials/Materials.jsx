@@ -29,6 +29,7 @@ export default function Materials() {
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [errItems, setErrItems] = useState("");
+  const [displayName, setDisplayName] = useState("");
 
   // upload
   const [uploading, setUploading] = useState(false);
@@ -81,6 +82,8 @@ export default function Materials() {
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
+    const dn = localStorage.getItem("pconf.displayName") || "";
+    setDisplayName(dn);
   }, []);
 
   const authHeaders = useMemo(() => {
@@ -322,8 +325,12 @@ export default function Materials() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
-              <div className="pd-sub">Materials</div>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
             </div>
           </div>
           <div className="pd-right">
@@ -335,13 +342,13 @@ export default function Materials() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(user?.username || "US").slice(0, 2).toUpperCase()}
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {user?.username || "Participant"}
+                  {displayName || "Participant"}
                 </div>
-                <div className="pd-user-role">Participant</div>
+                <div className="pd-user-role">{user?.role}</div>
               </div>
             </div>
           </div>

@@ -24,6 +24,7 @@ export default function Chat() {
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
+  const [displayName, setDisplayName] = useState("");
 
   // chat
   const [messages, setMessages] = useState([]);
@@ -147,6 +148,8 @@ export default function Chat() {
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
+    const dn = localStorage.getItem("pconf.displayName") || "";
+    setDisplayName(dn);
   }, []);
 
   // Load participants when user changes
@@ -610,8 +613,12 @@ export default function Chat() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">{localStorage.getItem("currentMeeting") ? JSON.parse(localStorage.getItem("currentMeeting"))?.title || "Meeting Default" : "Default"}</h1>
-              <div className="pd-sub">Chat</div>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
             </div>
           </div>
           <div className="pd-right">
@@ -623,13 +630,11 @@ export default function Chat() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(myDbDisplayName || fallbackLocalName || "US")
-                  .slice(0, 2)
-                  .toUpperCase()}
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {myDbDisplayName || fallbackLocalName}
+                  {displayName || "Participant"}
                 </div>
                 <div className="pd-user-role">
                   {user?.role || "Participant"}
