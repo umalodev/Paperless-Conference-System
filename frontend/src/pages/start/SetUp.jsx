@@ -83,13 +83,6 @@ export default function SetUp() {
         throw new Error(result?.message || "Failed to create meeting");
       }
 
-      console.log("✅ Meeting created successfully:", result);
-      console.log("📊 Meeting Summary:", {
-        meetingId: result.data.meetingId,
-        agendasCount: result.data.agendasCount,
-        materialsCount: result.data.materialsCount,
-      });
-
       // Upload materials files if any
       if (payload.materials && payload.materials.length > 0) {
         try {

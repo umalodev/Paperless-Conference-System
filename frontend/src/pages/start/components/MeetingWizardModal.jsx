@@ -194,7 +194,7 @@ export default function MeetingWizardModal({
     setError("");
 
     // validate detail
-    if (!detail.title.trim()) return setError("Title is required.");
+    if (!detail.title.trim()) return setError("Meeting title is required.");
 
     // Untuk quick start, waktu sudah diatur otomatis
     if (!isQuickStart) {
@@ -297,7 +297,7 @@ export default function MeetingWizardModal({
           {tab === 0 && (
             <section className="mw-pane">
               <div className="mw-row">
-                <label className="mw-label">Title</label>
+                <label className="mw-label">Title (required)</label>
                 <input
                   className="mw-input"
                   placeholder="e.g., Weekly Team Standup"
