@@ -28,14 +28,14 @@ import { ScreenShareProvider } from "./contexts/ScreenShareContext";
 import Whiteboard from "./pages/menu/whiteboard/whiteboards.jsx";
 import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
 import MasterController from "./pages/master-controller/MasterController.jsx";
-
+import { ModalProvider } from "./contexts/ModalProvider.jsx";
 
 function App() {
   return (
     <HashRouter>
       <MediaRoomProvider>
         <ScreenShareProvider>
-          <LockOverlay>
+          <ModalProvider>
             <Routes>
               <Route path="/" element={<Login />} />
 
@@ -76,7 +76,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <GlobalAnnotationOverlay />
-          </LockOverlay>
+          </ModalProvider>
         </ScreenShareProvider>
       </MediaRoomProvider>
     </HashRouter>

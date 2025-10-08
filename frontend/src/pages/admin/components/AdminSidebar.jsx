@@ -44,8 +44,7 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
       {/* Sidebar Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <div className="logo-container">
-          </div>
+          <img src="/img/logo.png" alt="Umalo Logo" className="umalo-logo" />
         </div>
       </div>
 

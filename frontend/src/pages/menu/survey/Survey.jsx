@@ -36,6 +36,7 @@ export default function Survey() {
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
   const [showResponses, setShowResponses] = useState(false);
+  const [displayName, setDisplayName] = useState("");
 
   // meeting
   const meetingId = useMemo(() => {
@@ -86,6 +87,8 @@ export default function Survey() {
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
+    const dn = localStorage.getItem("pconf.displayName") || "";
+    setDisplayName(dn);
   }, []);
 
   // load menus
@@ -217,6 +220,15 @@ export default function Survey() {
       userRole={user?.role || "participant"}
       socket={null}
       mediasoupDevice={null}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${meetingId}`;
+        } catch {
+          return `Meeting #${meetingId}`;
+        }
+      })()}
     >
       <div className="pd-app">
         {/* topbar */}
@@ -224,8 +236,12 @@ export default function Survey() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Survey</h1>
-              <div className="pd-sub">Umpan balik peserta</div>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
             </div>
           </div>
           <div className="pd-right">
@@ -237,11 +253,11 @@ export default function Survey() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(user?.username || "US").slice(0, 2).toUpperCase()}
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {user?.username || "Participant"}
+                  {displayName || "Participant"}
                 </div>
                 <div className="pd-user-role">
                   {user?.role || "Participant"}

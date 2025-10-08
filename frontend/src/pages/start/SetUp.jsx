@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import meetingService from "../../services/meetingService.js";
 import MeetingWizardModal from "./components/MeetingWizardModal.jsx";
 import { API_URL } from "../../config.js";
+import { useModal } from "../../contexts/ModalProvider.jsx";
 
 export default function SetUp() {
   const [user, setUser] = useState(null);
@@ -20,6 +21,7 @@ export default function SetUp() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [errHistory, setErrHistory] = useState("");
   const [joiningDefault, setJoiningDefault] = useState(false);
+  const { confirm, notify } = useModal();
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
@@ -72,6 +74,48 @@ export default function SetUp() {
     }
   };
 
+  const handleLogout = async () => {
+    const ok = await confirm({
+      title: "Logout from dashboard?",
+      message: "You will be signed out and redirected to the login page.",
+      destructive: true,
+      okText: "Logout",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        // cleanup realtime (aman dipanggil walau tidak ada)
+        try {
+          if (window.simpleScreenShare?.isSharing)
+            window.simpleScreenShare.stopScreenShare();
+        } catch {}
+        try {
+          window.meetingWebSocket?.close?.();
+        } catch {}
+
+        // opsional: panggil API logout jika ada
+        try {
+          if (typeof meetingService.logout === "function")
+            await meetingService.logout();
+        } catch {}
+
+        // bersihkan storage
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("currentMeeting");
+        // (Biarkan pconf.displayName tetap ada kalau kamu ingin auto-fill next time)
+      },
+    });
+
+    if (ok) {
+      await notify({
+        variant: "success",
+        title: "Signed out",
+        message: "See you soon.",
+        autoCloseMs: 900,
+      });
+      navigate("/");
+    }
+  };
+
   const handleSaveMeeting = async (payload) => {
     try {
       setCreating(true);
@@ -82,13 +126,6 @@ export default function SetUp() {
       if (!result?.success) {
         throw new Error(result?.message || "Failed to create meeting");
       }
-
-      console.log("✅ Meeting created successfully:", result);
-      console.log("📊 Meeting Summary:", {
-        meetingId: result.data.meetingId,
-        agendasCount: result.data.agendasCount,
-        materialsCount: result.data.materialsCount,
-      });
 
       // Upload materials files if any
       if (payload.materials && payload.materials.length > 0) {
@@ -339,7 +376,7 @@ export default function SetUp() {
             <div className="hd-sub">welcome back, {hostName}</div>
           </div>
         </div>
-        <button className="hd-logout" onClick={() => navigate("/")}>
+        <button className="hd-logout" onClick={handleLogout}>
           <span className="hd-logout-ic">↦</span> Logout
         </button>
       </header>

@@ -24,19 +24,20 @@ export default function Whiteboard() {
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
+  const [displayName, setDisplayName] = useState("");
 
-  const [tool, setTool] = useState("pen"); // 'pen' | 'eraser'
+  const [tool, setTool] = useState("pen");
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [size, setSize] = useState(DEFAULT_SIZE);
 
-  const [strokes, setStrokes] = useState([]); // [{tool,color,size,points:[{x,y}]}]
-  const redoRef = useRef([]); // stack untuk redo
+  const [strokes, setStrokes] = useState([]);
+  const redoRef = useRef([]);
   const [saving, setSaving] = useState(false);
   const saveTimer = useRef(null);
 
-  const canvasRef = useRef(null); // visible canvas (yang ditampilkan)
-  const baseCanvasRef = useRef(null); // offscreen/base canvas (buffer raster)
-  const cssSizeRef = useRef({ w: 0, h: 0 }); // ukuran CSS (bukan device px)
+  const canvasRef = useRef(null);
+  const baseCanvasRef = useRef(null);
+  const cssSizeRef = useRef({ w: 0, h: 0 });
   const wrapRef = useRef(null);
   const drawingRef = useRef(false);
   const currentStrokeRef = useRef(null);
@@ -56,6 +57,8 @@ export default function Whiteboard() {
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
+    const dn = localStorage.getItem("pconf.displayName") || "";
+    setDisplayName(dn);
   }, []);
 
   // menus
@@ -436,8 +439,12 @@ export default function Whiteboard() {
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Whiteboard</h1>
-              <div className="pd-sub">Pribadi — hanya kamu yang melihat</div>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
             </div>
           </div>
           <div className="pd-right">
@@ -449,13 +456,13 @@ export default function Whiteboard() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(user?.username || "US").slice(0, 2).toUpperCase()}
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {user?.username || "Participant"}
+                  {displayName || "Participant"}
                 </div>
-                <div className="pd-user-role">Participant</div>
+                <div className="pd-user-role">{user?.role}</div>
               </div>
             </div>
           </div>

@@ -14,6 +14,7 @@ export default function Services() {
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [errMenus, setErrMenus] = useState("");
   const navigate = useNavigate();
+  const [displayName, setDisplayName] = useState("");
 
   // Services state
   const [selectedService, setSelectedService] = useState(null);
@@ -33,6 +34,8 @@ export default function Services() {
     try {
       const raw = localStorage.getItem("user");
       if (raw) setUser(JSON.parse(raw));
+      const dn = localStorage.getItem("pconf.displayName");
+      if (dn) setDisplayName(dn);
     } catch {}
 
     let cancel = false;
@@ -320,17 +323,31 @@ export default function Services() {
       meetingId={resolveMeetingId()}
       userId={user?.id || user?.userId || null}
       userRole={user?.role || "participant"}
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${resolveMeetingId()}`;
+        } catch {
+          return `Meeting #${resolveMeetingId()}`;
+        }
+      })()}
     >
       <div className="pd-app">
         <header className="pd-topbar">
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
-              <h1 className="pd-title">Services</h1>
+              <h1 className="pd-title">
+                {localStorage.getItem("currentMeeting")
+                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
+                    "Meeting Default"
+                  : "Default"}
+              </h1>
               <div className="pd-sub">
                 {isAssist
                   ? "Assist console — handle participants' requests"
-                  : "Request assistance during the session"}
+                  : ""}
               </div>
             </div>
           </div>
@@ -343,11 +360,11 @@ export default function Services() {
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
-                {(user?.username || "US").slice(0, 2).toUpperCase()}
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="pd-user-name">
-                  {user?.username || "Participant"}
+                  {displayName || "Participant"}
                 </div>
                 <div className="pd-user-role">
                   {user?.role || "Participant"}

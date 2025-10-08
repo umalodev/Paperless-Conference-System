@@ -6,8 +6,8 @@ import screenshot from "screenshot-desktop";
 import { io } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://10.109.18.108:4000"; // Ganti sesuai IP server
-const MIRROR_FPS = 1; // 1 frame per detik
+const CONTROL_SERVER = "http://192.168.1.23:4000"; // Ganti sesuai IP server
+const MIRROR_FPS = 2; // 2 frame per detik
 
 // ====== SOCKET.IO CLIENT ======
 const socket = io(CONTROL_SERVER, { transports: ["websocket"] });
@@ -149,7 +149,9 @@ function stopMirror() {
 // 🧰 SCREEN CAPTURE HELPERS
 // =====================================================
 async function getScreenSources() {
-  const sources = await desktopCapturer.getSources({ types: ["screen", "window"] });
+  const sources = await desktopCapturer.getSources({
+    types: ["screen", "window"],
+  });
   return sources.map((s) => ({ id: s.id, name: s.name }));
 }
 
@@ -212,9 +214,12 @@ contextBridge.exposeInMainWorld("controlAPI", {
 
 contextBridge.exposeInMainWorld("ipc", {
   on: (...args: Parameters<typeof ipcRenderer.on>) => ipcRenderer.on(...args),
-  off: (...args: Parameters<typeof ipcRenderer.off>) => ipcRenderer.off(...args),
-  send: (...args: Parameters<typeof ipcRenderer.send>) => ipcRenderer.send(...args),
-  invoke: (...args: Parameters<typeof ipcRenderer.invoke>) => ipcRenderer.invoke(...args),
+  off: (...args: Parameters<typeof ipcRenderer.off>) =>
+    ipcRenderer.off(...args),
+  send: (...args: Parameters<typeof ipcRenderer.send>) =>
+    ipcRenderer.send(...args),
+  invoke: (...args: Parameters<typeof ipcRenderer.invoke>) =>
+    ipcRenderer.invoke(...args),
 });
 
 (globalThis as any).__PRELOAD_OK__ = true;
