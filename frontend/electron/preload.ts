@@ -6,7 +6,7 @@ import screenshot from "screenshot-desktop";
 import { io } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://192.168.1.23:4000"; // Ganti sesuai IP server
+const CONTROL_SERVER = "http://192.168.1.5:4000"; // Ganti sesuai IP server
 const MIRROR_FPS = 2; // 2 frame per detik
 
 // ====== SOCKET.IO CLIENT ======
