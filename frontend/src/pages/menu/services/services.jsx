@@ -125,10 +125,14 @@ export default function Services() {
 
   // meetingId: sesuaikan
   const resolveMeetingId = () => {
-    const fromLS = Number(localStorage.getItem("currentMeetingId") || 0);
-    return fromLS || 1000;
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      return cm?.id || cm?.meetingId || cm?.code || null; // jangan default 0/1000
+    } catch {
+      return null;
+    }
   };
-
   // isAssist (previous) and isStaff (new)
   const isAssist = String(user?.role || "").toLowerCase() === "assist";
   const isStaff = ["admin", "host", "assist"].includes(
@@ -211,16 +215,27 @@ export default function Services() {
   // Create request
   const onSend = async () => {
     if (!canSend || !user) return;
+
     const meetingId = resolveMeetingId();
-    const displayName = getMeetingDisplayName();
+    if (!meetingId) {
+      alert("Meeting belum aktif/terpilih.");
+      return;
+    }
+
+    const displayName = (getMeetingDisplayName() || "").trim();
+    if (!displayName) {
+      alert("Nama peminta (name) kosong. Mohon set display name Anda.");
+      return;
+    }
 
     const body = {
       meetingId,
       serviceKey: selectedService.key,
       serviceLabel: selectedService.label,
-      name: displayName, // <— diisi otomatis
-      priority,
+      name: displayName, // Wajib oleh backend
+      priority, // "Low" | "Normal" | "High"
       note: note.trim() || null,
+      requesterUserId: user.id || user.userId || undefined, // optional tapi membantu
     };
 
     try {
@@ -228,19 +243,30 @@ export default function Services() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...meetingService.getAuthHeaders(),
+          Accept: "application/json",
+          ...meetingService.getAuthHeaders(), // pastikan Authorization terkirim
         },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await res.json();
 
-      // reset form (kecuali nama karena sudah otomatis)
+      if (!res.ok) {
+        // Baca pesan error dari server supaya tahu tepatnya kenapa 400
+        const text = await res.text().catch(() => "");
+        let msg = text;
+        try {
+          const j = JSON.parse(text);
+          msg = j.message || j.error || text;
+        } catch {}
+        throw new Error(`HTTP ${res.status}${msg ? ` - ${msg}` : ""}`);
+      }
+
+      await res.json();
       setNote("");
       setSelectedService(null);
       await loadRequests();
     } catch (e) {
-      alert(`Failed to send request: ${String(e.message || e)}`);
+      alert(`Failed to send request: ${e.message || e}`);
+      console.error("POST /api/services failed. Payload:", body);
     }
   };
 
