@@ -39,27 +39,29 @@
   margin-bottom: 12px;
 }
 /* nudge teks + gaya tebal & lebih besar */
-.ag-title-text{
-  margin-left:4px;
-  position:relative;
-  top:-2px;
-  line-height:1.1;
+.ag-title-text {
+  margin-left: 4px;
+  position: relative;
+  top: -2px;
+  line-height: 1.1;
 
   /* baru */
-  font-weight: 800;     /* bold */
-  font-size: 20px;      /* sedikit lebih besar */
+  font-weight: 800; /* bold */
+  font-size: 20px; /* sedikit lebih besar */
 }
 
 /* versi mobile: sedikit dikecilkan agar pas */
-@media (max-width:560px){
-  .ag-title-icon{ width:22px; height:22px; }
-  .ag-title-text{
-    margin-left:3px;
-    top:-1px;
-    font-size: 18px;    /* tetap lebih besar dari default */
+@media (max-width: 560px) {
+  .ag-title-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .ag-title-text {
+    margin-left: 3px;
+    top: -1px;
+    font-size: 18px; /* tetap lebih besar dari default */
   }
 }
-
 
 .agenda-add {
   display: inline-flex;
@@ -120,20 +122,20 @@
   gap: 8px;
 }
 .ag-btn .history-icon {
-  width: 18px;   /* sesuaikan */
+  width: 18px; /* sesuaikan */
   height: 18px;
   display: block;
   object-fit: contain;
 }
-.ag-history-title .history-icon { 
-  width: 18px; 
-  height: 18px; 
-  display: inline-block; 
-  object-fit: contain; 
+.ag-history-title .history-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  object-fit: contain;
   margin-right: 8px;
 }
 .agenda-page .af-actions .pd-danger {
-  background: #16a34a;       /* hijau utama */
+  background: #16a34a; /* hijau utama */
   color: #fff;
   border: 1px solid #16a34a;
   border-radius: 10px;
@@ -144,15 +146,14 @@
 }
 
 .agenda-page .af-actions .pd-danger:hover:not([disabled]) {
-  background: #15803d;       /* hijau lebih gelap saat hover */
+  background: #15803d; /* hijau lebih gelap saat hover */
   transform: translateY(-1px);
 }
 
 .agenda-page .af-actions .pd-danger:disabled {
-  opacity: .6;
+  opacity: 0.6;
   cursor: not-allowed;
 }
-
 
 /* kartu agenda jadi kolom, deskripsi jatuh ke bawah */
 .agenda-item {
@@ -535,105 +536,133 @@
   color: #4b5563;
 }
 /* Row atas agenda */
-.agenda-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  width:100%;
+.agenda-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 
 /* kiri: judul + ikon inline */
-.agenda-left{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  min-width:0;           /* biar judul bisa ellipsis */
+.agenda-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0; /* biar judul bisa ellipsis */
 }
 
 /* tombol judul (gantikan .agenda-toggle utk judul saja) */
-.agenda-title-btn{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-  background:transparent;
-  border:0;
-  padding:8px 0;
-  cursor:pointer;
-  min-width:0;
-  text-align:left;
+.agenda-title-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  padding: 8px 0;
+  cursor: pointer;
+  min-width: 0;
+  text-align: left;
 }
-.agenda-title-btn:disabled{ cursor:default; opacity:.9; }
+.agenda-title-btn:disabled {
+  cursor: default;
+  opacity: 0.9;
+}
 
 /* ikon kecil di samping judul */
-.agenda-inline-actions{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  margin-left:2px;
+.agenda-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 2px;
 }
 
 /* tombol ikon mungil */
-.ag-icon-btn{
-  width:28px; height:28px;
-  display:inline-grid; place-items:center;
-  border:1px solid #e5e7eb;
-  border-radius:8px;
-  background:#fff; color:#111827;
-  cursor:pointer;
-  transition: transform .12s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease, background .16s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+.ag-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.16s ease,
+    border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
-.ag-icon-btn .pd-svg{ width:14px; height:14px; }
-.ag-icon-btn:hover{
+.ag-icon-btn .pd-svg {
+  width: 14px;
+  height: 14px;
+}
+.ag-icon-btn:hover {
   transform: translateY(-1px);
   border-color: var(--color-primary, #16a34a);
-  background:#f0fdf4;
+  background: #f0fdf4;
   color: var(--color-primary, #16a34a);
-  box-shadow: 0 6px 14px rgba(22,163,74,.12);
+  box-shadow: 0 6px 14px rgba(22, 163, 74, 0.12);
 }
-.ag-icon-btn.danger{
-  border-color:#fecaca; color:#b91c1c; background:#fff;
+.ag-icon-btn.danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff;
 }
-.ag-icon-btn.danger:hover{
-  border-color:#fca5a5; background:#fee2e2; color:#991b1b;
-  box-shadow:0 6px 14px rgba(220,38,38,.12);
+.ag-icon-btn.danger:hover {
+  border-color: #fca5a5;
+  background: #fee2e2;
+  color: #991b1b;
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.12);
 }
 
 /* kanan: waktu + caret */
-.agenda-right{
-  display:flex; align-items:center; gap:6px;
+.agenda-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--color-subtext);
-  font-size:13px;
+  font-size: 13px;
 }
-.agenda-caret-btn{
-  background:transparent; border:0; cursor:pointer;
-  transition: transform .2s ease;
+.agenda-caret-btn {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
-.agenda-caret-btn.is-open{ transform: rotate(180deg); }
+.agenda-caret-btn.is-open {
+  transform: rotate(180deg);
+}
 
 /* mobile: tetap rapi, ikon tetap dekat judul */
-@media (max-width: 560px){
-  .agenda-inline-actions{ gap:4px; }
-  .ag-icon-btn{ width:26px; height:26px; }
-  .ag-icon-btn .pd-svg{ width:13px; height:13px; }
+@media (max-width: 560px) {
+  .agenda-inline-actions {
+    gap: 4px;
+  }
+  .ag-icon-btn {
+    width: 26px;
+    height: 26px;
+  }
+  .ag-icon-btn .pd-svg {
+    width: 13px;
+    height: 13px;
+  }
 }
 /* ukuran/animasi untuk ikon bitmap (PNG/JPG) di tombol kecil */
-.ag-icon-img{
+.ag-icon-img {
   width: 14px;
   height: 14px;
   display: block;
   object-fit: contain;
-  pointer-events: none;        /* biar klik tetap ke tombolnya */
-  transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+  pointer-events: none; /* biar klik tetap ke tombolnya */
+  transition: transform 0.12s ease, filter 0.12s ease, opacity 0.12s ease;
 }
 
-.ag-icon-btn:hover .ag-icon-img{
+.ag-icon-btn:hover .ag-icon-img {
   transform: scale(1.08);
 }
 
 /* state bahaya tetap dari wadah tombolnya; ikon PNG tidak ikut diwarnai */
-.ag-icon-btn.danger:hover .ag-icon-img{
+.ag-icon-btn.danger:hover .ag-icon-img {
   transform: scale(1.08);
 }
 /* ===== Skeleton untuk Agenda ===== */
@@ -667,41 +696,54 @@
   animation: agShimmer 1.3s infinite linear;
 }
 
-.ag-sk-line.w-60 { width: 60%; }
-.ag-sk-line.w-20 { width: 20%; }
-.ag-sk-line.right { justify-self: end; }
+.ag-sk-line.w-60 {
+  width: 60%;
+}
+.ag-sk-line.w-20 {
+  width: 20%;
+}
+.ag-sk-line.right {
+  justify-self: end;
+}
 
 @keyframes agShimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 /* Centered empty state */
-.ag-empty.ag-empty--center{
-  max-width: 520px;              /* biar kompak */
-  margin: 0 auto;                /* center kartu secara horizontal */
-  justify-content: center;       /* center grid content */
+.ag-empty.ag-empty--center {
+  max-width: 520px; /* biar kompak */
+  margin: 0 auto; /* center kartu secara horizontal */
+  justify-content: center; /* center grid content */
   grid-template-columns: auto max-content; /* kolom tengah tidak melebar 1fr */
-  text-align: center;            /* teks di tengah */
+  text-align: center; /* teks di tengah */
 }
 
-.ag-empty.ag-empty--center .ag-empty-copy{
+.ag-empty.ag-empty--center .ag-empty-copy {
   text-align: center;
 }
 
-@media (max-width: 520px){
-  .ag-empty.ag-empty--center{
+@media (max-width: 520px) {
+  .ag-empty.ag-empty--center {
     grid-template-columns: auto 1fr; /* lebih fleksibel di hp */
   }
 }
-.ag-title-icon{
+.ag-title-icon {
   width: 26px;
   height: 26px;
   display: inline-block;
   object-fit: contain;
 }
 
-@media (max-width: 560px){
-  .ag-title-icon{ width: 22px; height: 22px; }
+@media (max-width: 560px) {
+  .ag-title-icon {
+    width: 22px;
+    height: 22px;
+  }
 }
 .action-icon {
   width: 16px;
@@ -710,5 +752,8 @@
   vertical-align: middle;
 }
 
-
-
+.req-star {
+  color: #d11;
+  font-weight: 700;
+  margin-left: 4px;
+}

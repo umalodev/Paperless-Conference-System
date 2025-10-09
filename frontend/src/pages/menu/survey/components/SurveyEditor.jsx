@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import Icon from "../../../../components/Icon.jsx";
 import { listTypes } from "../../../../services/surveyService.js";
 
@@ -31,6 +31,7 @@ export default function SurveyEditor({
   onSave,
   saving,
 }) {
+  const titleRef = useRef(null);
   const init = initialSurvey || {};
   const initialQs = (init.Questions || [])
     .slice()
@@ -210,12 +211,20 @@ export default function SurveyEditor({
 
       <div className="svr-editor-section">
         <div className="af-row">
-          <label className="af-label">📝 Judul Survey</label>
+          <label className="af-label">
+            📝 Judul Survey <span style={{ color: "#dc2626" }}>*</span>
+          </label>
           <input
+            ref={titleRef}
+            required
             className="svr-text"
             placeholder="Contoh: Survey Kepuasan Peserta Meeting"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onInvalid={(e) =>
+              e.currentTarget.setCustomValidity("Judul survey wajib diisi.")
+            }
+            onInput={(e) => e.currentTarget.setCustomValidity("")}
           />
         </div>
 
@@ -422,8 +431,17 @@ export default function SurveyEditor({
         <button
           type="button"
           className="svr-submit"
-          onClick={() => onSave(payload)}
-          disabled={!canSave || saving}
+          onClick={() => {
+            if (!payload.title) {
+              if (titleRef.current) {
+                titleRef.current.setCustomValidity("Judul survey wajib diisi.");
+                titleRef.current.reportValidity();
+                titleRef.current.focus();
+              }
+              return;
+            }
+            onSave(payload);
+          }}
           style={{
             background: canSave
               ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"

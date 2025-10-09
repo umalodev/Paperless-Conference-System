@@ -10,6 +10,19 @@ export default function MeetingWizardModal({
   const [tab, setTab] = useState(0); // 0: detail, 1: agenda, 2: materials
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const titleRef = useRef(null);
+
+  function canLeaveDetails() {
+    const ok = !!detail.title.trim();
+    if (!ok && titleRef.current) {
+      titleRef.current.setCustomValidity("Title is required.");
+      titleRef.current.reportValidity();
+      titleRef.current.focus();
+    } else if (titleRef.current) {
+      titleRef.current.setCustomValidity("");
+    }
+    return ok;
+  }
 
   const now = useMemo(() => new Date(), []);
   const defaultStart = useMemo(() => {
@@ -45,6 +58,14 @@ export default function MeetingWizardModal({
 
   // ---- Tab 3: Materials
   const [materials, setMaterials] = useState([]); // File[]
+
+  function goToTab(next) {
+    // kalau dari Details (0) ke tab lebih besar, wajib lolos Title
+    if (tab === 0 && next > 0) {
+      if (!canLeaveDetails()) return;
+    }
+    setTab(next);
+  }
 
   useEffect(() => {
     if (!open) {
@@ -269,7 +290,7 @@ export default function MeetingWizardModal({
         <div className="mw-tabs" role="tablist">
           <button
             className={`mw-tab ${tab === 0 ? "is-active" : ""}`}
-            onClick={() => setTab(0)}
+            onClick={() => goToTab(0)}
             role="tab"
             aria-selected={tab === 0}
           >
@@ -277,7 +298,7 @@ export default function MeetingWizardModal({
           </button>
           <button
             className={`mw-tab ${tab === 1 ? "is-active" : ""}`}
-            onClick={() => setTab(1)}
+            onClick={() => goToTab(1)}
             role="tab"
             aria-selected={tab === 1}
           >
@@ -285,7 +306,7 @@ export default function MeetingWizardModal({
           </button>
           <button
             className={`mw-tab ${tab === 2 ? "is-active" : ""}`}
-            onClick={() => setTab(2)}
+            onClick={() => goToTab(2)}
             role="tab"
             aria-selected={tab === 2}
           >
@@ -299,12 +320,16 @@ export default function MeetingWizardModal({
               <div className="mw-row">
                 <label className="mw-label">Title (required)</label>
                 <input
+                  ref={titleRef}
+                  required
                   className="mw-input"
                   placeholder="e.g., Weekly Team Standup"
                   value={detail.title}
-                  onChange={(e) =>
-                    setDetail((s) => ({ ...s, title: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setDetail((s) => ({ ...s, title: e.target.value }));
+                    if (titleRef.current)
+                      titleRef.current.setCustomValidity("");
+                  }}
                 />
               </div>
 
@@ -531,7 +556,7 @@ export default function MeetingWizardModal({
             {tab < 2 && (
               <button
                 className="mw-btn primary"
-                onClick={() => setTab(tab + 1)}
+                onClick={() => goToTab(tab + 1)}
                 disabled={saving}
               >
                 Next

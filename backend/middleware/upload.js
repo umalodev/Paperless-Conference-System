@@ -82,21 +82,46 @@ const fileFilter = (req, file, cb) => {
     "audio/ogg",
   ];
 
-  console.log(`🔍 File filter check: ${file.originalname} (${file.mimetype})`);
+  const bannedExts = [
+    ".exe",
+    ".msi",
+    ".bat",
+    ".cmd",
+    ".sh",
+    ".ps1",
+    ".vbs",
+    ".js",
+    ".mjs",
+    ".jar",
+    ".com",
+    ".scr",
+    ".dll",
+    ".so",
+    ".dylib",
+    ".php",
+    ".pl",
+    ".py",
+    ".rb",
+  ];
+  const name = (file.originalname || "").toLowerCase();
+  const ext = path.extname(name);
+  const base = name.slice(0, name.length - ext.length);
+  const secondExt = path.extname(base);
 
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    console.log(`❌ File type ${file.mimetype} not allowed`);
-    cb(
-      new Error(
-        `File type ${
-          file.mimetype
-        } not allowed. Allowed types: ${allowedTypes.join(", ")}`
-      ),
-      false
-    );
+  // tolak dengan kode khusus
+  if (bannedExts.includes(ext) || bannedExts.includes(secondExt)) {
+    const err = new Error("Format file tidak didukung");
+    err.code = "UNSUPPORTED_FILE_TYPE";
+    return cb(err, false);
   }
+
+  if (!allowedTypes.includes(file.mimetype)) {
+    const err = new Error("Format file tidak didukung");
+    err.code = "UNSUPPORTED_FILE_TYPE";
+    return cb(err, false);
+  }
+
+  return cb(null, true);
 };
 
 // Configure multer with multiple files support

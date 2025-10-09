@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import BottomNav from "../../../components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../config";
@@ -119,10 +125,14 @@ export default function Services() {
 
   // meetingId: sesuaikan
   const resolveMeetingId = () => {
-    const fromLS = Number(localStorage.getItem("currentMeetingId") || 0);
-    return fromLS || 1000;
+    try {
+      const raw = localStorage.getItem("currentMeeting");
+      const cm = raw ? JSON.parse(raw) : null;
+      return cm?.id || cm?.meetingId || cm?.code || null; // jangan default 0/1000
+    } catch {
+      return null;
+    }
   };
-
   // isAssist (previous) and isStaff (new)
   const isAssist = String(user?.role || "").toLowerCase() === "assist";
   const isStaff = ["admin", "host", "assist"].includes(
@@ -205,16 +215,27 @@ export default function Services() {
   // Create request
   const onSend = async () => {
     if (!canSend || !user) return;
+
     const meetingId = resolveMeetingId();
-    const displayName = getMeetingDisplayName();
+    if (!meetingId) {
+      alert("Meeting belum aktif/terpilih.");
+      return;
+    }
+
+    const displayName = (getMeetingDisplayName() || "").trim();
+    if (!displayName) {
+      alert("Nama peminta (name) kosong. Mohon set display name Anda.");
+      return;
+    }
 
     const body = {
       meetingId,
       serviceKey: selectedService.key,
       serviceLabel: selectedService.label,
-      name: displayName, // <— diisi otomatis
-      priority,
+      name: displayName, // Wajib oleh backend
+      priority, // "Low" | "Normal" | "High"
       note: note.trim() || null,
+      requesterUserId: user.id || user.userId || undefined, // optional tapi membantu
     };
 
     try {
@@ -222,19 +243,30 @@ export default function Services() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...meetingService.getAuthHeaders(),
+          Accept: "application/json",
+          ...meetingService.getAuthHeaders(), // pastikan Authorization terkirim
         },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await res.json();
 
-      // reset form (kecuali nama karena sudah otomatis)
+      if (!res.ok) {
+        // Baca pesan error dari server supaya tahu tepatnya kenapa 400
+        const text = await res.text().catch(() => "");
+        let msg = text;
+        try {
+          const j = JSON.parse(text);
+          msg = j.message || j.error || text;
+        } catch {}
+        throw new Error(`HTTP ${res.status}${msg ? ` - ${msg}` : ""}`);
+      }
+
+      await res.json();
       setNote("");
       setSelectedService(null);
       await loadRequests();
     } catch (e) {
-      alert(`Failed to send request: ${String(e.message || e)}`);
+      alert(`Failed to send request: ${e.message || e}`);
+      console.error("POST /api/services failed. Payload:", body);
     }
   };
 
@@ -316,6 +348,26 @@ export default function Services() {
   const StatusBadge = ({ status }) => {
     const label = status === "done" ? "Completed" : status;
     return <em className={`svc-status svc-status--${status}`}>{label}</em>;
+  };
+
+  const [showSendHint, setShowSendHint] = useState(false);
+  const hintTimerRef = React.useRef(null);
+  const quickWrapRef = useRef(null);
+
+  useEffect(() => {
+    return () => clearTimeout(hintTimerRef.current);
+  }, []);
+
+  const onClickSend = async (e) => {
+    if (!canSend) {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowSendHint(true);
+      clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = setTimeout(() => setShowSendHint(false), 1800);
+      return;
+    }
+    await onSend();
   };
 
   return (
@@ -521,13 +573,24 @@ export default function Services() {
             {!isAssist && (
               <section className="svc-card svc-main">
                 <div className="svc-card-title">Quick services</div>
-                <div className="svc-quick">
+
+                <div className="svc-quick" ref={quickWrapRef}>
+                  {/* Tooltip diarahkan ke grid (muncul di atasnya) */}
+                  {showSendHint && !canSend && (
+                    <span
+                      className="svc-tooltip svc-tooltip--grid"
+                      role="tooltip"
+                    >
+                      Pilih layanan terlebih dahulu
+                    </span>
+                  )}
+
                   {quickOptions.map((q) => (
                     <button
                       key={q.key}
                       className={`svc-quick-btn ${
                         selectedService?.key === q.key ? "is-active" : ""
-                      }`}
+                      } ${showSendHint && !canSend ? "is-hint" : ""}`}
                       onClick={() => onQuickSelect(q)}
                       title={q.label}
                     >
@@ -581,11 +644,17 @@ export default function Services() {
                     />
                   </div>
 
-                  <div className="svc-form-actions">
+                  <div
+                    className="svc-form-actions"
+                    style={{ position: "relative" }}
+                  >
                     <button
-                      className="svc-send"
-                      disabled={!canSend}
-                      onClick={onSend}
+                      className={`svc-send ${
+                        !canSend ? "is-aria-disabled" : ""
+                      }`}
+                      aria-disabled={!canSend}
+                      onClick={onClickSend}
+                      // JANGAN pakai disabled di sini agar klik tetap diterima
                     >
                       Send
                     </button>

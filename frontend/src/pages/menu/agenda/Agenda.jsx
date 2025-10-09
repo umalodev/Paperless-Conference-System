@@ -1,5 +1,11 @@
 // src/pages/menu/agenda/Agenda.jsx
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import BottomNav from "../../../components/BottomNav.jsx";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
@@ -24,6 +30,11 @@ export default function Agenda() {
   const [agendas, setAgendas] = useState([]);
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [agendaErr, setAgendaErr] = useState("");
+
+  const addJudulRef = useRef(null);
+  const addDateRef = useRef(null);
+  const addStartRef = useRef(null);
+  const addEndRef = useRef(null);
 
   // add / edit form
   const [showAdd, setShowAdd] = useState(false);
@@ -247,15 +258,32 @@ export default function Agenda() {
     e.preventDefault();
     setFormErr("");
 
+    // ✅ HTML5 constraint validation terlebih dulu
+    const formEl = e.currentTarget;
+    if (!formEl.checkValidity()) {
+      formEl.reportValidity();
+      return;
+    }
+
     if (!meetingId) return setFormErr("Meeting belum ada. Buat/Join dulu.");
-    if (!form.judul.trim()) return setFormErr("Judul wajib diisi.");
-    if (!form.date || !form.start || !form.end)
-      return setFormErr("Tanggal, jam mulai, dan jam selesai wajib diisi.");
 
     const startDate = new Date(`${form.date}T${form.start}`);
     const endDate = new Date(`${form.date}T${form.end}`);
-    if (!(startDate < endDate))
-      return setFormErr("Jam selesai harus lebih besar dari jam mulai.");
+
+    // validasi jam
+    if (!(startDate < endDate)) {
+      // tempelkan pesan langsung ke field "Selesai"
+      if (addEndRef.current) {
+        addEndRef.current.setCustomValidity(
+          "Jam selesai harus lebih besar dari jam mulai."
+        );
+        addEndRef.current.reportValidity();
+        addEndRef.current.focus();
+      }
+      return;
+    } else if (addEndRef.current) {
+      addEndRef.current.setCustomValidity("");
+    }
 
     try {
       setSaving(true);
@@ -473,15 +501,23 @@ export default function Agenda() {
 
             {/* ADD FORM */}
             {showAdd && (
-              <form className="agenda-form" onSubmit={submitAdd}>
+              <form className="agenda-form" onSubmit={submitAdd} noValidate>
                 <div className="af-row">
-                  <label className="af-label">Judul</label>
+                  <label className="af-label">
+                    Judul <span className="req-star">*</span>
+                  </label>
                   <input
+                    ref={addJudulRef}
                     name="judul"
                     className="af-input"
                     placeholder="Contoh: Pembukaan"
                     value={form.judul}
                     onChange={handleFormChange}
+                    required
+                    onInvalid={(e) =>
+                      e.target.setCustomValidity("Judul wajib diisi.")
+                    }
+                    onInput={(e) => e.currentTarget.setCustomValidity("")}
                   />
                 </div>
 
@@ -499,33 +535,62 @@ export default function Agenda() {
 
                 <div className="af-grid">
                   <div className="af-col">
-                    <label className="af-label">Tanggal</label>
+                    <label className="af-label">
+                      Tanggal <span className="req-star">*</span>
+                    </label>
                     <input
+                      ref={addDateRef}
                       type="date"
                       name="date"
                       className="af-input"
                       value={form.date}
                       onChange={handleFormChange}
+                      required
+                      onInvalid={(e) =>
+                        e.target.setCustomValidity("Tanggal wajib diisi.")
+                      }
+                      onInput={(e) => e.currentTarget.setCustomValidity("")}
                     />
                   </div>
                   <div className="af-col">
-                    <label className="af-label">Mulai</label>
+                    <label className="af-label">
+                      Mulai <span className="req-star">*</span>
+                    </label>
                     <input
+                      ref={addStartRef}
                       type="time"
                       name="start"
                       className="af-input"
                       value={form.start}
                       onChange={handleFormChange}
+                      required
+                      onInvalid={(e) =>
+                        e.target.setCustomValidity("Jam mulai wajib diisi.")
+                      }
+                      onInput={(e) => e.currentTarget.setCustomValidity("")}
                     />
                   </div>
                   <div className="af-col">
-                    <label className="af-label">Selesai</label>
+                    <label className="af-label">
+                      Selesai <span className="req-star">*</span>
+                    </label>
                     <input
+                      ref={addEndRef}
                       type="time"
                       name="end"
                       className="af-input"
                       value={form.end}
-                      onChange={handleFormChange}
+                      onChange={(e) => {
+                        // bersihkan pesan custom saat user edit
+                        if (addEndRef.current)
+                          addEndRef.current.setCustomValidity("");
+                        handleFormChange(e);
+                      }}
+                      required
+                      onInvalid={(e) =>
+                        e.target.setCustomValidity("Jam selesai wajib diisi.")
+                      }
+                      onInput={(e) => e.currentTarget.setCustomValidity("")}
                     />
                   </div>
                 </div>

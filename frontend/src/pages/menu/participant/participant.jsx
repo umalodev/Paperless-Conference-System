@@ -594,7 +594,7 @@ export default function ParticipantsPage() {
                         className="pd-empty"
                         style={{ gridColumn: "1 / -1" }}
                       >
-                        Tidak ada peserta yang cocok dengan pencarian.
+                        No participant found
                       </div>
                     )}
                   </div>
