@@ -431,7 +431,7 @@ export default function ParticipantsPage() {
                 className={`prt-tab${activeTab === "video" ? " active" : ""}`}
                 onClick={() => setActiveTab("video")}
               >
-                Video Grid
+                Camera 
               </button>
             </div>
 
@@ -665,7 +665,7 @@ export default function ParticipantsPage() {
                         className="pd-empty"
                         style={{ gridColumn: "1 / -1" }}
                       >
-                        Belum ada video dari participant lain.
+                        There are no videos from other participants yet.
                       </div>
                     )}
                   </div>

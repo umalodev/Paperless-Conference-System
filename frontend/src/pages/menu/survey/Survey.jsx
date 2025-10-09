@@ -27,9 +27,11 @@ import {
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 import SurveyResponses from "./components/SurveyResponses.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 
 export default function Survey() {
   const [user, setUser] = useState(null);
+  const { notify, confirm } = useModal();
 
   // bottom nav (menus)
   const [menus, setMenus] = useState([]);
@@ -179,13 +181,30 @@ export default function Survey() {
           isShow: payload.isShow,
           questions: payload.questions,
         });
+        notify({
+          variant: "success",
+          title: "Success",
+          message: "Survey has been successfully updated",
+          autoCloseMs: 3000,
+        });
       } else {
         await createSurvey(payload); // payload termasuk meetingId
+        notify({
+          variant: "success",
+          title: "Success",
+          message: "New survey has been successfully created",
+          autoCloseMs: 3000,
+        });
       }
       setEditing(null);
       await reload();
     } catch (e) {
-      alert(`Gagal menyimpan: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Gagal Menyimpan",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     } finally {
       setSaving(false);
     }
@@ -193,12 +212,33 @@ export default function Survey() {
 
   const removeSurvey = async (s) => {
     if (!s?.surveyId) return;
-    if (!confirm(`Hapus survey "${s.title || s.surveyId}"?`)) return;
+    
+    const confirmed = await confirm({
+      title: "Delete Survey?",
+    message: `This survey will be deleted from the meeting. This action cannot be undone.`,
+      destructive: true,
+      okText: "Delete",
+      cancelText: "Cancel"
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await deleteSurvey(s.surveyId);
       await reload();
+      notify({
+        variant: "success",
+        title: "Success",
+        message: `Survey "${s.title || s.surveyId}" has been successfully deleted`,
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal menghapus: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Gagal Menghapus",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     }
   };
 
@@ -206,8 +246,19 @@ export default function Survey() {
     try {
       await toggleVisibility(s.surveyId, flag ? "Y" : "N");
       await reload();
+      notify({
+        variant: "success",
+        title: "Success",
+        message: flag ? "Survey has been successfully activated" : "Survey has been successfully deactivated",
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal mengubah visibilitas: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Gagal Mengubah Visibilitas",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     }
   };
 
@@ -273,7 +324,7 @@ export default function Survey() {
             <div className="svr-header">
               <div className="svr-title">
                 <img src="/img/Survey1.png" alt="" className="svr-title-icon" />
-                <span className="svr-title-text">Form Survey</span>
+                <span className="svr-title-text">Survey</span>
               </div>
 
               <div className="svr-header-actions">
@@ -281,14 +332,14 @@ export default function Survey() {
                   <button
                     className={`svr-btn ${manageMode ? "active" : ""}`}
                     onClick={() => setManageMode((v) => !v)}
-                    title={manageMode ? "Tutup Kelola" : "Kelola Survey"}
+                    title={manageMode ? "Close Manage" : "Manage surveys"}
                   >
                     <img
                       src="/img/pengaturan.png"
                       alt=""
                       className="pd-icon-img"
                     />
-                    <span>{manageMode ? "Tutup Kelola" : "Kelola Survey"}</span>
+                    <span>{manageMode ? "Close Manage" : "Manage surveys"}</span>
                   </button>
                 )}
 
@@ -317,7 +368,7 @@ export default function Survey() {
               </div>
             </div>
 
-            {loading && <div className="pd-empty">Memuat survey…</div>}
+            {loading && <div className="pd-empty">Loading survey...</div>}
             {err && !loading && <div className="pd-error">{err}</div>}
 
             {!loading && !err && (
@@ -329,12 +380,12 @@ export default function Survey() {
                 {isHost && manageMode && !editing && (
                   <div className="svr-item">
                     <div className="svr-qtext" style={{ marginBottom: 8 }}>
-                      Kelola Survey
+                      Manage Surveys
                     </div>
 
                     {surveys.length === 0 ? (
                       <div className="pd-empty" style={{ marginBottom: 8 }}>
-                        Belum ada survey.
+                        There is no survey yet.
                       </div>
                     ) : (
                       <div className="svr-list">
@@ -399,7 +450,7 @@ export default function Survey() {
                               <button
                                 className="svr-btn sm danger"
                                 onClick={() => removeSurvey(s)}
-                                title="Hapus survey"
+                                title="Delete survey"
                               >
                                 <img
                                   src="/img/delete.png"
@@ -417,7 +468,7 @@ export default function Survey() {
                     <div style={{ marginTop: 10 }}>
                       <button className="svr-submit" onClick={startCreate}>
                         <Icon slug="plus" />
-                        <span>Buat Survey</span>
+                        <span>Create a Surveys</span>
                       </button>
                     </div>
                   </div>

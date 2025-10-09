@@ -212,6 +212,9 @@ export default function Services() {
     return () => clearInterval(t);
   }, [loadRequests]);
 
+  // State for notification
+  const [showNotification, setShowNotification] = useState(false);
+
   // Create request
   const onSend = async () => {
     if (!canSend || !user) return;
@@ -264,6 +267,10 @@ export default function Services() {
       setNote("");
       setSelectedService(null);
       await loadRequests();
+      
+      // Show success notification
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
     } catch (e) {
       alert(`Failed to send request: ${e.message || e}`);
       console.error("POST /api/services failed. Payload:", body);
@@ -385,6 +392,13 @@ export default function Services() {
         }
       })()}
     >
+      {showNotification && (
+        <div className="notification-popup">
+          <div className="notification-content">
+            <span>Successfully sent</span>
+          </div>
+        </div>
+      )}
       <div className="pd-app">
         <header className="pd-topbar">
           <div className="pd-left">

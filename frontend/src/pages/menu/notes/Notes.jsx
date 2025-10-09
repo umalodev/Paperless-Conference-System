@@ -16,10 +16,12 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 // Removed inline screen share usage; viewing is moved to dedicated page
 
 export default function Notes() {
   const [user, setUser] = useState(null);
+  const { notify, confirm } = useModal();
 
   // bottom nav
   const [menus, setMenus] = useState([]);
@@ -183,7 +185,12 @@ export default function Notes() {
       return;
     }
     if (!meetingId) {
-      alert("Meeting belum aktif/terpilih.");
+      notify({
+        variant: "error",
+        title: "Error",
+        message: "Meeting belum aktif/terpilih.",
+        autoCloseMs: 5000,
+      });
       return;
     }
     setSaving(true);
@@ -202,8 +209,19 @@ export default function Notes() {
       const created = json.data;
       setNotes((prev) => [created, ...prev]);
       resetComposer();
+      notify({
+        variant: "success",
+        title: "Success",
+message: "Note has been successfully added",
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal menambah catatan: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Failed to Add Note",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     } finally {
       setSaving(false);
     }
@@ -239,15 +257,35 @@ export default function Notes() {
       const updated = json.data;
       setNotes((prev) => prev.map((x) => (x.id === editingId ? updated : x)));
       cancelEdit();
+      notify({
+        variant: "success",
+        title: "Success",
+          message: "Note has been successfully saved",
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal menyimpan: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Gagal Menyimpan",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Hapus catatan ini?")) return;
+    const confirmed = await confirm({
+      title: "Hapus Catatan?",
+      message: "Catatan ini akan dihapus dari meeting. Tindakan ini tidak dapat dibatalkan.",
+      destructive: true,
+      okText: "Hapus",
+      cancelText: "Batal"
+    });
+    
+    if (!confirmed) return;
+    
     setSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/notes/${id}`, {
@@ -256,8 +294,19 @@ export default function Notes() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNotes((prev) => prev.filter((x) => x.id !== id));
+      notify({
+        variant: "success",
+        title: "Success",
+        message: "Note has been successfully deleted",
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal menghapus: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Failed to Delete",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     } finally {
       setSaving(false);
     }
@@ -329,7 +378,7 @@ export default function Notes() {
                   alt="Catatan"
                   className="action-icon"
                 />
-                <span>Catatan</span>
+                <span>Notes</span>
               </div>
               <div className="notes-actions">
                 <button
@@ -356,7 +405,7 @@ export default function Notes() {
               <input
                 ref={titleRef}
                 className="note-input"
-                placeholder="Judul catatan"
+                placeholder="Note title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -370,7 +419,7 @@ export default function Notes() {
 
               <textarea
                 className="note-textarea"
-                placeholder="Tuliskan catatan…"
+                placeholder="Write note..."
                 rows={3}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -382,7 +431,7 @@ export default function Notes() {
                   disabled={saving}
                 >
                   <SaveIcon />
-                  <span>Simpan</span>
+                  <span>Save</span>
                 </button>
                 {(title || body) && (
                   <button
@@ -390,8 +439,8 @@ export default function Notes() {
                     onClick={resetComposer}
                     disabled={saving}
                   >
-                    <ClearIcon />
-                    <span>Bersihkan</span>
+                    <img src="/img/delete.png" alt="Delete" style={{width: "20px", height: "20px"}} />
+                    <span>Clear</span>
                   </button>
                 )}
               </div>
@@ -400,7 +449,7 @@ export default function Notes() {
             {/* List */}
             {loadingNotes && <div className="pd-empty">Memuat catatan…</div>}
             {errNotes && !loadingNotes && (
-              <div className="pd-error">Gagal memuat catatan: {errNotes}</div>
+              <div className="pd-error">Failed to load notes: {errNotes}</div>
             )}
 
             {!loadingNotes && !errNotes && (
@@ -478,14 +527,14 @@ export default function Notes() {
                               className="note-btn danger"
                               onClick={() => handleDelete(n.id)}
                               disabled={saving}
-                              aria-label="Hapus"
+                              aria-label="Delete"
                             >
                               <img
                                 src="/img/delete.png"
-                                alt="Hapus"
+                                alt="Delete"
                                 className="action-icon"
                               />
-                              <span>Hapus</span>
+                              <span>Delete</span>
                             </button>
                           </div>
                         </div>

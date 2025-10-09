@@ -1,5 +1,24 @@
 @import "../../../themes/variables.css";
 
+/* Top bar styling */
+.materials-page .pd-topbar {
+  background: var(--color-white);
+  border-bottom: 1px solid #e9e9e9;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.materials-page .pd-main {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 22px;
+  overflow: auto;
+  min-height: 0;
+}
+
 /* wrapper sama nuansa card */
 .mtl-wrap {
   background: linear-gradient(#ffffff, #ffffff) padding-box,
