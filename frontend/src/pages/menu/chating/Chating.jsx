@@ -277,7 +277,7 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participantsLoaded, chatMode, selectedParticipant]);
 
-  // Remap nama pesan lama ketika daftar participants berubah
+  // Remap old message names when participants list changes
   useEffect(() => {
     if (!participants.length) return;
     setMessages((prev) =>
@@ -522,7 +522,7 @@ export default function Chat() {
           )
         );
       } else {
-        throw new Error(json.message || "Gagal mengirim pesan");
+        throw new Error(json.message || "Failed to send message");
       }
     } catch (e) {
       setMessages((prev) =>
@@ -587,7 +587,7 @@ export default function Chat() {
         };
         setMessages((prev) => [...prev, newMessage]);
       } else {
-        throw new Error(json.message || "Gagal mengupload file");
+        throw new Error(json.message || "Failed to upload file");
       }
     } catch (e) {
       setErrMsg(String(e.message || e));
@@ -656,7 +656,7 @@ export default function Chat() {
                 />
                 <span className="chat-title-text">
                   {chatMode === "global"
-                    ? "Ruang Chat"
+                    ? "Chatting"
                     : `Chat dengan ${
                         selectedParticipant?.displayName || "Participant"
                       }`}
@@ -755,7 +755,7 @@ export default function Chat() {
 
             {loadingMsg && <div className="pd-empty">Memuat pesan…</div>}
             {errMsg && !loadingMsg && (
-              <div className="pd-error">Gagal memuat chat: {errMsg}</div>
+              <div className="pd-error">Failed to load chat: {errMsg}</div>
             )}
 
             {!loadingMsg &&
@@ -852,7 +852,7 @@ function MessageItem({ msg, isMine }) {
       window.URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
-      alert("Gagal mengunduh file.");
+      alert("Failed to download file.");
     }
   };
 

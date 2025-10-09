@@ -15,6 +15,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 
 import {
   listFiles,
@@ -34,6 +35,7 @@ const absolutize = (u) => {
 
 export default function Files() {
   const [user, setUser] = useState(null);
+  const { notify, confirm } = useModal();
 
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
@@ -240,15 +242,35 @@ export default function Files() {
       setFiles((prev) => [created, ...prev]);
       setPick(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      notify({
+        variant: "success",
+        title: "Success",
+        message: "File has been successfully uploaded",
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal upload: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Upload Failed",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     } finally {
       setUploading(false);
     }
   };
 
   const handleDelete = async (fileId) => {
-    if (!confirm("Hapus file ini?")) return;
+    const confirmed = await confirm({
+      title: "Delete File?",
+      message: "This file will be deleted from the meeting. This action cannot be undone.",
+      destructive: true,
+      okText: "Delete",
+      cancelText: "Cancel"
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await deleteFile(fileId);
       // hapus dari current list
@@ -260,8 +282,19 @@ export default function Files() {
           files: g.files.filter((f) => f.fileId !== fileId),
         }))
       );
+      notify({
+        variant: "success",
+        title: "Success",
+        message: "File has been successfully deleted",
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal menghapus: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Failed to Delete",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     }
   };
 
@@ -282,6 +315,13 @@ export default function Files() {
     a.download = f.name || guessName(f.url || f.path);
     a.rel = "noopener";
     a.click();
+    
+    notify({
+      variant: "success",
+      title: "Success",
+      message: `File "${f.name || guessName(f.url || f.path)}" has been successfully downloaded`,
+      autoCloseMs: 3000,
+    });
   };
 
   return (
@@ -344,13 +384,13 @@ export default function Files() {
                   alt=""
                   className="files-title-icon"
                 />
-                <span className="files-title-text">Daftar File</span>
+                <span className="files-title-text">Files</span>
               </div>
               <div className="files-actions">
                 <div className="files-search">
                   <input
                     type="text"
-                    placeholder="Cari file atau uploader…"
+                    placeholder="Search file atau uploader…"
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                   />
@@ -361,7 +401,7 @@ export default function Files() {
                   title="Riwayat file meeting sebelumnya"
                 >
                   <Icon iconUrl="/img/history.png" size={18} />
-                  <span>{showHistory ? "Tutup Riwayat" : "Riwayat"}</span>
+                  <span>{showHistory ? "Close History" : "History"}</span>
                 </button>
                 <button
                   className="files-btn ghost"
@@ -394,17 +434,17 @@ export default function Files() {
               >
                 <img
                   src="/img/upload1.png"
-                  alt="Unggah"
+                  alt="Upload"
                   style={{ width: 18, height: 18, objectFit: "contain" }}
                   className="icon-img"
                 />
-                <span>{uploading ? "Mengunggah…" : "Unggah"}</span>
+                <span>{uploading ? "Mengunggah…" : "Upload"}</span>
               </button>
             </form>
 
             {loadingFiles && <div className="pd-empty">Memuat file…</div>}
             {errFiles && !loadingFiles && (
-              <div className="pd-error">Gagal memuat file: {errFiles}</div>
+              <div className="pd-error">Failed to load files: {errFiles}</div>
             )}
 
             {!loadingFiles && !errFiles && (
@@ -437,14 +477,13 @@ export default function Files() {
                 <section className="files-history">
                   <div className="files-history-head">
                     <h3 className="files-history-title">
-                      <Icon iconUrl="/img/history.png" size={18} /> Riwayat
-                      Files
+                      <Icon iconUrl="/img/history.png" size={18} /> History Files
                     </h3>
                     <div className="files-history-actions">
                       <input
                         className="files-history-search"
                         type="text"
-                        placeholder="Cari di riwayat…"
+                        placeholder="Search in history…"
                         value={qHistory}
                         onChange={(e) => setQHistory(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && fetchHistory()}
@@ -617,9 +656,9 @@ function FileCard({ file, me, onOpen, onDownload, onDelete }) {
           <button
             className="mtl-act danger"
             onClick={() => onDelete && onDelete(fileId)}
-            title="Hapus"
+            title="Delete"
           >
-            <img src="/img/hapus1.png" alt="Hapus" className="action-icon" />
+            <img src="/img/hapus1.png" alt="Delete" className="action-icon" />
           </button>
         )}
       </div>

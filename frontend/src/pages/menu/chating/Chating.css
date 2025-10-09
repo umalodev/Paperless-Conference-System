@@ -54,8 +54,8 @@
 .chat-list{
   padding: 12px 10px;               /* kecil */
   overflow: auto;
-  background: var(--color-primary-bg);
-  border-bottom: 1px solid #eef0f2;
+  background: #e6f7f2;              /* warna hijau seragam */
+  border-bottom: 1px solid #10b981;
 }
 
 /* satu baris bubble */
@@ -212,37 +212,37 @@
 }
 .participant-item{
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px;
-  background: #f8fafc; cursor: pointer; transition: all .12s ease; text-align: left; width: 100%;
+  padding: 10px 12px; border: 1px solid #10b981; border-radius: 10px;
+  background: #f0fdf9; cursor: pointer; transition: all .12s ease; text-align: left; width: 100%;
 }
-.participant-item:hover{ background: #f1f5f9; border-color: #10b981; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(16,185,129,.1); }
+.participant-item:hover{ background: #e6f7f2; border-color: #10b981; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(16,185,129,.2); }
 .participant-avatar{
   width: 34px; height: 34px; border-radius: 50%; background: #10b981; color: #fff;
   display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; flex-shrink: 0;
 }
 .participant-info{ flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .participant-name{ font-weight: 600; color: var(--color-text); font-size: 14px; }
-.participant-role{ font-size: 11px; color: #6b7280; text-transform: capitalize; background: #f0f0f0; padding: 2px 8px; border-radius: 12px; width: fit-content; }
-.participant-seat{ font-size: 11px; color: #007bff; background: #e3f2fd; padding: 2px 8px; border-radius: 8px; width: fit-content; }
+.participant-role{ font-size: 11px; color: #10b981; text-transform: capitalize; background: #e6f7f2; padding: 2px 8px; border-radius: 12px; width: fit-content; }
+.participant-seat{ font-size: 11px; color: #10b981; background: #e6f7f2; padding: 2px 8px; border-radius: 8px; width: fit-content; }
 .participant-status{ display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; }
 .status-dot{ width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.status-dot.joined{ background-color: #28a745; }
-.status-dot.scheduled{ background-color: #ffc107; }
-.status-dot.left{ background-color: #dc3545; }
+.status-dot.joined{ background-color: #10b981; }
+.status-dot.scheduled{ background-color: #10b981; opacity: 0.7; }
+.status-dot.left{ background-color: #10b981; opacity: 0.4; }
 .participant-controls{ display: flex; gap: 6px; margin-left: 10px; }
 .control-icon{ width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all .12s; }
-.control-icon.mic.active, .control-icon.cam.active{ background-color: #28a745; color: #fff; }
-.control-icon.mic.inactive, .control-icon.cam.inactive{ background-color: #e9ecef; color: #6c757d; }
+.control-icon.mic.active, .control-icon.cam.active{ background-color: #10b981; color: #fff; }
+.control-icon.mic.inactive, .control-icon.cam.inactive{ background-color: #e6f7f2; color: #10b981; }
 
 /* ====== Back button (private) ====== */
-.chat-back-button{ padding: 10px 12px; border-bottom: 1px solid #eef0f2; background: #f8fafc; }
+.chat-back-button{ padding: 10px 12px; border-bottom: 1px solid #e6f7f2; background: #f0fdf9; }
 .back-btn{
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
-  background: #fff; color: var(--color-text); font-size: 13px; font-weight: 500;
+  padding: 6px 12px; border: 1px solid #10b981; border-radius: 8px;
+  background: #e6f7f2; color: #10b981; font-size: 13px; font-weight: 500;
   cursor: pointer; transition: all .12s ease;
 }
-.back-btn:hover{ background: #f1f5f9; border-color: #10b981; color: #10b981; }
+.back-btn:hover{ background: #10b981; border-color: #10b981; color: #fff; }
 
 /* ====== Responsif ====== */
 @media (max-width: 720px){

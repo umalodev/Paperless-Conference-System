@@ -16,9 +16,11 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 
 export default function Materials() {
   const [user, setUser] = useState(null);
+  const { notify, confirm } = useModal();
 
   // bottom nav
   const [menus, setMenus] = useState([]);
@@ -252,12 +254,24 @@ export default function Materials() {
         );
         if (!res.ok) {
           const t = await res.json().catch(() => ({}));
-          throw new Error(t?.message || `Upload gagal (HTTP ${res.status})`);
+          throw new Error(t?.message || `Upload failed (HTTP ${res.status})`);
         }
       }
       await loadMaterials();
+      // Tampilkan notifikasi sukses
+      notify({
+        variant: "success",
+        title: "Success",
+message: `${files.length > 1 ? `${files.length} file` : "File"} successfully uploaded`,
+        autoCloseMs: 3000,
+      });
     } catch (err) {
-      alert(err.message || String(err));
+      notify({
+        variant: "error",
+        title: "Upload Failed",
+        message: err.message || String(err),
+        autoCloseMs: 5000,
+      });
     } finally {
       setUploading(false);
       e.target.value = ""; // reset input
@@ -283,7 +297,16 @@ export default function Materials() {
 
   // ====== delete ======
   const handleDelete = async (it) => {
-    if (!confirm(`Hapus material "${it.name}"?`)) return;
+    const confirmed = await confirm({
+      title: "Delete Material?",
+      message: `This material will be deleted from the meeting. This action cannot be undone.`,
+      destructive: true,
+      okText: "Delete",
+      cancelText: "Cancel"
+    });
+    
+    if (!confirmed) return;
+    
     try {
       const res = await fetch(`${API_URL}/api/materials/${it.id}`, {
         method: "DELETE",
@@ -295,8 +318,19 @@ export default function Materials() {
         throw new Error(t?.message || `HTTP ${res.status}`);
       }
       await loadMaterials();
+      notify({
+        variant: "success",
+        title: "Success",
+message: `Material "${it.name}" has been successfully deleted`,
+        autoCloseMs: 3000,
+      });
     } catch (e) {
-      alert(`Gagal menghapus: ${e.message || e}`);
+      notify({
+        variant: "error",
+        title: "Delete Failed",
+        message: e.message || String(e),
+        autoCloseMs: 5000,
+      });
     }
   };
 
@@ -384,10 +418,10 @@ export default function Materials() {
                 <button
                   className={`mtl-btn ${showHistory ? "active" : ""}`}
                   onClick={() => setShowHistory((s) => !s)}
-                  title="Riwayat materials"
+                  title="Materials History"
                 >
                   <Icon iconUrl="/img/history.png" size={18} />
-                  <span>{showHistory ? "Tutup Riwayat" : "Riwayat"}</span>
+                  <span>{showHistory ? "Close History" : "History"}</span>
                 </button>
 
                 <button
@@ -414,10 +448,10 @@ export default function Materials() {
             {/* Current materials */}
             {loadingItems && <SkeletonGrid />}
             {errItems && !loadingItems && (
-              <div className="pd-error">Gagal memuat materials: {errItems}</div>
+              <div className="pd-error">Failed to load materials: {errItems}</div>
             )}
             {!loadingItems && !errItems && items.length === 0 && (
-              <div className="pd-empty">Belum ada materials.</div>
+              <div className="pd-empty">No materials yet</div>
             )}
             {!loadingItems && !errItems && items.length > 0 && (
               <div className="mtl-grid">
@@ -442,7 +476,7 @@ export default function Materials() {
                 <div className="mtl-divider" />
                 <section className="mtl-history">
                   <h3 className="mtl-history-title">
-                    <Icon slug="history" /> Riwayat Materials
+                    <Icon slug="history" /> Materials History
                     <span className="mtl-chip ghost">
                       {historyGroups.length} meeting
                     </span>
@@ -451,7 +485,7 @@ export default function Materials() {
                   {loadingHistory && <SkeletonAccordion />}
                   {errHistory && !loadingHistory && (
                     <div className="pd-error">
-                      Gagal memuat riwayat: {errHistory}
+                      Failed to load history: {errHistory}
                     </div>
                   )}
                   {!loadingHistory &&
@@ -483,7 +517,7 @@ export default function Materials() {
             {/* err menus */}
             {errMenus && (
               <div className="pd-error" style={{ marginTop: 12 }}>
-                Gagal memuat menu: {errMenus}
+                Failed to load menu: {errMenus}
               </div>
             )}
           </section>
@@ -594,10 +628,10 @@ function MaterialCard({
           <img src="/img/download1.png" alt="Unduh" className="action-icon" />
         </button>
 
-        {/* Hapus (jika boleh) */}
+        {/* Delete (if allowed) */}
         {canDelete && onDelete && (
-          <button className="mtl-act danger" title="Hapus" onClick={onDelete}>
-            <img src="/img/hapus1.png" alt="Hapus" className="action-icon" />
+          <button className="mtl-act danger" title="Delete" onClick={onDelete}>
+            <img src="/img/hapus1.png" alt="Delete" className="action-icon" />
           </button>
         )}
       </div>

@@ -13,7 +13,7 @@ export default function SurveyResponses({ survey }) {
     let cancel = false;
     (async () => {
       if (!survey?.surveyId) {
-        setState({ loading: false, err: "Survey belum dipilih.", data: null });
+        setState({ loading: false, err: "Survey has not been selected.", data: null });
         setMcStats({ loading: false, err: "", items: [] });
         return;
       }
@@ -45,8 +45,8 @@ export default function SurveyResponses({ survey }) {
     };
   }, [survey?.surveyId]);
 
-  if (!survey) return <div className="pd-empty">Tidak ada survey aktif.</div>;
-  if (state.loading) return <div className="pd-empty">Memuat jawaban…</div>;
+  if (!survey) return <div className="pd-empty">No active survey.</div>;
+  if (state.loading) return <div className="pd-empty">Loading responses...</div>;
   if (state.err) return <div className="pd-error">{state.err}</div>;
   if (!state.data) return null;
 
