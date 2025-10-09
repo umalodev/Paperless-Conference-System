@@ -35,11 +35,13 @@ export default function Notes() {
   // composer
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const titleRef = useRef(null);
 
   // editing
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  const editTitleRef = useRef(null);
 
   // Screen sharing UI moved to dedicated page
 
@@ -172,10 +174,14 @@ export default function Notes() {
     setBody("");
   };
 
-  const handleAdd = async () => {
+  const handleAdd = async (e) => {
+    e.preventDefault();
     const t = title.trim();
     const b = body.trim();
-    if (!t && !b) return;
+    if (titleRef.current && !titleRef.current.checkValidity()) {
+      titleRef.current.reportValidity();
+      return;
+    }
     if (!meetingId) {
       alert("Meeting belum aktif/terpilih.");
       return;
@@ -343,13 +349,25 @@ export default function Notes() {
             </div>
 
             {/* Composer */}
-            <div className="notes-composer">
+            <form className="notes-composer" onSubmit={handleAdd}>
+              <div style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>
+                * Judul wajib diisi
+              </div>
               <input
+                ref={titleRef}
                 className="note-input"
                 placeholder="Judul catatan"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                required
+                onInvalid={(e) =>
+                  e.currentTarget.setCustomValidity(
+                    "Judul catatan wajib diisi."
+                  )
+                }
+                onInput={(e) => e.currentTarget.setCustomValidity("")}
               />
+
               <textarea
                 className="note-textarea"
                 placeholder="Tuliskan catatan…"
@@ -360,8 +378,8 @@ export default function Notes() {
               <div className="notes-composer-actions">
                 <button
                   className="note-btn primary"
-                  onClick={handleAdd}
-                  disabled={saving || (!title.trim() && !body.trim())}
+                  type="submit"
+                  disabled={saving}
                 >
                   <SaveIcon />
                   <span>Simpan</span>
@@ -377,7 +395,7 @@ export default function Notes() {
                   </button>
                 )}
               </div>
-            </div>
+            </form>
 
             {/* List */}
             {loadingNotes && <div className="pd-empty">Memuat catatan…</div>}

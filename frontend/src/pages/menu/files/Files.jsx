@@ -46,6 +46,8 @@ export default function Files() {
 
   const [q, setQ] = useState("");
 
+  const hasQuery = (q || "").trim().length > 0;
+
   // upload UI
   const [pick, setPick] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -408,7 +410,9 @@ export default function Files() {
             {!loadingFiles && !errFiles && (
               <>
                 {filtered.length === 0 ? (
-                  <div className="pd-empty">Belum ada file.</div>
+                  <div className="pd-empty">
+                    {hasQuery ? "Tidak ada file ditemukan" : "Belum ada file."}
+                  </div>
                 ) : (
                   <div className="mtl-grid files-grid">
                     {filtered.map((f) => (

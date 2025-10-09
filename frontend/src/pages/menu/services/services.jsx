@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import BottomNav from "../../../components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../config";
@@ -318,6 +324,26 @@ export default function Services() {
     return <em className={`svc-status svc-status--${status}`}>{label}</em>;
   };
 
+  const [showSendHint, setShowSendHint] = useState(false);
+  const hintTimerRef = React.useRef(null);
+  const quickWrapRef = useRef(null);
+
+  useEffect(() => {
+    return () => clearTimeout(hintTimerRef.current);
+  }, []);
+
+  const onClickSend = async (e) => {
+    if (!canSend) {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowSendHint(true);
+      clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = setTimeout(() => setShowSendHint(false), 1800);
+      return;
+    }
+    await onSend();
+  };
+
   return (
     <MeetingLayout
       meetingId={resolveMeetingId()}
@@ -521,13 +547,24 @@ export default function Services() {
             {!isAssist && (
               <section className="svc-card svc-main">
                 <div className="svc-card-title">Quick services</div>
-                <div className="svc-quick">
+
+                <div className="svc-quick" ref={quickWrapRef}>
+                  {/* Tooltip diarahkan ke grid (muncul di atasnya) */}
+                  {showSendHint && !canSend && (
+                    <span
+                      className="svc-tooltip svc-tooltip--grid"
+                      role="tooltip"
+                    >
+                      Pilih layanan terlebih dahulu
+                    </span>
+                  )}
+
                   {quickOptions.map((q) => (
                     <button
                       key={q.key}
                       className={`svc-quick-btn ${
                         selectedService?.key === q.key ? "is-active" : ""
-                      }`}
+                      } ${showSendHint && !canSend ? "is-hint" : ""}`}
                       onClick={() => onQuickSelect(q)}
                       title={q.label}
                     >
@@ -581,11 +618,17 @@ export default function Services() {
                     />
                   </div>
 
-                  <div className="svc-form-actions">
+                  <div
+                    className="svc-form-actions"
+                    style={{ position: "relative" }}
+                  >
                     <button
-                      className="svc-send"
-                      disabled={!canSend}
-                      onClick={onSend}
+                      className={`svc-send ${
+                        !canSend ? "is-aria-disabled" : ""
+                      }`}
+                      aria-disabled={!canSend}
+                      onClick={onClickSend}
+                      // JANGAN pakai disabled di sini agar klik tetap diterima
                     >
                       Send
                     </button>
