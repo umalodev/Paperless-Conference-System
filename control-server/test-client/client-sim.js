@@ -1,38 +1,80 @@
-// control-server/test-client/client-sim.js
+// control-server/test-client/multi-sim.js
 const { io } = require("socket.io-client");
 
-// Ganti URL sesuai control server kamu
 const CONTROL_SERVER_URL = "ws://localhost:4000";
 
-const socket = io(CONTROL_SERVER_URL, {
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-});
+// Boleh atur jumlah simulasi dari CLI (contoh: node multi-sim.js 100)
+const TOTAL_CLIENTS = parseInt(process.argv[2], 10) || 50;
+const CONNECT_DELAY_MS = 200; // jeda antar koneksi biar server tidak kejang
 
-socket.on("connect", () => {
-  console.log(`Connected to control server as ${socket.id}`);
+console.log(`🚀 Starting ${TOTAL_CLIENTS} simulated clients...\n`);
 
-  // Kirim data registrasi seperti PC sungguhan
-  socket.emit("register", {
-  hostname: "SIM-PC",
-    user: "simuser",
-    os: "SimulatedOS 1.0",
-    token: "FAKE_TOKEN_FOR_TEST",
+(async function startSimulation() {
+  for (let i = 1; i <= TOTAL_CLIENTS; i++) {
+    setTimeout(() => createSimClient(i), i * CONNECT_DELAY_MS);
+  }
+})();
+
+function createSimClient(index) {
+  const socket = io(CONTROL_SERVER_URL, {
+    transports: ["websocket"],
+    reconnection: true,
+    reconnectionDelay: 2000,
   });
-});
 
-socket.on("disconnect", () => {
-  console.log("Disconnected from control server");
-});
+  let mirrorInterval = null;
 
-// Dengar event perintah dari admin
-socket.on("command", (cmd) => {
-  console.log(`Received command: ${cmd}`);
-});
+  socket.on("connect", () => {
+    const simulatedAccount = {
+      id: 100 + index,
+      username: `simuser${index}`,
+      role: "participant",
+      created_at: new Date().toISOString(),
+      displayName: `Sim Display ${index}`,
+    };
 
-// Simulasi kirim mirror frame setiap 5 detik
-setInterval(() => {
-  const frame = `FRAME_${Date.now()}`;
-  socket.emit("mirror-frame", frame);
-  console.log(`Sending mirror frame: ${frame}`);
-}, 5000);
+    const payload = {
+      hostname: `SIM-PC-${index}`,
+      user: `SimUser-${index}`,
+      os: "win32",
+      account: simulatedAccount,
+      isLocked: false,
+    };
+
+    socket.emit("register", payload);
+    console.log(`✅ [SIM ${index}] Connected & Registered`);
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.log(`🔴 [SIM ${index}] Disconnected: ${reason}`);
+    stopMirror();
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error(`⚠️ [SIM ${index}] Connection error: ${err.message}`);
+  });
+
+  socket.on("command", (cmd) => {
+    console.log(`📩 [SIM ${index}] Received command: ${cmd}`);
+    if (cmd === "mirror-start") startMirror();
+    if (cmd === "mirror-stop") stopMirror();
+  });
+
+  function startMirror() {
+    if (mirrorInterval) return;
+    console.log(`🪞 [SIM ${index}] Mirror started`);
+    mirrorInterval = setInterval(() => {
+      const frameData = `SIM_${index}_${Date.now()}`;
+      const frame = Buffer.from(frameData).toString("base64");
+      socket.emit("mirror-frame", { from: socket.id, frame });
+    }, 2000);
+  }
+
+  function stopMirror() {
+    if (mirrorInterval) {
+      clearInterval(mirrorInterval);
+      mirrorInterval = null;
+      console.log(`🛑 [SIM ${index}] Mirror stopped`);
+    }
+  }
+}

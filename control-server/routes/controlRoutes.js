@@ -8,7 +8,6 @@ router.get("/participants", controller.getParticipants);
 // Kirim perintah ke participant tertentu
 router.post("/command/:action", controller.sendCommand);
 
-// Sinkronisasi login dari backend utama
-router.post("/sync-login", controller.syncLogin);
+router.post("/sync-participant", controller.registerParticipant);
 
 module.exports = router;

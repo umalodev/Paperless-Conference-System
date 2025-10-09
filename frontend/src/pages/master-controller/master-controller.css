@@ -1,478 +1,342 @@
-/* =========================================================
- 🧭 1. LAYOUT DASAR
-========================================================= */
+/* ===========================
+   Master Controller Styles
+   =========================== */
+
+/* ===== Top Bar ===== */
+.pd-topbar {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.pd-topbar .pd-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pd-topbar .pd-live {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.pd-topbar .pd-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pd-topbar .pd-sub {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.note-btn.ghost {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 12px;
+  transition: 0.2s;
+}
+
+.note-btn.ghost:hover {
+  background: #f3f4f6;
+}
+
+.note-btn img.action-icon {
+  width: 18px;
+  height: 18px;
+}
+
+
+/* ===== Main Content ===== */
 .pd-main {
   flex: 1;
-  padding: 2rem;
+  padding: 20px;
 }
 
-/* 🧩 Empty state */
+/* ===== Empty States ===== */
 .pd-empty {
   text-align: center;
-  color: #94a3b8;
-  font-size: 1rem;
-  padding: 3rem 0;
+  color: #9ca3af;
+  font-size: 15px;
+  padding: 40px 0;
 }
 
-/* =========================================================
- 🧱 2. GRID & CARD (Layout umum)
-========================================================= */
-.mc-grid {
+/* ===== Monitor Grid (4 per row) ===== */
+.mc-monitor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.5rem;
-}
-
-/* ======== CARD (Peserta) ======== */
-.mc-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.mc-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
-}
-
-/* =========================================================
- 🖥️ 3. MIRROR PREVIEW (kartu biasa)
-========================================================= */
-.mc-preview {
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-  background-color: #000;
-  aspect-ratio: 16 / 9;
-}
-
-.mc-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 10px;
-}
-
-/* =========================================================
- 👤 4. INFO PESERTA
-========================================================= */
-.mc-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.mc-os {
-  font-size: 0.9rem;
-  color: #475569;
-}
-
-.mc-user {
-  font-size: 0.9rem;
-  color: #475569;
-}
-
-.mc-account {
-  font-size: 0.85rem;
-  color: #334155;
-  background: #f1f5f9;
-  padding: 6px 10px;
-  border-radius: 6px;
-}
-
-.mc-account--warn {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-/* =========================================================
- 🎮 5. TOMBOL AKSI UMUM
-========================================================= */
-.mc-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: 0.3rem;
-}
-
-.mc-btn {
-  flex: 1;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease;
-  color: white;
-}
-
-.mc-btn:hover {
-  transform: scale(1.03);
-}
-
-/* 🎨 Warna tombol */
-.mc-btn--blue {
-  background-color: #2563eb;
-}
-.mc-btn--blue:hover {
-  background-color: #1d4ed8;
-}
-
-.mc-btn--gray {
-  background-color: #64748b;
-}
-.mc-btn--gray:hover {
-  background-color: #475569;
-}
-
-.mc-btn--yellow {
-  background-color: #facc15;
-  color: #1e293b;
-}
-.mc-btn--yellow:hover {
-  background-color: #eab308;
-}
-
-.mc-btn--red {
-  background-color: #dc2626;
-}
-.mc-btn--red:hover {
-  background-color: #b91c1c;
-}
-
-/* =========================================================
- 💻 6. PC LAYOUT (Tampilan monitor besar)
-========================================================= */
-
-/* ======== Grid monitor ======== */
-.mc-pc-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4 PC per baris */
-  gap: 1rem;
-  padding: 1rem 1.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px; /* 🔹 jarak antar monitor lebih lega */
+  padding: 24px; /* 🔹 jarak antara grid dan tepi halaman */
   justify-items: center;
   align-items: start;
 }
 
-/* Responsif otomatis */
-@media (max-width: 1400px) {
-  .mc-pc-grid {
-    grid-template-columns: repeat(3, 1fr); /* layar sedang → 3 kolom */
+.mc-monitor-item {
+  margin-bottom: 8px; /* 🔹 beri jarak antar baris monitor */
+}
+
+/* Responsif: ubah jumlah kolom sesuai ukuran layar */
+@media (max-width: 1200px) {
+  .mc-monitor-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (max-width: 1024px) {
-  .mc-pc-grid {
-    grid-template-columns: repeat(2, 1fr); /* tablet → 2 kolom */
+@media (max-width: 900px) {
+  .mc-monitor-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 640px) {
-  .mc-pc-grid {
-    grid-template-columns: repeat(1, 1fr); /* HP → 1 kolom */
+@media (max-width: 600px) {
+  .mc-monitor-grid {
+    grid-template-columns: repeat(1, 1fr);
   }
 }
 
-/* ======== Kartu monitor besar ======== */
-.mc-pc-card {
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+/* ===== Monitor Item ===== */
+.mc-monitor-item {
   display: flex;
   flex-direction: column;
-  transition: all 0.25s ease;
-}
-
-/* ======== Header toolbar ======== */
-.mc-pc-header {
-  background: #f1f5f9;
-  padding: 10px 14px;
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e2e8f0;
-  min-height: 52px; /* menjaga tinggi konsisten */
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  max-width: 300px;
 }
 
-.mc-pc-info {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1e293b;
+.mc-monitor-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
 }
 
-.mc-pc-os {
-  color: #64748b;
-  font-weight: 400;
-  margin-left: 6px;
+.mc-monitor-item.locked {
+  opacity: 0.6;
+  background: #f3f4f6;
 }
 
-.mc-pc-user {
-  font-size: 0.9rem;
-  color: #475569;
-}
-
-/* ======== Mirror besar (aktif & nonaktif ukuran sama) ======== */
-.mc-pc-screen {
+/* === Fix ukuran layar mirror agar tidak berubah === */
+.mc-monitor-screen {
+  width: 100%;
   position: relative;
-  background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
-  aspect-ratio: 16 / 9;
-  border-radius: 10px;
+  background: #000;
+  border-radius: 8px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.5);
-  transition: all 0.25s ease;
-  min-height: 160px; /* jaga tinggi minimum */
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.mc-pc-screen:hover {
-  transform: scale(1.01);
-  box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.2);
+/* Gunakan rasio tetap 16:9 tanpa terpengaruh konten */
+.mc-monitor-screen::before {
+  content: "";
+  display: block;
+  padding-top: 56.25%; /* 9 / 16 = 0.5625 → 56.25% */
 }
 
-/* Mirror aktif (gambar) */
-.mc-pc-img {
+.mc-monitor-screen > * {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover; /* penuh */
-  border-radius: 10px;
-  transition: opacity 0.3s ease;
 }
 
-.mc-pc-img, .mc-fullscreen-img {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  filter: contrast(1.05) brightness(1.05) saturate(1.1);
-  transition: filter 0.3s ease;
+/* Mirror image & placeholder sama-sama pakai absolute */
+.mc-monitor-img {
+  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.mc-pc-img:hover, .mc-fullscreen-img:hover {
-  filter: contrast(1.15) brightness(1.1) saturate(1.15);
-}
-
-
-/* ======== No Mirror Active (tetap sama ukuran) ======== */
-.mc-pc-no-screen {
-  position: absolute;
-  inset: 0; /* isi penuh sama seperti img */
+.mc-monitor-placeholder {
+  background: #111827;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.6);
-  color: #94a3b8;
+  align-items: center;
+  color: #9ca3af;
   text-align: center;
-  gap: 12px;
-  user-select: none;
-  animation: fadeIn 0.5s ease;
+  font-size: 14px;
 }
 
-.no-screen-icon img {
-  width: 70px;
-  height: 70px;
-  opacity: 0.9;
-  filter: brightness(0) invert(1) drop-shadow(0 4px 8px rgba(255, 255, 255, 0.25));
-  animation: pulse 2s infinite;
+.mc-monitor-placeholder img {
+  width: 40px;
+  opacity: 0.8;
+  margin-bottom: 6px;
+  filter: brightness(0) invert(1); /* 🔹 ubah warna jadi putih */
 }
 
-.no-screen-text h3 {
-  font-size: 1.1rem;
+/* ===== Info Section ===== */
+.mc-monitor-info {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 15px;
+}
+
+.mc-monitor-info strong {
+  display: block;
   font-weight: 600;
-  color: #f1f5f9;
-  margin: 0;
 }
 
-.no-screen-text p {
-  font-size: 0.85rem;
-  color: #cbd5e1;
-  margin: 0;
-  letter-spacing: 0.3px;
+.mc-role {
+  color: #6b7280;
+  font-size: 13px;
 }
 
-/* Animations */
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.9;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 1;
-  }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-
-/* ======== Ikon inline kecil di teks "No Mirror" ======== */
-.mc-icon-inline {
-  width: 18px;
-  height: 18px;
-  vertical-align: middle;
-  margin: 0 4px;
-  filter: brightness(0) invert(1); /* Ubah ke putih */
-  opacity: 0.85;
-  transition: opacity 0.2s ease;
-}
-
-/* ======== Warna putih untuk ikon utama ======== */
-.no-screen-icon img {
-  width: 80px;
-  height: 80px;
-  opacity: 0.9;
-  filter: brightness(0) invert(1) drop-shadow(0 4px 8px rgba(255, 255, 255, 0.25));
-  animation: pulse 2s infinite;
-}
-
-
-/* === Tombol ikon minimalis === */
-.mc-pc-actions {
+/* ===== Action Buttons ===== */
+.mc-monitor-actions {
+  margin-top: 8px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 1rem;
-  padding: 1rem 1.2rem 1.3rem;
-  border-top: 1px solid #e2e8f0;
-  background: #f9fafb;
+  gap: 6px;
 }
 
-.mc-icon-btn {
+.mc-btn {
   border: none;
-  border-radius: 10px;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  color: white;
+  transition: 0.2s;
+  min-width: 80px;
+  text-align: center;
 }
 
-.mc-icon-btn:hover {
-  transform: scale(1.1);
+.mc-btn.blue {
+  background: #3b82f6;
 }
 
-/* Ikon di dalam tombol */
-.mc-icon-img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  pointer-events: none;
+.mc-btn.red {
+  background: #ef4444;
 }
 
-/* Warna latar tombol */
-.mc-btn--blue { background-color: #2563eb; }
-.mc-btn--blue:hover { background-color: #1e40af; }
+.mc-btn.gray {
+  background: #6b7280;
+}
 
-.mc-btn--red { background-color: #dc2626; }
-.mc-btn--red:hover { background-color: #b91c1c; }
+.mc-btn.yellow {
+  background: #f59e0b;
+  color: black;
+}
 
-.mc-btn--yellow { background-color: #facc15; }
-.mc-btn--yellow:hover { background-color: #eab308; }
+.mc-btn.dark {
+  background: #111827;
+}
 
-.mc-btn--gray { background-color: #475569; }
-.mc-btn--gray:hover { background-color: #334155; }
+.mc-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.03);
+}
 
-/* ======== Fullscreen mirror overlay ======== */
+/* ===== Fullscreen Overlay ===== */
 .mc-fullscreen-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.9);
   display: flex;
-  align-items: center;
   justify-content: center;
-  z-index: 9999;
-  cursor: zoom-out;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease forwards;
 }
 
 .mc-fullscreen-container {
   position: relative;
-  width: 80%;
-  height: 80%;
+  max-width: 95%;
+  max-height: 90%;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
+.mc-fullscreen-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  transition: 0.2s;
+}
+
+.mc-fullscreen-close:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
 
 .mc-fullscreen-img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  border-radius: 10px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
 }
 
-/* Close button */
-.mc-fullscreen-close {
-  position: absolute;
-  top: -45px;
-  right: -10px;
-  background: #dc2626;
-  border: none;
-  border-radius: 50%;
-  width: 38px;
-  height: 38px;
-  color: white;
-  font-size: 1.3rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.mc-fullscreen-close:hover {
-  background: #b91c1c;
-  transform: scale(1.1);
-}
-
-/* Animasi */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* === Informasi pemilik layar di fullscreen === */
 .mc-fullscreen-info {
-  text-align: center;
-  margin-top: 20px;
-  color: #e2e8f0;
-  font-family: "Poppins", sans-serif;
-  animation: fadeIn 0.4s ease;
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(17, 24, 39, 0.9); /* hitam pekat transparan */
+  color: #fff;
+  padding: 16px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  max-width: 320px;
+  animation: fadeInUp 0.3s ease forwards;
 }
 
 .mc-fullscreen-info h2 {
-  font-size: 1.5rem;
+  font-size: 18px;
+  margin: 0 0 6px;
+  color: #ffffff;
   font-weight: 600;
-  color: #f9fafb;
-  margin-bottom: 4px;
 }
 
 .mc-fullscreen-info p {
-  font-size: 1rem;
-  color: #93c5fd;
-  margin: 0;
+  font-size: 14px;
+  margin: 0 0 6px;
+  color: #e5e7eb;
 }
 
 .mc-fullscreen-info small {
-  display: block;
-  margin-top: 6px;
-  font-size: 0.85rem;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #d1d5db;
 }
 
-/* Animasi lembut */
-@keyframes fadeIn {
+/* Animasi lembut saat muncul */
+@keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -484,42 +348,214 @@
 }
 
 
-/* === Saat device terkunci === */
-.mc-pc-card.locked {
-  opacity: 0.6;
-  filter: grayscale(100%);
-  position: relative;
+/* ===== Button tambahan ===== */
+.mc-btn.green {
+  background: #22c55e;
 }
 
-/* Tambahkan label overlay di layar mirror saja */
-.mc-pc-card.locked .mc-pc-screen {
-  position: relative;
+.mc-btn.green:hover {
+  background: #16a34a;
 }
 
-.mc-pc-card.locked .mc-pc-screen::after {
-  content: "🔒 LOCKED";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  background: rgba(0, 0, 0, 0.75);
-  padding: 10px 18px;
+/* ===== Info Modal (table style) ===== */
+.info-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  animation: fadeIn 0.3s ease;
+}
+
+.info-modal {
+  background: #fff;
   border-radius: 12px;
+  width: 90%;
+  max-width: 460px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+  color: #111827;
+  animation: slideUp 0.3s ease;
+}
+
+.info-modal h3 {
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  z-index: 10;
+  margin-bottom: 16px;
+  color: #1f2937;
+  text-align: center;
 }
 
-/* Semua tombol dikunci (tidak bisa diklik) */
-.mc-pc-card.locked .mc-pc-actions button {
+/* ===== Table Detail ===== */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.info-table th,
+.info-table td {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.info-table th {
+  background: #f3f4f6;
+  color: #111827;
+  width: 40%;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.info-table td {
+  background: #ffffff;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  word-break: break-all;
+}
+
+/* ===== Modal Footer ===== */
+.info-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mc-btn.gray {
+  background: #6b7280;
+  color: #fff;
+}
+
+.mc-btn.gray:hover {
+  opacity: 0.9;
+}
+
+/* ===== Animations ===== */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Icon-Only Action Buttons ===== */
+.mc-monitor-actions.icons-only {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.25s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.icon-btn img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: brightness(0) invert(1); /* ikon putih */
   pointer-events: none;
-  opacity: 0.4;
 }
 
-/* KECUALI tombol Unlock — tetap bisa diklik & tampak normal */
-.mc-pc-card.locked .mc-pc-actions button[title="Unlock PC"] {
-  pointer-events: auto;
-  opacity: 1;
-  filter: none;
+.icon-btn:hover {
+  transform: scale(1.1);
+  filter: brightness(1.1);
+}
+
+/* ===== Warna Tombol Berdasarkan Fungsi ===== */
+
+/* ▶️ Start Mirror (Biru Cerah) */
+.icon-btn.blue {
+  background: #2563eb; /* blue-600 */
+}
+.icon-btn.blue:hover {
+  background: #1d4ed8;
+}
+
+/* 🛑 Stop Mirror / Shutdown (Merah) */
+.icon-btn.red,
+.icon-btn.dark {
+  background: #dc2626; /* red-600 */
+}
+.icon-btn.red:hover,
+.icon-btn.dark:hover {
+  background: #b91c1c;
+}
+
+/* 🔐 Lock / Unlock (Abu) */
+.icon-btn.gray {
+  background: #6b7280; /* gray-500 */
+}
+.icon-btn.gray:hover {
+  background: #4b5563;
+}
+
+/* 🔁 Restart (Oranye) */
+.icon-btn.yellow {
+  background: #f59e0b; /* amber-500 */
+}
+.icon-btn.yellow:hover {
+  background: #d97706;
+}
+
+/* ℹ️ Info (Hijau) */
+.icon-btn.green {
+  background: #22c55e; /* green-500 */
+}
+.icon-btn.green:hover {
+  background: #16a34a;
+}
+
+/* 🔒 Locked State Styling */
+.mc-monitor-item.locked {
+  opacity: 0.7;
+  background: #f3f4f6;
+  border: 1px dashed #9ca3af;
+}
+
+/* Tooltip bawaan title tetap aktif */
+.icon-btn[title] {
+  position: relative;
+}
+
+.mc-searchbar {
+  padding: 10px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+}
+
+.mc-search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.mc-search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }

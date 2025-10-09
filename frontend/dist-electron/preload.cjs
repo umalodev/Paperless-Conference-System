@@ -8856,31 +8856,46 @@ const socket = lookup(CONTROL_SERVER, { transports: ["websocket"] });
 function getToken() {
   try {
     return localStorage.getItem("token");
-  } catch (err) {
-    console.warn("[preload] Gagal ambil token:", err);
+  } catch {
     return null;
   }
 }
+function getDisplayName() {
+  try {
+    return localStorage.getItem("pconf.displayName") || "";
+  } catch {
+    return "";
+  }
+}
 socket.on("connect", () => {
-  console.log("Connected to Control Server:", socket.id);
+  console.log("✅ Connected to Control Server:", socket.id);
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
   const token = getToken();
-  const payload = { hostname, user, os: platform };
-  if (token) payload.token = token;
+  const displayName = getDisplayName();
+  const payload = { hostname, user, os: platform, token, displayName };
   socket.emit("register", payload);
-  console.log("[preload] Registering participant:", payload);
+  console.log("[preload] Auto-registering participant:", payload);
 });
-socket.on("disconnect", () => console.warn("Disconnected from Control Server"));
+async function registerToControlServer(token, displayName) {
+  const hostname = os.hostname();
+  const user = os.userInfo().username;
+  const platform = os.platform();
+  const payload = { hostname, user, os: platform };
+  if (token) payload.token = token;
+  if (displayName) payload.displayName = displayName;
+  socket.emit("register", payload);
+  console.log("[preload] ✅ Sent register payload manually:", payload);
+}
 socket.io.on("reconnect", () => {
-  console.log("Reconnected — re-registering...");
+  console.log("🔄 Reconnected — re-registering...");
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
   const token = getToken();
-  const payload = { hostname, user, os: platform };
-  if (token) payload.token = token;
+  const displayName = getDisplayName();
+  const payload = { hostname, user, os: platform, token, displayName };
   socket.emit("register", payload);
 });
 socket.on("command", async (cmd) => {
@@ -8921,13 +8936,11 @@ window.addEventListener("mousedown", preventInput, true);
 window.addEventListener("mousemove", preventInput, true);
 window.addEventListener("contextmenu", preventInput, true);
 socket.on("lock-screen", () => {
-  console.log("🔒 Received lock-screen event from admin");
   if (isLocked) return;
   isLocked = true;
   electron.ipcRenderer.send("show-lock-overlay");
 });
 socket.on("unlock-screen", () => {
-  console.log("🔓 Received unlock-screen event from admin");
   if (!isLocked) return;
   isLocked = false;
   electron.ipcRenderer.send("hide-lock-overlay");
@@ -8947,61 +8960,23 @@ async function startMirror() {
   }, 1e3 / MIRROR_FPS);
 }
 function stopMirror() {
-  if (mirrorInterval !== null) {
-    window.clearInterval(mirrorInterval);
+  if (mirrorInterval) {
+    clearInterval(mirrorInterval);
     mirrorInterval = null;
     console.log("[mirror] Stopped");
   }
 }
 async function getScreenSources() {
-  const sources = await electron.desktopCapturer.getSources({
-    types: ["screen", "window"]
-  });
+  const sources = await electron.desktopCapturer.getSources({ types: ["screen", "window"] });
   return sources.map((s) => ({ id: s.id, name: s.name }));
 }
-async function getDisplayMedia() {
-  const sources = await electron.desktopCapturer.getSources({
-    types: ["screen", "window"],
-    thumbnailSize: { width: 1920, height: 1080 }
-  });
-  if (!sources.length) throw new Error("No screen sources");
-  const src2 = sources[0];
-  return {
-    id: src2.id,
-    name: src2.name,
-    thumbnail: src2.thumbnail.toDataURL()
-  };
-}
-async function createScreenStream(sourceId) {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      // @ts-ignore
-      mandatory: {
-        chromeMediaSource: "desktop",
-        chromeMediaSourceId: sourceId,
-        minWidth: 1280,
-        maxWidth: 1920,
-        minHeight: 720,
-        maxHeight: 1080
-      }
-    }
-  });
-  return stream;
-}
-function testPreload() {
-  console.log("[preload] Test function called!");
-  return "Preload test successful";
-}
+electron.contextBridge.exposeInMainWorld("electronAPI", {
+  getPCInfo: () => ({ hostname: os.hostname(), os: os.platform() }),
+  registerToControlServer
+});
 electron.contextBridge.exposeInMainWorld("screenAPI", {
   isElectron: true,
   getScreenSources,
-  getDisplayMedia,
-  createScreenStream,
-  testPreload
-});
-electron.contextBridge.exposeInMainWorld("controlAPI", {
-  socketConnected: () => socket.connected,
   startMirror,
   stopMirror
 });
@@ -9012,4 +8987,4 @@ electron.contextBridge.exposeInMainWorld("ipc", {
   invoke: (...args) => electron.ipcRenderer.invoke(...args)
 });
 globalThis.__PRELOAD_OK__ = true;
-console.log("[preload] screenAPI & controlAPI exposed successfully");
+console.log("[preload] electronAPI & screenAPI exposed successfully");
