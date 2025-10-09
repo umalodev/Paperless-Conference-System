@@ -91,7 +91,6 @@ export default function SetUp() {
           window.meetingWebSocket?.close?.();
         } catch {}
 
-        // opsional: panggil API logout jika ada
         try {
           if (typeof meetingService.logout === "function")
             await meetingService.logout();
