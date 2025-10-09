@@ -180,114 +180,116 @@ export default function MeetingFooter({
       </div>
 
       {/* 🔹 Right Control Group */}
-      <div className="pd-controls-right">
-        {/* Screen Share */}
-        <button
-          className="pd-ctrl"
-          title="Screen Share"
-          onClick={() => navigate("/menu/screenshare")}
-        >
-          <Icon slug="screen-share" />
-        </button>
+      {/* 🔹 Right Control Group */}
+<div className="pd-controls-right">
+  {/* 🟩 Screen Share Button (dengan badge) */}
+  <button
+    className="pd-ctrl"
+    title="Screen Share"
+    onClick={() => navigate("/menu/screenshare")}
+    style={{ position: "relative" }}
+  >
+    <Icon slug="screen-share" />
 
-        {/* Master Controller — hanya untuk Host/Admin */}
-        {isHost && (
-          <button
-            className="pd-ctrl"
-            title="Master Controller"
-            onClick={() => navigate("/master-controller")}
-            style={{ position: "relative" }}
+    {/* 🔴 Badge jika ada orang lain share */}
+    {screenShareOn && String(sharingUser) !== String(currentUserId) && (
+      <>
+        <span
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: "red",
+            boxShadow: "0 0 6px rgba(0,0,0,0.4)",
+          }}
+        />
+        {location.pathname !== "/menu/screenshare" && (
+          <div
+            style={{
+              position: "absolute",
+              top: -36,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "red",
+              color: "white",
+              fontSize: 12,
+              padding: "4px 8px",
+              borderRadius: 6,
+              whiteSpace: "nowrap",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+            }}
           >
-            <Icon slug="master-controller" />
-
-            {/* 🔴 Badge jika ada orang lain share */}
-            {screenShareOn && String(sharingUser) !== String(currentUserId) && (
-              <>
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: "red",
-                    boxShadow: "0 0 6px rgba(0,0,0,0.4)",
-                  }}
-                />
-                {location.pathname !== "/menu/screenshare" && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: -36,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      background: "red",
-                      color: "white",
-                      fontSize: 12,
-                      padding: "4px 8px",
-                      borderRadius: 6,
-                      whiteSpace: "nowrap",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
-                    }}
-                  >
-                    Someone is sharing
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: -6,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        width: 0,
-                        height: 0,
-                        borderLeft: "6px solid transparent",
-                        borderRight: "6px solid transparent",
-                        borderTop: "6px solid red",
-                      }}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </button>
+            Someone is sharing
+            <div
+              style={{
+                position: "absolute",
+                bottom: -6,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 0,
+                height: 0,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderTop: "6px solid red",
+              }}
+            />
+          </div>
         )}
+      </>
+    )}
+  </button>
 
-        {/* Annotation Button */}
-        {screenShareOn && (
-          <button
-            className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
-            title={
-              isAnnotating
-                ? String(sharingUser) === String(currentUserId)
-                  ? "Stop Annotating Your Screen"
-                  : "Stop Annotating Viewer Mode"
-                : String(sharingUser) === String(currentUserId)
-                ? "Annotate My Screen"
-                : "Annotate Shared Screen"
-            }
-            onClick={() => setIsAnnotating(!isAnnotating)}
-          >
-            <Icon slug="annotate" />
-          </button>
-        )}
+  {/* 🟦 Master Controller — hanya untuk Host/Admin */}
+  {isHost && (
+    <button
+      className="pd-ctrl"
+      title="Master Controller"
+      onClick={() => navigate("/master-controller")}
+    >
+      <Icon slug="master-controller" />
+    </button>
+  )}
 
-        {/* Menu / Back / End */}
-        <button className="pd-ghost" onClick={handleMenu}>
-          Menu
-        </button>
+  {/* ✏️ Annotation Button */}
+  {screenShareOn && (
+    <button
+      className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
+      title={
+        isAnnotating
+          ? String(sharingUser) === String(currentUserId)
+            ? "Stop Annotating Your Screen"
+            : "Stop Annotating Viewer Mode"
+          : String(sharingUser) === String(currentUserId)
+          ? "Annotate My Screen"
+          : "Annotate Shared Screen"
+      }
+      onClick={() => setIsAnnotating(!isAnnotating)}
+    >
+      <Icon slug="annotate" />
+    </button>
+  )}
 
-        {showBackButton && (
-          <button className="pd-outline" onClick={handleBack}>
-            Home
-          </button>
-        )}
+  {/* Menu / Back / End */}
+  <button className="pd-ghost" onClick={handleMenu}>
+    Menu
+  </button>
 
-        {showEndButton && (
-          <button className="pd-danger" onClick={handleEnd}>
-            End Meeting
-          </button>
-        )}
-      </div>
+  {showBackButton && (
+    <button className="pd-outline" onClick={handleBack}>
+      Home
+    </button>
+  )}
+
+  {showEndButton && (
+    <button className="pd-danger" onClick={handleEnd}>
+      End Meeting
+    </button>
+  )}
+</div>
+
     </footer>
   );
 }

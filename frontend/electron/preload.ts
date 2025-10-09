@@ -2,51 +2,72 @@
 import { contextBridge, desktopCapturer, ipcRenderer } from "electron";
 import os from "os";
 import { exec } from "child_process";
-import screenshot from "screenshot-desktop";
 import { io } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://192.168.1.23:4000"; // Ganti sesuai IP server
-const MIRROR_FPS = 2; // 2 frame per detik
+const CONTROL_SERVER = "http://192.168.1.5:4000"; // Ganti sesuai IP server
+const MIRROR_FPS = 2; // frame per detik
 
 // ====== SOCKET.IO CLIENT ======
 const socket = io(CONTROL_SERVER, { transports: ["websocket"] });
 
-// === Helper: ambil token login dari localStorage ===
+// === Helper ambil token & displayName dari localStorage ===
 function getToken() {
   try {
     return localStorage.getItem("token");
-  } catch (err) {
-    console.warn("[preload] Gagal ambil token:", err);
+  } catch {
     return null;
+  }
+}
+
+function getDisplayName() {
+  try {
+    return localStorage.getItem("pconf.displayName") || "";
+  } catch {
+    return "";
   }
 }
 
 // === Saat connect ke control server ===
 socket.on("connect", () => {
-  console.log("Connected to Control Server:", socket.id);
+  console.log("✅ Connected to Control Server:", socket.id);
 
+  // otomatis kirim register (agar selalu muncul di participants)
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
   const token = getToken();
+  const displayName = getDisplayName();
 
-  const payload: any = { hostname, user, os: platform };
-  if (token) payload.token = token;
-
+  const payload: any = { hostname, user, os: platform, token, displayName };
   socket.emit("register", payload);
-  console.log("[preload] Registering participant:", payload);
+  console.log("[preload] Auto-registering participant:", payload);
 });
 
-socket.on("disconnect", () => console.warn("Disconnected from Control Server"));
+// === Manual register dari React (misal dipanggil dari Start.jsx) ===
+async function registerToControlServer(token?: string, displayName?: string) {
+  const hostname = os.hostname();
+  const user = os.userInfo().username;
+  const platform = os.platform();
+  const payload: any = { hostname, user, os: platform };
+
+  if (token) payload.token = token;
+  if (displayName) payload.displayName = displayName;
+
+  socket.emit("register", payload);
+  console.log("[preload] ✅ Sent register payload manually:", payload);
+}
+
+// === Auto re-register on reconnect ===
 socket.io.on("reconnect", () => {
-  console.log("Reconnected — re-registering...");
+  console.log("🔄 Reconnected — re-registering...");
   const hostname = os.hostname();
   const user = os.userInfo().username;
   const platform = os.platform();
   const token = getToken();
-  const payload: any = { hostname, user, os: platform };
-  if (token) payload.token = token;
+  const displayName = getDisplayName();
+
+  const payload: any = { hostname, user, os: platform, token, displayName };
   socket.emit("register", payload);
 });
 
@@ -57,8 +78,10 @@ socket.on("command", async (cmd: string) => {
   console.log("Received command:", cmd);
   switch (cmd) {
     case "lock":
-      // Windows built-in lock
-      exec("rundll32.exe user32.dll,LockWorkStation");
+      ipcRenderer.send("show-lock-overlay");
+      break;
+    case "unlock":
+      ipcRenderer.send("hide-lock-overlay");
       break;
     case "shutdown":
       exec("shutdown /s /t 0");
@@ -79,70 +102,30 @@ socket.on("command", async (cmd: string) => {
 });
 
 // =====================================================
-// 🧱  LOCK / UNLOCK BY ADMIN (overlay mode)
+// 🧱 LOCK / UNLOCK — overlay freeze
 // =====================================================
-let overlay: HTMLDivElement | null = null;
+let isLocked = false;
+function preventInput(e: Event) {
+  if (isLocked) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}
+window.addEventListener("keydown", preventInput, true);
+window.addEventListener("mousedown", preventInput, true);
+window.addEventListener("mousemove", preventInput, true);
+window.addEventListener("contextmenu", preventInput, true);
 
 socket.on("lock-screen", () => {
-  console.log("🔒 Received lock-screen event from admin");
-
-  if (overlay) return; // already locked
-
-  overlay = document.createElement("div");
-  overlay.id = "admin-lock-overlay";
-  Object.assign(overlay.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100vw",
-    height: "100vh",
-    backgroundColor: "rgba(0, 0, 0, 0.96)",
-    color: "white",
-    fontSize: "2rem",
-    fontWeight: "600",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: "999999",
-    userSelect: "none",
-  });
-  overlay.innerHTML = `
-    <div>🔒 PC Locked by Administrator</div>
-    <div style="font-size:1rem;margin-top:12px;opacity:0.8">
-      Please wait until it’s unlocked.
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  // Disable input
-  document.body.style.pointerEvents = "none";
-  window.addEventListener("keydown", preventInput, true);
-  window.addEventListener("mousedown", preventInput, true);
-  window.addEventListener("mousemove", preventInput, true);
-  window.addEventListener("contextmenu", preventInput, true);
+  if (isLocked) return;
+  isLocked = true;
+  ipcRenderer.send("show-lock-overlay");
 });
-
 socket.on("unlock-screen", () => {
-  console.log("🔓 Received unlock-screen event from admin");
-
-  // Re-enable input
-  document.body.style.pointerEvents = "auto";
-  window.removeEventListener("keydown", preventInput, true);
-  window.removeEventListener("mousedown", preventInput, true);
-  window.removeEventListener("mousemove", preventInput, true);
-  window.removeEventListener("contextmenu", preventInput, true);
-
-  if (overlay) {
-    overlay.remove();
-    overlay = null;
-  }
+  if (!isLocked) return;
+  isLocked = false;
+  ipcRenderer.send("hide-lock-overlay");
 });
-
-function preventInput(e: Event) {
-  e.stopPropagation();
-  e.preventDefault();
-}
 
 // =====================================================
 // 🪞 SCREEN MIRROR STREAM
@@ -152,7 +135,6 @@ let mirrorInterval: number | null = null;
 async function startMirror() {
   if (mirrorInterval) return;
   console.log("[mirror] Started");
-
   mirrorInterval = window.setInterval(async () => {
     try {
       const img = await ipcRenderer.invoke("capture-screen");
@@ -165,8 +147,8 @@ async function startMirror() {
 }
 
 function stopMirror() {
-  if (mirrorInterval !== null) {
-    window.clearInterval(mirrorInterval);
+  if (mirrorInterval) {
+    clearInterval(mirrorInterval);
     mirrorInterval = null;
     console.log("[mirror] Stopped");
   }
@@ -176,78 +158,31 @@ function stopMirror() {
 // 🧰 SCREEN CAPTURE HELPERS
 // =====================================================
 async function getScreenSources() {
-  const sources = await desktopCapturer.getSources({
-    types: ["screen", "window"],
-  });
+  const sources = await desktopCapturer.getSources({ types: ["screen", "window"] });
   return sources.map((s) => ({ id: s.id, name: s.name }));
-}
-
-async function getDisplayMedia() {
-  const sources = await desktopCapturer.getSources({
-    types: ["screen", "window"],
-    thumbnailSize: { width: 1920, height: 1080 },
-  });
-  if (!sources.length) throw new Error("No screen sources");
-  const src = sources[0];
-  return {
-    id: src.id,
-    name: src.name,
-    thumbnail: src.thumbnail.toDataURL(),
-  };
-}
-
-async function createScreenStream(sourceId: string) {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      // @ts-ignore
-      mandatory: {
-        chromeMediaSource: "desktop",
-        chromeMediaSourceId: sourceId,
-        minWidth: 1280,
-        maxWidth: 1920,
-        minHeight: 720,
-        maxHeight: 1080,
-      },
-    },
-  });
-  return stream;
-}
-
-// =====================================================
-// 🧩 DEBUG TESTS
-// =====================================================
-function testPreload() {
-  console.log("[preload] Test function called!");
-  return "Preload test successful";
 }
 
 // =====================================================
 // 🌍 EXPOSE TO RENDERER
 // =====================================================
+contextBridge.exposeInMainWorld("electronAPI", {
+  getPCInfo: () => ({ hostname: os.hostname(), os: os.platform() }),
+  registerToControlServer,
+});
+
 contextBridge.exposeInMainWorld("screenAPI", {
   isElectron: true,
   getScreenSources,
-  getDisplayMedia,
-  createScreenStream,
-  testPreload,
-});
-
-contextBridge.exposeInMainWorld("controlAPI", {
-  socketConnected: () => socket.connected,
   startMirror,
   stopMirror,
 });
 
 contextBridge.exposeInMainWorld("ipc", {
   on: (...args: Parameters<typeof ipcRenderer.on>) => ipcRenderer.on(...args),
-  off: (...args: Parameters<typeof ipcRenderer.off>) =>
-    ipcRenderer.off(...args),
-  send: (...args: Parameters<typeof ipcRenderer.send>) =>
-    ipcRenderer.send(...args),
-  invoke: (...args: Parameters<typeof ipcRenderer.invoke>) =>
-    ipcRenderer.invoke(...args),
+  off: (...args: Parameters<typeof ipcRenderer.off>) => ipcRenderer.off(...args),
+  send: (...args: Parameters<typeof ipcRenderer.send>) => ipcRenderer.send(...args),
+  invoke: (...args: Parameters<typeof ipcRenderer.invoke>) => ipcRenderer.invoke(...args),
 });
 
 (globalThis as any).__PRELOAD_OK__ = true;
-console.log("[preload] screenAPI & controlAPI exposed successfully");
+console.log("[preload] electronAPI & screenAPI exposed successfully");

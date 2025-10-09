@@ -111,6 +111,48 @@ export default function Start() {
     try {
       localStorage.setItem("pconf.displayName", username || "");
       localStorage.setItem("pconf.useAccountName", useAccountName ? "1" : "0");
+// Setelah localStorage diset dan sebelum navigate()
+try {
+  const token = localStorage.getItem("token");
+  const userData = JSON.parse(localStorage.getItem("user") || "{}");
+
+  if (!token || !userData?.username) {
+    console.warn("⚠️ Missing token or user data — skip syncParticipant");
+    return;
+  }
+
+  // Ambil info PC dari preload Electron
+  let pcInfo = { hostname: "Browser-Client", os: navigator.platform };
+  if (window.electronAPI?.getPCInfo) {
+    pcInfo = await window.electronAPI.getPCInfo();
+  }
+
+  // 🧩 Register manual ke Control Server lewat preload
+  if (window.electronAPI?.registerToControlServer) {
+    window.electronAPI.registerToControlServer(token, username);
+    console.log("✅ Sent register to Control Server from Start.jsx");
+  }
+
+  // Simpan juga ke Control Server via HTTP sync kalau mau redundan
+  await fetch("http://192.168.1.5:4000/api/control/sync-participant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token,
+      displayName: username,
+      user: {
+        id: userData.id,
+        username: userData.username,
+        role: userData.role,
+      },
+      pc: pcInfo,
+    }),
+  });
+} catch (err) {
+  console.warn("❌ Failed to sync participant to Control Server:", err);
+}
+
+
 
       if (isHost) {
         navigate("/setup");

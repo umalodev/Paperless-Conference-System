@@ -47,46 +47,81 @@ exports.sendCommand = (req, res) => {
   });
 };
 
-// ========================== SYNC LOGIN ==========================
-/**
- * Sync login data from backend (triggered after successful user login)
- * @route POST /api/control/sync-login
- * @body { token: "<JWT>", account: { id, username, role, ... } }
- */
-exports.syncLogin = (req, res) => {
-  const { token, account } = req.body;
+// ======================================================
+// 🧩 REGISTER OR UPDATE PARTICIPANT (from Start.jsx)
+// ======================================================
+exports.registerParticipant = async (req, res) => {
+  try {
+    const { token, displayName, user, pc } = req.body;
+    if (!user || !pc?.hostname) {
+      return res.status(400).json({
+        success: false,
+        message: "Incomplete participant data (user or PC info missing)",
+      });
+    }
 
-  if (!token || !account) {
-    return res.status(400).json({
+    const { hostname, os } = pc;
+    const username = user.username;
+    const role = user.role;
+    const id = `manual-${Date.now()}`;
+
+    // 🔍 Cari participant dengan hostname atau username sama
+    let existingKey = Object.keys(global.participants).find((key) => {
+      const p = global.participants[key];
+      if (!p) return false;
+      return (
+        p.hostname?.toLowerCase() === hostname.toLowerCase() ||
+        (p.account && p.account.username === username)
+      );
+    });
+
+    if (existingKey) {
+      // 🧩 Update existing participant
+      global.participants[existingKey] = {
+        ...global.participants[existingKey],
+        hostname,
+        os,
+        account: {
+          ...(global.participants[existingKey].account || {}),
+          id: user.id,
+          username,
+          role,
+          displayName: displayName || username,
+        },
+      };
+
+      console.log(`🔁 Updated existing participant (${hostname}) with new displayName '${displayName}'`);
+    } else {
+      // 🆕 Register baru jika belum ada
+      global.participants[id] = {
+        id,
+        hostname,
+        os,
+        account: {
+          id: user.id,
+          username,
+          role,
+          displayName: displayName || username,
+        },
+        isLocked: false,
+      };
+      console.log(`🆕 Added manual participant (${hostname})`);
+    }
+
+    // 🔔 Broadcast update ke semua dashboard
+    if (global.io) {
+      global.io.emit("participants", Object.values(global.participants));
+    }
+
+    return res.json({
+      success: true,
+      message: "Participant registered/updated successfully",
+    });
+  } catch (err) {
+    console.error("❌ Error in registerParticipant:", err);
+    return res.status(500).json({
       success: false,
-      message: "Data login tidak lengkap",
+      message: "Server error during registerParticipant",
     });
   }
-
-  // Simpan ke global untuk digunakan saat Electron client register
-  global.lastLogin = { token, account, time: new Date() };
-  console.log(`🔄 Synced login from backend: ${account.username}`);
-
-  // === Integrasi tambahan ===
-  // Langsung hubungkan account ke participant yang belum punya akun
-  if (global.participants && Object.keys(global.participants).length > 0) {
-    const participants = Object.values(global.participants);
-    // Ambil participant terakhir yang belum punya akun
-    const target = participants.reverse().find((p) => !p.account);
-    if (target) {
-      target.account = account;
-      console.log(`🧩 Linked account '${account.username}' → ${target.hostname}`);
-      // Update realtime ke semua client React
-      if (global.io) {
-        global.io.emit("participants", Object.values(global.participants));
-      }
-    } else {
-      console.log("ℹ️ No pending participant to link — maybe already synced");
-    }
-  }
-
-  return res.json({
-    success: true,
-    message: "Login synced successfully and linked to participant (if available)",
-  });
 };

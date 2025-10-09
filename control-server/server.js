@@ -44,53 +44,70 @@ io.on("connection", (socket) => {
   console.log(`🟢 Control client connected: ${socket.id}`);
 
   // ================= REGISTER =================
-  socket.on("register", async (data) => {
-    const { hostname, user, os, token } = data;
-    let account = null;
+socket.on("register", async (data) => {
+  const { hostname, user, os, token, displayName, account: clientAccount } = data; // ✅ tambahkan account dari client
+  let account = clientAccount || null; // gunakan langsung dari client
 
-    console.log("\n📩 Register data received:", data);
-    console.log("🔑 Token from client:", token ? token.slice(0, 40) + "..." : "NONE");
+  console.log("\n📩 Register data received:", data);
 
-    // 🔹 PRIORITY 1: last login (global sync)
-    if (global.lastLogin && global.lastLogin.account) {
-      account = global.lastLogin.account;
-      console.log(`✅ Linked with last login: ${account.username}`);
-    }
-    // 🔹 PRIORITY 2: validate token via backend
-    else if (token) {
-      try {
-        const response = await axios.get(`${BACKEND_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 5000,
-        });
-        if (response.data.success && response.data.user) {
-          account = response.data.user;
-          console.log(`✅ Authenticated via token: ${account.username} (${account.role})`);
-        } else {
-          console.warn("⚠️ Invalid token or user not found");
-        }
-      } catch (err) {
-        console.error("❌ Error validating token:", err.response?.data || err.message);
+  // ✅ Cari participant dengan hostname atau username sama
+  let existingKey = Object.keys(participants).find((id) => {
+    const p = participants[id];
+    if (!p) return false;
+    return (
+      p.hostname?.toLowerCase() === hostname?.toLowerCase() ||
+      (p.account && p.account.username === user)
+    );
+  });
+
+  // 🔐 Validasi token kalau ada — hanya untuk user asli (bukan sim)
+  if (token) {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success && res.data.user) {
+        account = res.data.user;
+        if (displayName) account.displayName = displayName;
       }
-    } else {
-      console.warn("⚠️ No token provided from Electron client");
+    } catch (e) {
+      console.warn("⚠️ Token check failed:", e.message);
     }
+  }
 
-    // Simpan participant
+  // 🧩 Update existing atau buat baru
+  if (existingKey) {
+    participants[existingKey] = {
+      ...participants[existingKey],
+      os,
+      user,
+      hostname,
+      account: {
+        ...(participants[existingKey].account || {}),
+        ...account,
+        displayName:
+          displayName ||
+          account?.displayName ||
+          participants[existingKey].account?.displayName ||
+          user,
+      },
+    };
+    console.log(`🔁 Updated existing participant: ${hostname}`);
+  } else {
     participants[socket.id] = {
       id: socket.id,
       hostname,
       user,
       os,
-      account,
-      isLocked: false, // default unlocked
+      account, // ✅ sekarang diisi dengan account dari client (simulator)
+      isLocked: false,
     };
+    console.log(`🆕 Registered new participant: ${hostname}`);
+  }
 
-    // Broadcast ke semua admin dashboard
-    io.emit("participants", Object.values(participants));
+  io.emit("participants", Object.values(participants));
+});
 
-    console.log(`🧩 Registered participant: ${hostname} (${account?.username || "no account"})`);
-  });
 
   // ================= MIRROR FRAME =================
   socket.on("mirror-frame", (frame) => {
