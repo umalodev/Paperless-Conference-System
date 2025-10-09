@@ -86,3 +86,64 @@
   touch-action: none; /* supaya pointer/touch move mulus */
   display: block;
 }
+
+/* Styling untuk jendela pop-up ekspor PNG */
+.png-export-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  background-color: rgba(33, 33, 33, 0.9);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  max-width: 300px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.png-export-icon {
+  font-size: 20px;
+  margin-right: 10px;
+}
+
+.png-export-info {
+  flex: 1;
+}
+
+.png-export-filename {
+  font-size: 14px;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.png-export-open {
+  display: inline-block;
+  color: #4caf50;
+  font-size: 12px;
+  text-decoration: none;
+  padding: 3px 8px;
+  border: 1px solid #4caf50;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.png-export-open:hover {
+  background-color: #4caf50;
+  color: white;
+}

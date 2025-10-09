@@ -552,7 +552,7 @@ export default function Whiteboard() {
 
             {errMenus && (
               <div className="pd-error" style={{ marginTop: 12 }}>
-                Gagal memuat menu: {errMenus}
+                Failed to load menu: {errMenus}
               </div>
             )}
           </section>

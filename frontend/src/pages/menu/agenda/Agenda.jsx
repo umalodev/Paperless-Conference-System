@@ -10,10 +10,12 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
   const [displayName, setDisplayName] = useState("");
+  const { confirm, notify } = useModal();
 
   // nav menu
   const [menus, setMenus] = useState([]);
@@ -136,6 +138,8 @@ export default function Agenda() {
   );
   const handleSelect = (item) => navigate(`/menu/${item.slug}`);
 
+  
+
   // helpers tanggal / jam
   const pad = (n) => String(n).padStart(2, "0");
   const toDateInputValue = (iso) => {
@@ -248,42 +252,63 @@ export default function Agenda() {
     setFormErr("");
 
     if (!meetingId) return setFormErr("Meeting belum ada. Buat/Join dulu.");
-    if (!form.judul.trim()) return setFormErr("Judul wajib diisi.");
+    if (!form.judul.trim()) return setFormErr("Title is required.");
     if (!form.date || !form.start || !form.end)
-      return setFormErr("Tanggal, jam mulai, dan jam selesai wajib diisi.");
+      return setFormErr("Date, start time, and end time are required.");
 
     const startDate = new Date(`${form.date}T${form.start}`);
     const endDate = new Date(`${form.date}T${form.end}`);
     if (!(startDate < endDate))
-      return setFormErr("Jam selesai harus lebih besar dari jam mulai.");
+      return setFormErr("End time must be greater than start time.");
 
-    try {
-      setSaving(true);
-      const body = {
-        meetingId,
-        judul: form.judul.trim(),
-        deskripsi: form.deskripsi?.trim() || null,
-        start_time: startDate.toISOString(),
-        end_time: endDate.toISOString(),
-        seq: agendas.length + 1,
-      };
-      const res = await fetch(`${API_URL}/api/agendas`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...meetingService.getAuthHeaders(),
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const t = await res.json().catch(() => ({}));
-        throw new Error(t?.message || `HTTP ${res.status}`);
-      }
-      await loadAgendas();
-      closeAdd();
-    } catch (e) {
-      setFormErr(String(e.message || e));
-    } finally {
+    // Display confirmation modal before saving
+    const ok = await confirm({
+      title: "Save New Agenda?",
+      message: `Agenda "${form.judul}" will be saved to this meeting.`,
+      okText: "Save",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          setSaving(true);
+          const body = {
+            meetingId,
+            judul: form.judul.trim(),
+            deskripsi: form.deskripsi?.trim() || null,
+            start_time: startDate.toISOString(),
+            end_time: endDate.toISOString(),
+            seq: agendas.length + 1,
+          };
+          const res = await fetch(`${API_URL}/api/agendas`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...meetingService.getAuthHeaders(),
+            },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const t = await res.json().catch(() => ({}));
+            throw new Error(t?.message || `HTTP ${res.status}`);
+          }
+          await loadAgendas();
+          closeAdd();
+          
+          // Display success notification
+          await notify({
+            variant: "success",
+            title: "Agenda Saved",
+            message: "New agenda has been successfully added.",
+            autoCloseMs: 2000,
+          });
+        } catch (e) {
+          setFormErr(String(e.message || e));
+        } finally {
+          setSaving(false);
+        }
+      },
+    });
+    
+    if (!ok) {
       setSaving(false);
     }
   };
@@ -310,68 +335,111 @@ export default function Agenda() {
     e.preventDefault();
     setFormErr("");
 
-    if (!editing?.id) return setFormErr("Data agenda tidak valid.");
-    if (!form.judul.trim()) return setFormErr("Judul wajib diisi.");
+    if (!editing?.id) return setFormErr("Invalid agenda data.");
+    if (!form.judul.trim()) return setFormErr("Title is required.");
     if (!form.date || !form.start || !form.end)
-      return setFormErr("Tanggal, jam mulai, dan jam selesai wajib diisi.");
+      return setFormErr("Date, start time, and end time are required.");
 
     const startDate = new Date(`${form.date}T${form.start}`);
     const endDate = new Date(`${form.date}T${form.end}`);
     if (!(startDate < endDate))
-      return setFormErr("Jam selesai harus lebih besar dari jam mulai.");
+      return setFormErr("End time must be greater than start time.");
 
-    try {
-      setSaving(true);
-      const body = {
-        judul: form.judul.trim(),
-        deskripsi: form.deskripsi?.trim() || null,
-        start_time: startDate.toISOString(),
-        end_time: endDate.toISOString(),
-      };
-      const res = await fetch(
-        `${API_URL}/api/agendas/${encodeURIComponent(editing.id)}`,
-        {
-          method: "PUT",
-
-          headers: {
-            "Content-Type": "application/json",
-            ...meetingService.getAuthHeaders(),
-          },
-          body: JSON.stringify(body),
+    // Display confirmation modal before saving changes
+    const ok = await confirm({
+      title: "Save Agenda Changes?",
+      message: `Changes to agenda "${form.judul}" will be saved.`,
+      okText: "Save Changes",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          setSaving(true);
+          const body = {
+            judul: form.judul.trim(),
+            deskripsi: form.deskripsi?.trim() || null,
+            start_time: startDate.toISOString(),
+            end_time: endDate.toISOString(),
+          };
+          const res = await fetch(
+            `${API_URL}/api/agendas/${encodeURIComponent(editing.id)}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                ...meetingService.getAuthHeaders(),
+              },
+              body: JSON.stringify(body),
+            }
+          );
+          if (!res.ok) {
+            const t = await res.json().catch(() => ({}));
+            throw new Error(t?.message || `HTTP ${res.status}`);
+          }
+          await loadAgendas();
+          closeEdit();
+          
+          // Display success notification
+          await notify({
+            variant: "success",
+            title: "Agenda Updated",
+            message: "Agenda changes have been successfully saved.",
+            autoCloseMs: 2000,
+          });
+        } catch (e) {
+          setFormErr(String(e.message || e));
+        } finally {
+          setSaving(false);
         }
-      );
-      if (!res.ok) {
-        const t = await res.json().catch(() => ({}));
-        throw new Error(t?.message || `HTTP ${res.status}`);
-      }
-      await loadAgendas();
-      closeEdit();
-    } catch (e) {
-      setFormErr(String(e.message || e));
-    } finally {
+      },
+    });
+    
+    if (!ok) {
       setSaving(false);
     }
   };
 
   const handleDeleteAgenda = async (id) => {
     if (!id) return;
-    if (!confirm("Hapus agenda ini?")) return;
-    try {
-      const res = await fetch(
-        `${API_URL}/api/agendas/${encodeURIComponent(id)}`,
-        {
-          method: "DELETE",
-          headers: meetingService.getAuthHeaders(),
+    
+    // Display confirmation modal before deleting
+    const ok = await confirm({
+      title: "Delete Agenda?",
+      message: "This agenda will be deleted from the meeting. This action cannot be undone.",
+      destructive: true,
+      okText: "Delete",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(
+            `${API_URL}/api/agendas/${encodeURIComponent(id)}`,
+            {
+              method: "DELETE",
+              headers: meetingService.getAuthHeaders(),
+            }
+          );
+          if (!res.ok) {
+            const t = await res.json().catch(() => ({}));
+            throw new Error(t?.message || `HTTP ${res.status}`);
+          }
+          await loadAgendas();
+          
+          // Display success notification
+          await notify({
+            variant: "success",
+            title: "Agenda Deleted",
+            message: "Agenda has been successfully deleted from the meeting.",
+            autoCloseMs: 2000,
+          });
+        } catch (e) {
+          await notify({
+            variant: "error",
+            title: "Gagal Menghapus",
+            message: `Error: ${e.message || e}`,
+            autoCloseMs: 3000,
+          });
         }
-      );
-      if (!res.ok) {
-        const t = await res.json().catch(() => ({}));
-        throw new Error(t?.message || `HTTP ${res.status}`);
-      }
-      await loadAgendas();
-    } catch (e) {
-      alert(`Gagal menghapus: ${e.message || e}`);
-    }
+      },
+    });
   };
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
@@ -452,18 +520,18 @@ export default function Agenda() {
                   onClick={() => setShowHistory((s) => !s)}
                 >
                   <img src="/img/history.png" alt="" className="history-icon" />
-                  {showHistory ? "Tutup Riwayat" : "Riwayat"}
+                  {showHistory ? "Close History" : "History"}
                 </button>
 
                 {isHost && (
                   <button
                     className="agenda-add"
-                    title="Tambah agenda"
+                    title="Add agenda"
                     onClick={openAdd}
                   >
                     <img
                       src="/img/add1.png"
-                      alt="Tambah agenda"
+                      alt="Add agenda"
                       className="action-icon"
                     />
                   </button>
@@ -475,23 +543,23 @@ export default function Agenda() {
             {showAdd && (
               <form className="agenda-form" onSubmit={submitAdd}>
                 <div className="af-row">
-                  <label className="af-label">Judul</label>
+                  <label className="af-label">Title</label>
                   <input
                     name="judul"
                     className="af-input"
-                    placeholder="Contoh: Pembukaan"
+                    placeholder="Example: Opening"
                     value={form.judul}
                     onChange={handleFormChange}
                   />
                 </div>
 
                 <div className="af-row">
-                  <label className="af-label">Deskripsi</label>
+                  <label className="af-label">Description</label>
                   <textarea
                     name="deskripsi"
                     className="af-textarea"
                     rows={2}
-                    placeholder="Opsional"
+                    placeholder="Optional"
                     value={form.deskripsi}
                     onChange={handleFormChange}
                   />
@@ -499,7 +567,7 @@ export default function Agenda() {
 
                 <div className="af-grid">
                   <div className="af-col">
-                    <label className="af-label">Tanggal</label>
+                    <label className="af-label">Date</label>
                     <input
                       type="date"
                       name="date"
@@ -509,7 +577,7 @@ export default function Agenda() {
                     />
                   </div>
                   <div className="af-col">
-                    <label className="af-label">Mulai</label>
+                    <label className="af-label">Start</label>
                     <input
                       type="time"
                       name="start"
@@ -519,7 +587,7 @@ export default function Agenda() {
                     />
                   </div>
                   <div className="af-col">
-                    <label className="af-label">Selesai</label>
+                    <label className="af-label">End</label>
                     <input
                       type="time"
                       name="end"
@@ -539,10 +607,10 @@ export default function Agenda() {
                     onClick={closeAdd}
                     disabled={saving}
                   >
-                    Batal
+                    Cancel
                   </button>
                   <button type="submit" className="pd-danger" disabled={saving}>
-                    {saving ? "Menyimpan…" : "Simpan"}
+                    {saving ? "Saving..." : "Save"}
                   </button>
                 </div>
               </form>
@@ -552,23 +620,23 @@ export default function Agenda() {
             {editing && (
               <form className="agenda-form" onSubmit={submitEdit}>
                 <div className="af-row">
-                  <label className="af-label">Judul</label>
+                  <label className="af-label">Title</label>
                   <input
                     name="judul"
                     className="af-input"
-                    placeholder="Judul agenda"
+                    placeholder="Agenda title"
                     value={form.judul}
                     onChange={handleFormChange}
                   />
                 </div>
 
                 <div className="af-row">
-                  <label className="af-label">Deskripsi</label>
+                  <label className="af-label">Description</label>
                   <textarea
                     name="deskripsi"
                     className="af-textarea"
                     rows={2}
-                    placeholder="Opsional"
+                    placeholder="Optional"
                     value={form.deskripsi}
                     onChange={handleFormChange}
                   />
@@ -576,7 +644,7 @@ export default function Agenda() {
 
                 <div className="af-grid">
                   <div className="af-col">
-                    <label className="af-label">Tanggal</label>
+                    <label className="af-label">Date</label>
                     <input
                       type="date"
                       name="date"
@@ -586,7 +654,7 @@ export default function Agenda() {
                     />
                   </div>
                   <div className="af-col">
-                    <label className="af-label">Mulai</label>
+                    <label className="af-label">Start</label>
                     <input
                       type="time"
                       name="start"
@@ -596,7 +664,7 @@ export default function Agenda() {
                     />
                   </div>
                   <div className="af-col">
-                    <label className="af-label">Selesai</label>
+                    <label className="af-label">End</label>
                     <input
                       type="time"
                       name="end"
@@ -616,10 +684,10 @@ export default function Agenda() {
                     onClick={closeEdit}
                     disabled={saving}
                   >
-                    Batal
+                    Cancel
                   </button>
                   <button type="submit" className="pd-danger" disabled={saving}>
-                    {saving ? "Menyimpan…" : "Simpan Perubahan"}
+                    {saving ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </form>
@@ -629,14 +697,14 @@ export default function Agenda() {
             {agendaLoading && <AgendaSkeletonList />}
 
             {agendaErr && !agendaLoading && (
-              <div className="pd-error">Gagal memuat agenda: {agendaErr}</div>
+              <div className="pd-error">Failed to load agenda: {agendaErr}</div>
             )}
 
             {!agendaLoading && !agendaErr && agendas.length === 0 && (
               <div className="ag-empty">
                 <div className="ag-empty-icon">🗒️</div>
                 <div className="ag-empty-copy">
-                  <div className="ag-empty-title">Belum ada agenda</div>
+                  <div className="ag-empty-title">No agenda yet</div>
                 </div>
                 {/* ag-empty-actions dihapus agar tombol merah tidak muncul */}
               </div>
@@ -670,7 +738,7 @@ export default function Agenda() {
                       alt=""
                       className="history-icon"
                     />
-                    Riwayat Agenda
+                    Agenda History
                     <span className="ag-chip ghost">
                       {historyGroups.length} meeting
                     </span>
@@ -687,7 +755,7 @@ export default function Agenda() {
                   {!historyLoading &&
                     !historyErr &&
                     historyGroups.length === 0 && (
-                      <div className="pd-empty">Belum ada riwayat agenda.</div>
+                      <div className="pd-empty">There is no agenda history yet.</div>
                     )}
 
                   {!historyLoading &&
@@ -759,7 +827,7 @@ function AgendaHistoryGroup({ group }) {
       {open && (
         <div className="ag-acc-body">
           {(!agendas || agendas.length === 0) && (
-            <div className="pd-empty">Tidak ada agenda.</div>
+            <div className="pd-empty">No agenda available.</div>
           )}
           {agendas &&
             agendas.length > 0 &&
@@ -802,7 +870,7 @@ function AgendaItem({ id, title, time, desc, canEdit, onEdit, onDelete }) {
             aria-expanded={open}
             aria-controls={`agenda-desc-${id}`}
             disabled={!hasDesc}
-            title={hasDesc ? "Lihat deskripsi" : "Tidak ada deskripsi"}
+            title={hasDesc ? "View description" : "No description"}
           >
             <span className="agenda-dot" aria-hidden />
             <span className="agenda-item-title">{title}</span>
@@ -846,7 +914,10 @@ function AgendaItem({ id, title, time, desc, canEdit, onEdit, onDelete }) {
               type="button"
               className={`agenda-caret-btn ${open ? "is-open" : ""}`}
               aria-label={
-                open ? "Sembunyikan deskripsi" : "Tampilkan deskripsi"
+                open ? "Hide description" : "Show description"
+              }
+              title={
+                open ? "Hide description" : "Show description"
               }
               onClick={toggle}
             >
@@ -862,7 +933,7 @@ function AgendaItem({ id, title, time, desc, canEdit, onEdit, onDelete }) {
           id={`agenda-desc-${id}`}
           className="agenda-desc"
           role="region"
-          aria-label={`Deskripsi ${title}`}
+          aria-label={`Description ${title}`}
         >
           {desc}
         </div>

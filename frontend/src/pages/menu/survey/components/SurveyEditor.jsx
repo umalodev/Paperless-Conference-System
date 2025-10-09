@@ -205,26 +205,26 @@ export default function SurveyEditor({
         }}
       >
         <span style={{ fontSize: "24px" }}>✏</span>
-        Kelola Survey
+        manage surveys
       </div>
 
       <div className="svr-editor-section">
         <div className="af-row">
-          <label className="af-label">📝 Judul Survey</label>
+          <label className="af-label">📝 Survey Title</label>
           <input
             className="svr-text"
-            placeholder="Contoh: Survey Kepuasan Peserta Meeting"
+            placeholder="Example: Meeting Participant Satisfaction Survey"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
 
         <div className="af-row">
-          <label className="af-label">📄 Deskripsi (Opsional)</label>
+          <label className="af-label">📄 Description (Optional)</label>
           <textarea
             className="svr-text"
             rows={3}
-            placeholder="Jelaskan tujuan survey ini kepada peserta..."
+            placeholder="Explain the purpose of this survey to participants..."
             value={description || ""}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -236,7 +236,7 @@ export default function SurveyEditor({
             checked={isShow}
             onChange={(e) => setIsShow(e.target.checked)}
           />
-          <span>🌐 Tampilkan ke peserta (aktif)</span>
+          <span>🌐 Show to participants (active)</span>
         </label>
       </div>
 
@@ -244,7 +244,7 @@ export default function SurveyEditor({
         className="svr-qtext"
         style={{ margin: "16px 0 12px 0", fontSize: 16 }}
       >
-        ❓ Pertanyaan
+        Questions ❓
       </div>
       <div className="svr-list">
         {questions.map((q, idx) => (
@@ -268,15 +268,15 @@ export default function SurveyEditor({
                 ).map((t) => (
                   <option key={t} value={t}>
                     {t === "short_text"
-                      ? "📝 Teks Singkat"
+                      ? "📝 Short Text"
                       : t === "paragraph"
-                      ? "📄 Paragraf"
+                      ? "📄 Paragraph"
                       : t === "multiple_choice"
-                      ? "🔘 Pilihan Ganda"
+                      ? "🔘 Multiple Choice"
                       : t === "checkbox"
                       ? "☑ Checkbox"
                       : t === "date"
-                      ? "📅 Tanggal"
+                      ? "📅 Date"
                       : t}
                   </option>
                 ))}
@@ -286,7 +286,7 @@ export default function SurveyEditor({
                 type="button"
                 className="svr-btn"
                 onClick={() => move(q._id, "up")}
-                title="Pindah ke atas"
+                title="Move up"
                 style={{
                   background: "#f0f9ff",
                   borderColor: "#3b82f6",
@@ -299,7 +299,7 @@ export default function SurveyEditor({
                 type="button"
                 className="svr-btn"
                 onClick={() => move(q._id, "down")}
-                title="Pindah ke bawah"
+                title="Move down"
                 style={{
                   background: "#f0f9ff",
                   borderColor: "#3b82f6",
@@ -312,7 +312,7 @@ export default function SurveyEditor({
                 type="button"
                 className="svr-btn"
                 onClick={() => removeQuestion(q._id)}
-                title="Hapus pertanyaan"
+                title="Delete question"
                 style={{
                   background: "#fef2f2",
                   borderColor: "#f87171",
@@ -325,7 +325,7 @@ export default function SurveyEditor({
 
             <input
               className="svr-text"
-              placeholder="Tulis pertanyaan…"
+              placeholder="Write question..."
               value={q.questionBody}
               onChange={(e) => changeBody(q._id, e.target.value)}
             />
@@ -336,7 +336,7 @@ export default function SurveyEditor({
                 checked={q.isRequired}
                 onChange={() => toggleRequired(q._id)}
               />
-              <span>Wajib diisi</span>
+              <span>Required</span>
             </label>
 
             {NEEDS_OPTIONS.has(q.typeName) && (
@@ -345,14 +345,14 @@ export default function SurveyEditor({
                   className="svr-qtext"
                   style={{ marginBottom: 8, fontSize: 14 }}
                 >
-                  🎯 Opsi Jawaban
+                  🎯 Answer Options
                 </div>
                 <div className="svr-options">
                   {(q.options || []).map((op) => (
                     <div key={op._id} className="svr-option-editor">
                       <input
                         className="svr-text"
-                        placeholder="Masukkan opsi jawaban..."
+                        placeholder="Enter answer option..."
                         value={op.optionBody}
                         onChange={(e) =>
                           changeOptionBody(q._id, op._id, e.target.value)
@@ -384,7 +384,7 @@ export default function SurveyEditor({
                   }}
                   onClick={() => addOption(q._id)}
                 >
-                  <Icon slug="plus" /> <span>➕ Tambah Opsi</span>
+                  <span>Add Option</span>
                 </button>
               </div>
             )}
@@ -405,7 +405,7 @@ export default function SurveyEditor({
             color: "#1d4ed8",
           }}
         >
-          <Icon slug="plus" /> <span> Tambah Pertanyaan</span>
+          <span>Add Question</span>
         </button>
         <button
           type="button"
@@ -417,7 +417,7 @@ export default function SurveyEditor({
             color: "#64748b",
           }}
         >
-          ❌ Batal
+          Cancel
         </button>
         <button
           type="button"
@@ -431,8 +431,7 @@ export default function SurveyEditor({
             boxShadow: canSave ? "0 4px 12px rgba(16, 185, 129, 0.3)" : "none",
           }}
         >
-          <Icon slug="save" name="save" />
-          <span>{saving ? "💾 Menyimpan…" : "💾 Simpan Survey"}</span>
+          <span>{saving ? "Saving..." : "Save"}</span>
         </button>
       </div>
     </div>

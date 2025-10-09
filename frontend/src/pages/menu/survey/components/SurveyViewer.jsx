@@ -52,7 +52,7 @@ export default function SurveyViewer({ survey, meetingId }) {
           }
           setAnswers(pre);
           setAlreadySubmitted(true);
-          setSubmitMsg("Terima kasih! Anda sudah mengisi survey ini.");
+          setSubmitMsg("Thank you! You have already completed this survey.");
         } else {
           setAlreadySubmitted(false);
           setAnswers({});
@@ -112,7 +112,7 @@ export default function SurveyViewer({ survey, meetingId }) {
     const v = validate();
     if (v) return setSubmitMsg(v);
     if (!survey?.surveyId || !meetingId)
-      return setSubmitMsg("Survey tidak siap.");
+      return setSubmitMsg("Survey is not ready.");
 
     try {
       setSubmitting(true);
@@ -135,7 +135,7 @@ export default function SurveyViewer({ survey, meetingId }) {
   };
 
   if (!survey) {
-    return <div className="pd-empty">Belum ada survey yang ditampilkan.</div>;
+    return <div className="pd-empty">There are no surveys displayed yet.</div>;
   }
 
   // === MODE SUDAH SUBMIT: tampilkan pesan terima kasih, opsional lihat jawaban ===
@@ -171,7 +171,7 @@ export default function SurveyViewer({ survey, meetingId }) {
         >
           <div style={{ fontSize: "48px", marginBottom: 12 }}>🎉</div>
           <div style={{ fontSize: "16px", fontWeight: 600, marginBottom: 4 }}>
-            Terima kasih! Survey berhasil dikirim.
+            Thank you! Survey has been successfully submitted.
           </div>
           <div style={{ fontSize: "14px", opacity: 0.8 }}>
             Jawaban Anda telah tersimpan dengan aman.

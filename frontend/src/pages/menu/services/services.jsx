@@ -202,6 +202,9 @@ export default function Services() {
     return () => clearInterval(t);
   }, [loadRequests]);
 
+  // State for notification
+  const [showNotification, setShowNotification] = useState(false);
+
   // Create request
   const onSend = async () => {
     if (!canSend || !user) return;
@@ -233,6 +236,10 @@ export default function Services() {
       setNote("");
       setSelectedService(null);
       await loadRequests();
+      
+      // Show success notification
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
     } catch (e) {
       alert(`Failed to send request: ${String(e.message || e)}`);
     }
@@ -333,6 +340,13 @@ export default function Services() {
         }
       })()}
     >
+      {showNotification && (
+        <div className="notification-popup">
+          <div className="notification-content">
+            <span>Successfully sent</span>
+          </div>
+        </div>
+      )}
       <div className="pd-app">
         <header className="pd-topbar">
           <div className="pd-left">
@@ -520,7 +534,7 @@ export default function Services() {
             {/* RIGHT COLUMN (only for participant) */}
             {!isAssist && (
               <section className="svc-card svc-main">
-                <div className="svc-card-title">Quick services</div>
+                <div className="svc-card-title">Services</div>
                 <div className="svc-quick">
                   {quickOptions.map((q) => (
                     <button
