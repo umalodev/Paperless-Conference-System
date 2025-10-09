@@ -248,3 +248,60 @@
   background: #fff1f0;
   border-color: #ffa39e;
 }
+
+/* Tombol 'semu' nonaktif */
+.is-aria-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Grid quick sebagai anchor tooltip */
+.svc-quick {
+  position: relative; /* supaya tooltip bisa absolute ke sini */
+}
+
+/* Tooltip di atas grid quick, panah mengarah ke bawah (ke tombol2) */
+.svc-tooltip--grid {
+  position: absolute;
+  top: -12px; /* sedikit di atas grid */
+  left: 50%;
+  transform: translate(-50%, -100%);
+  background: #111827; /* gray-900 */
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  z-index: 5;
+}
+
+.svc-tooltip--grid::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: transparent;
+  border-bottom-color: #111827; /* panah ke bawah */
+}
+
+/* Highlight & sedikit “pulse” pada ke-4 quick button saat hint aktif */
+.svc-quick-btn.is-hint {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35),
+    /* ring biru soft */ 0 8px 18px rgba(0, 0, 0, 0.12);
+  animation: svcPulse 1.1s ease-in-out 2;
+}
+
+@keyframes svcPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
