@@ -86,6 +86,24 @@
   padding: 24px; /* 🔹 jarak antara grid dan tepi halaman */
   justify-items: center;
   align-items: start;
+
+    --r: 14px; /* radius seragam */
+  --pad: 16px; /* padding seragam */
+  --max: 940px; /* lebar maksimum card container */
+  --btn-h: 34px; /* tinggi tombol kecil */
+  --btn-r: 10px;
+  --btn-x: 12px;
+  --chip: 34px; /* tinggi pill/aksi kecil */
+  --chip-r: 10px;
+
+  background: var(--color-white);
+  border: 1px solid #36d399;
+  border-radius: var(--r);
+  padding: var(--pad);
+  width: 100%;
+  max-width: var(--max);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
 }
 
 .mc-monitor-item {
@@ -111,6 +129,69 @@
   }
 }
 
+/* ===== Header dalam Grid ===== */
+.mc-monitor-header {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+/* ===== Search bar mirip prt-search ===== */
+.prt-search {
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
+  padding: 10px 12px;
+  max-width: 360px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.prt-search:focus-within {
+  border-color: var(--color-primary, #10b981);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.prt-search .pd-svg {
+  width: 18px;
+  height: 18px;
+  color: #6b7280;
+  opacity: 0.7;
+}
+
+.prt-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text, #1f2937);
+}
+
+.prt-search input::placeholder {
+  color: #9ca3af;
+}
+
+/* ===== Count text di kanan ===== */
+.mc-count {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+
+
 /* ===== Monitor Item ===== */
 .mc-monitor-item {
   display: flex;
@@ -119,7 +200,7 @@
   background: #ffffff;
   border-radius: 12px;
   padding: 12px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   width: 100%;
   max-width: 300px;
@@ -558,4 +639,48 @@
 .mc-search-input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.global-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: 10px;
+}
+
+.note-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s ease;
+}
+
+.note-btn.blue {
+  background: #2563eb;
+  color: #fff;
+}
+.note-btn.red {
+  background: #ef4444;
+  color: #fff;
+}
+.note-btn.gray {
+  background: #64748b;
+  color: #fff;
+}
+.note-btn.yellow {
+  background: #eab308;
+  color: #000;
+}
+.note-btn.dark {
+  background: #111;
+  color: #fff;
+}
+.note-btn:hover {
+  opacity: 0.85;
 }

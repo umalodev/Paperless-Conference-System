@@ -8,6 +8,7 @@ import meetingService from "../../services/meetingService.js";
 import { useNavigate } from "react-router-dom"; // ⬅️ di atas file
 import "./master-controller.css";
 import { useModal } from "../../contexts/ModalProvider.jsx";
+import Icon from "../../components/Icon.jsx";
 
 
 export default function MasterController() {
@@ -24,6 +25,20 @@ export default function MasterController() {
   const navigate = useNavigate();
   const [selectedInfo, setSelectedInfo] = useState(null);
   const { confirm, notify } = useModal();
+  const [query, setQuery] = useState("");
+
+const filteredParticipants = useMemo(() => {
+  return participants.filter((p) => {
+    const role = (p.account?.role || "").toLowerCase();
+    const displayName = (p.account?.displayName || "").toLowerCase();
+    const searchTerm = query.toLowerCase();
+    return (
+      !query ||
+      displayName.includes(searchTerm) ||
+      role.includes(searchTerm)
+    );
+  });
+}, [participants, query]);
 
 
   // =====================================================
@@ -293,7 +308,7 @@ const executeCommand = async (targetId, action) => {
           <div className="pd-right">
             <button
               className="note-btn ghost"
-              onClick={() => window.location.reload()}
+              onClick={() => fetchParticipants()}
               title="Refresh"
               aria-label="Refresh"
             >
@@ -302,18 +317,37 @@ const executeCommand = async (targetId, action) => {
             </button>
           </div>
         </header>
-
         {/* === Main Content === */}
         <main className="pd-main">
-        {loading ? (
-          <div className="pd-empty">Loading participants...</div>
-        ) : err ? (
-          <div className="pd-empty text-red-500">Error: {err}</div>
-        ) : participants.length === 0 ? (
-          <div className="pd-empty">No participants connected.</div>
-        ) : (
-          <div className="mc-monitor-grid">
-            {participants.map((p) => (
+          {loading ? (
+            <div className="pd-empty">Loading participants...</div>
+          ) : err ? (
+            <div className="pd-empty text-red-500">Error: {err}</div>
+          ) : participants.length === 0 ? (
+            <div className="pd-empty">No participants connected.</div>
+          ) : (
+            <div className="mc-monitor-grid">
+            {/* === Header (Search Bar) === */}
+            <div className="mc-monitor-header">
+              <div className="prt-search">
+                <span className="prt-search-icon">
+                                  <Icon slug="search" />
+                </span>
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search name or role…"
+                  aria-label="Search participants"
+                />
+              </div>
+              <div className="mc-count">
+                Showing {filteredParticipants.length} of {participants.length}
+              </div>
+            </div>
+
+
+            {/* === Daftar monitor peserta === */}
+            {filteredParticipants.map((p) => (
               <div
                 key={p.id}
                 className={`mc-monitor-item ${p.isLocked ? "locked" : ""}`}
@@ -348,7 +382,7 @@ const executeCommand = async (targetId, action) => {
                   </small>
                 </div>
 
-                {/* === Tombol aksi (icon only) === */}
+                {/* === Tombol aksi === */}
                 <div className="mc-monitor-actions icons-only">
                   <button
                     className="icon-btn green"
@@ -408,13 +442,13 @@ const executeCommand = async (targetId, action) => {
                     title="Shutdown"
                   >
                     <img src="/img/power.png" alt="Shutdown" />
-                  </button>                  
+                  </button>
                 </div>
               </div>
             ))}
-          </div>
-        )}
-      </main>
+        </div>
+      )}
+    </main>
 
 
 

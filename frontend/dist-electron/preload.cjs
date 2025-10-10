@@ -8852,79 +8852,134 @@ Object.assign(lookup, {
 });
 const CONTROL_SERVER = "http://192.168.1.23:4000";
 const MIRROR_FPS = 2;
-const socket = lookup(CONTROL_SERVER, { transports: ["websocket"] });
-function getToken() {
-  try {
-    return localStorage.getItem("token");
-  } catch {
-    return null;
+let socket = null;
+let mirrorInterval = null;
+let isLocked = false;
+function connectToControlServer(token, displayName) {
+  if (socket && socket.connected) {
+    console.log("[preload] Socket already connected as", socket.id);
+    return;
+  }
+  console.log("[preload] Connecting to Control Server...");
+  socket = lookup(CONTROL_SERVER, {
+    transports: ["websocket"],
+    reconnection: true,
+    autoConnect: true
+    // pastikan socket benar-benar connect
+  });
+  socket.on("connect", () => {
+    console.log("✅ Connected to Control Server:", socket.id);
+    const hostname = os.hostname();
+    const user = os.userInfo().username;
+    const platform = os.platform();
+    const payload = { hostname, user, os: platform, token, displayName, role: "device" };
+    socket.emit("register", payload);
+    console.log("[preload] Registered participant:", payload);
+  });
+  socket.io.on("reconnect", () => {
+    const hostname = os.hostname();
+    const user = os.userInfo().username;
+    const platform = os.platform();
+    const payload = { hostname, user, os: platform, token, displayName, role: "device" };
+    socket.emit("register", payload);
+  });
+  socket.on("connect_error", (err) => {
+    console.error("❌ Socket connection error:", err.message);
+  });
+  socket.on("disconnect", (reason) => {
+    console.warn("🔴 Disconnected from Control Server:", reason);
+  });
+  socket.io.on("reconnect", (attempt) => {
+    console.log(`🔄 Reconnected after ${attempt} attempts`);
+    const hostname = os.hostname();
+    const user = os.userInfo().username;
+    const platform = os.platform();
+    const payload = { hostname, user, os: platform, token, displayName };
+    socket.emit("register", payload);
+  });
+  socket.onAny((event, data) => {
+    if (event !== "mirror-frame") {
+      console.log(`[socket event] ${event}`, data);
+    }
+  });
+  socket.on("remote-input", (data) => {
+    try {
+      console.log("[remote] Input received:", data);
+      const { type, action, x, y, key } = data;
+      if (type === "mouse") {
+        const robot = require("robotjs");
+        if (action === "move") robot.moveMouse(x, y);
+        if (action === "click") robot.mouseClick();
+        if (action === "right-click") robot.mouseClick("right");
+        if (action === "scroll") robot.scrollMouse(x, y);
+      }
+      if (type === "keyboard" && key) {
+        const robot = require("robotjs");
+        robot.keyTap(key);
+      }
+    } catch (err) {
+      console.error("[remote] Error handling input:", err);
+    }
+  });
+  socket.on("command", handleCommand);
+}
+function disconnectFromControlServer() {
+  if (socket && socket.connected) {
+    console.log("[preload] Disconnecting from Control Server:", socket.id);
+    socket.disconnect();
+    socket = null;
+  } else {
+    console.log("[preload] No active socket to disconnect");
   }
 }
-function getDisplayName() {
-  try {
-    return localStorage.getItem("pconf.displayName") || "";
-  } catch {
-    return "";
-  }
-}
-socket.on("connect", () => {
-  console.log("✅ Connected to Control Server:", socket.id);
-  const hostname = os.hostname();
-  const user = os.userInfo().username;
-  const platform = os.platform();
-  const token = getToken();
-  const displayName = getDisplayName();
-  const payload = { hostname, user, os: platform, token, displayName };
-  socket.emit("register", payload);
-  console.log("[preload] Auto-registering participant:", payload);
-});
-async function registerToControlServer(token, displayName) {
-  const hostname = os.hostname();
-  const user = os.userInfo().username;
-  const platform = os.platform();
-  const payload = { hostname, user, os: platform };
-  if (token) payload.token = token;
-  if (displayName) payload.displayName = displayName;
-  socket.emit("register", payload);
-  console.log("[preload] ✅ Sent register payload manually:", payload);
-}
-socket.io.on("reconnect", () => {
-  console.log("🔄 Reconnected — re-registering...");
-  const hostname = os.hostname();
-  const user = os.userInfo().username;
-  const platform = os.platform();
-  const token = getToken();
-  const displayName = getDisplayName();
-  const payload = { hostname, user, os: platform, token, displayName };
-  socket.emit("register", payload);
-});
-socket.on("command", async (cmd) => {
+function handleCommand(cmd) {
   console.log("Received command:", cmd);
   switch (cmd) {
     case "lock":
-      electron.ipcRenderer.send("show-lock-overlay");
+      if (!isLocked) {
+        electron.ipcRenderer.send("show-lock-overlay");
+        isLocked = true;
+      }
       break;
     case "unlock":
-      electron.ipcRenderer.send("hide-lock-overlay");
+      if (isLocked) {
+        electron.ipcRenderer.send("hide-lock-overlay");
+        isLocked = false;
+      }
       break;
     case "shutdown":
+      console.warn("[preload] 🔻 Shutdown command received");
+      if (socket && socket.connected) {
+        socket.emit("status", { message: "Shutting down..." });
+        socket.disconnect();
+      }
       require$$2.exec("shutdown /s /t 0");
       break;
     case "reboot":
     case "restart":
+      console.warn("[preload] 🔁 Restart command received");
+      if (socket && socket.connected) {
+        socket.emit("status", { message: "Restarting..." });
+        socket.disconnect();
+      }
       require$$2.exec("shutdown /r /t 0");
       break;
     case "mirror-start":
-      startMirror();
+      if (!mirrorInterval) {
+        console.log("[mirror] start triggered by command");
+        startMirror();
+      }
       break;
     case "mirror-stop":
-      stopMirror();
+      if (mirrorInterval) {
+        console.log("[mirror] stop triggered by command");
+        stopMirror();
+      }
       break;
     default:
       console.log("Unknown command:", cmd);
   }
-});
-let isLocked = false;
+}
 function preventInput(e) {
   if (isLocked) {
     e.stopPropagation();
@@ -8935,22 +8990,12 @@ window.addEventListener("keydown", preventInput, true);
 window.addEventListener("mousedown", preventInput, true);
 window.addEventListener("mousemove", preventInput, true);
 window.addEventListener("contextmenu", preventInput, true);
-socket.on("lock-screen", () => {
-  if (isLocked) return;
-  isLocked = true;
-  electron.ipcRenderer.send("show-lock-overlay");
-});
-socket.on("unlock-screen", () => {
-  if (!isLocked) return;
-  isLocked = false;
-  electron.ipcRenderer.send("hide-lock-overlay");
-});
-let mirrorInterval = null;
 async function startMirror() {
   if (mirrorInterval) return;
   console.log("[mirror] Started");
   mirrorInterval = window.setInterval(async () => {
     try {
+      if (!socket || !socket.connected) return;
       const img = await electron.ipcRenderer.invoke("capture-screen");
       if (!img) return;
       socket.emit("mirror-frame", img);
@@ -8974,7 +9019,9 @@ async function getScreenSources() {
 }
 electron.contextBridge.exposeInMainWorld("electronAPI", {
   getPCInfo: () => ({ hostname: os.hostname(), os: os.platform() }),
-  registerToControlServer
+  connectToControlServer,
+  // dipanggil dari Start.jsx setelah user isi displayName
+  disconnectFromControlServer
 });
 electron.contextBridge.exposeInMainWorld("screenAPI", {
   isElectron: true,

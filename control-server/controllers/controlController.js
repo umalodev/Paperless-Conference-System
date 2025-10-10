@@ -4,29 +4,115 @@
  */
 
 // ========================== GET PARTICIPANTS ==========================
+// controllers/controlController.js
 exports.getParticipants = (req, res) => {
-  const list = Object.values(global.participants || {});
-  return res.json({
-    success: true,
-    total: list.length,
-    participants: list,
-  });
+  try {
+    // Ambil semua peserta dari global
+    const all = Object.values(global.participants || {});
+
+    // Ambil daftar ID socket yang masih aktif
+    const activeSocketIds = new Set(global.io ? [...global.io.sockets.sockets.keys()] : []);
+
+    // Filter hanya yang masih aktif
+    let list = all.filter((p) => activeSocketIds.has(p.id));
+
+    // ===============================
+    // 🔢 Urutkan berdasarkan prioritas role
+    // ===============================
+    const rolePriority = {
+      host: 1,
+      participant: 2,
+      assist: 3,
+      admin: 4, // opsional, jika ada
+      device: 5,
+      other: 99,
+    };
+
+    list.sort((a, b) => {
+      const roleA = (a.account?.role || "other").toLowerCase();
+      const roleB = (b.account?.role || "other").toLowerCase();
+      const priorityA = rolePriority[roleA] || 99;
+      const priorityB = rolePriority[roleB] || 99;
+
+      // Jika role sama → urutkan berdasarkan hostname
+      if (priorityA === priorityB) {
+        return (a.hostname || "").localeCompare(b.hostname || "");
+      }
+
+      return priorityA - priorityB;
+    });
+
+    // ===============================
+    // ✅ Kirim respons
+    // ===============================
+    return res.json({
+      success: true,
+      total: list.length,
+      participants: list,
+    });
+  } catch (err) {
+    console.error("❌ Error getParticipants:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error when fetching participants",
+    });
+  }
 };
 
 // ========================== SEND COMMAND ==========================
 /**
- * Send command to target participant
+ * Send command to target participant (or broadcast to all)
  * @route POST /api/control/command/:action
- * @body { "targetId": "<socketId>" }
+ * @body { "targetId": "<socketId>" | "all" }
  */
 exports.sendCommand = (req, res) => {
   const { action } = req.params;
   const { targetId } = req.body;
 
-  if (!targetId || !global.io) {
+  if (!global.io) {
+    return res.status(500).json({
+      success: false,
+      message: "Socket.IO not initialized",
+    });
+  }
+
+  // =========================================================
+  // ✅ HANDLE COMMAND ALL
+  // =========================================================
+  if (targetId === "all") {
+    const participants = Object.values(global.participants || {});
+    const targets = participants.filter((p) =>
+      ["participant", "assist"].includes(p?.account?.role)
+    );
+
+    if (targets.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No participant/assist devices connected",
+      });
+    }
+
+    for (const p of targets) {
+      const socket = global.io.sockets.sockets.get(p.id);
+      if (socket) {
+        socket.emit("command", action);
+        console.log(`📢 Broadcast '${action}' → ${p.hostname} (${p.account?.role})`);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Command '${action}' sent to all (${targets.length}) participants`,
+    });
+  }
+
+  // =========================================================
+  // ✅ HANDLE COMMAND SINGLE
+  // =========================================================
+  if (!targetId) {
     return res.status(400).json({
       success: false,
-      message: "Target ID missing or Socket.IO not initialized",
+      message: "Target ID missing",
     });
   }
 
@@ -39,7 +125,7 @@ exports.sendCommand = (req, res) => {
   }
 
   socket.emit("command", action);
-  console.log(`⚙️ Sent command '${action}' to ${targetId}`);
+  console.log(`⚙️ Sent command '${action}' → ${targetId}`);
 
   return res.json({
     success: true,

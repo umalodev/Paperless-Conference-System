@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow, session, globalShortcut, Menu } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -187,7 +187,6 @@ ipcMain.handle("capture-screen", async () => {
 // 🧊 Lock Overlay Handler
 // =========================================================
 ipcMain.on("show-lock-overlay", () => {
-  // Jangan buat ulang jika sudah ada
   if (lockWindows.length > 0) return;
 
   const displays = screen.getAllDisplays();
@@ -202,59 +201,86 @@ ipcMain.on("show-lock-overlay", () => {
       height,
       frame: false,
       fullscreen: true,
-      kiosk: true, // mode terkunci — tidak bisa di-Alt+Tab
+      kiosk: true,
       transparent: false,
       alwaysOnTop: true,
       movable: false,
       resizable: false,
       skipTaskbar: true,
       backgroundColor: "#000000",
-      webPreferences: {
-        contextIsolation: true,
-      },
+      webPreferences: { contextIsolation: true },
     });
 
-    // Tampilkan halaman overlay sederhana
-    win.loadURL(
-      `data:text/html;charset=utf-8,` +
-      encodeURIComponent(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Locked</title>
-            <style>
-              body {
-                margin: 0;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                background: #000;
-                color: #fff;
-                font-family: sans-serif;
-              }
-              h1 { font-size: 32px; margin: 12px 0; }
-              p { opacity: 0.7; }
-              .icon { font-size: 80px; }
-              @keyframes blink {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.3; }
-              }
-              .blink { animation: blink 2s infinite; }
-            </style>
-          </head>
-          <body>
-            <h1>Device Locked by Administrator</h1>
-            <p>Please wait until admin unlocks your screen.</p>
-          </body>
-        </html>
-      `)
-    );
+    // 💅 Modern Lock Screen HTML
+    const lockHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Device Locked</title>
+          <style>
+            html, body {
+              margin: 0;
+              height: 100%;
+              width: 100%;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              background: radial-gradient(circle at center, #101010 0%, #000000 100%);
+              font-family: "Poppins", "Segoe UI", sans-serif;
+              color: #ffffff;
+              user-select: none;
+              overflow: hidden;
+              cursor: none;
+            }
+
+            .lock-icon {
+              font-size: 90px;
+              color: #ff4444;
+              text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+              animation: pulse 2s infinite;
+            }
+
+            h1 {
+              font-size: 2.2rem;
+              margin: 15px 0 10px;
+              letter-spacing: 0.5px;
+            }
+
+            p {
+              font-size: 1rem;
+              color: #bbbbbb;
+              opacity: 0.8;
+            }
+
+            .footer {
+              position: absolute;
+              bottom: 40px;
+              font-size: 0.9rem;
+              color: #666;
+              opacity: 0.6;
+            }
+
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.1); opacity: 0.8; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="lock-icon">🔒</div>
+          <h1>Device Locked</h1>
+          <p>Please wait until your administrator unlocks this computer.</p>
+          <div class="footer">© ${new Date().getFullYear()} EduSnap Secure Mode</div>
+        </body>
+      </html>
+    `;
+
+    win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(lockHtml)}`);
     win.setAlwaysOnTop(true, "screen-saver");
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    win.fullScreen = true;
-
-    console.log(`🖥️ Lock overlay created on display ${idx + 1}`);
+    console.log(`✅ Lock overlay created on display ${idx + 1}`);
     return win;
   });
 });
@@ -273,3 +299,42 @@ ipcMain.on("hide-lock-overlay", () => {
 
 
 app.whenReady().then(createWindow);
+
+/* gunakan ketika production untuk menghilagngkan browser window */
+
+/* 
+app.whenReady().then(() => {
+  createWindow();
+
+  // 🧱 Disable default menu (hilangkan menu bar & context reload)
+  Menu.setApplicationMenu(null);
+
+  // 🛡️ Register global shortcuts yang diblokir
+  const shortcutsToBlock = [
+    "CommandOrControl+R",   // Refresh
+    "F5",                   // Refresh key
+    "CommandOrControl+Shift+R", // Hard reload
+    "CommandOrControl+Alt+I",   // DevTools
+    "CommandOrControl+Shift+I"  // DevTools (variasi)
+  ];
+
+  shortcutsToBlock.forEach((sc) => {
+    const success = globalShortcut.register(sc, () => {
+      console.log(`🚫 Blocked shortcut: ${sc}`);
+    });
+    if (!success) console.warn(`⚠️ Failed to block ${sc}`);
+  });
+
+  app.on("browser-window-focus", () => {
+    shortcutsToBlock.forEach((sc) => {
+      if (!globalShortcut.isRegistered(sc)) {
+        globalShortcut.register(sc, () => console.log(`🚫 Blocked shortcut: ${sc}`));
+      }
+    });
+  });
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
+ */

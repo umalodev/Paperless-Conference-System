@@ -8,6 +8,6 @@ router.get("/participants", controller.getParticipants);
 // Kirim perintah ke participant tertentu
 router.post("/command/:action", controller.sendCommand);
 
-router.post("/sync-participant", controller.registerParticipant);
-
+/* router.post("/sync-participant", controller.registerParticipant);
+ */
 module.exports = router;
