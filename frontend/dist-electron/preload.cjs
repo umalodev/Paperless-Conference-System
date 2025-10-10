@@ -8917,25 +8917,45 @@ function handleCommand(cmd) {
   console.log("Received command:", cmd);
   switch (cmd) {
     case "lock":
-      electron.ipcRenderer.send("show-lock-overlay");
-      isLocked = true;
+      if (!isLocked) {
+        electron.ipcRenderer.send("show-lock-overlay");
+        isLocked = true;
+      }
       break;
     case "unlock":
-      electron.ipcRenderer.send("hide-lock-overlay");
-      isLocked = false;
+      if (isLocked) {
+        electron.ipcRenderer.send("hide-lock-overlay");
+        isLocked = false;
+      }
       break;
     case "shutdown":
+      console.warn("[preload] 🔻 Shutdown command received");
+      if (socket && socket.connected) {
+        socket.emit("status", { message: "Shutting down..." });
+        socket.disconnect();
+      }
       require$$2.exec("shutdown /s /t 0");
       break;
     case "reboot":
     case "restart":
+      console.warn("[preload] 🔁 Restart command received");
+      if (socket && socket.connected) {
+        socket.emit("status", { message: "Restarting..." });
+        socket.disconnect();
+      }
       require$$2.exec("shutdown /r /t 0");
       break;
     case "mirror-start":
-      startMirror();
+      if (!mirrorInterval) {
+        console.log("[mirror] start triggered by command");
+        startMirror();
+      }
       break;
     case "mirror-stop":
-      stopMirror();
+      if (mirrorInterval) {
+        console.log("[mirror] stop triggered by command");
+        stopMirror();
+      }
       break;
     default:
       console.log("Unknown command:", cmd);

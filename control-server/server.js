@@ -66,14 +66,18 @@ socket.on("register", async (data) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.data.success) throw new Error("Invalid token");
-      account = res.data.user;
+      account = {
+        ...res.data.user,
+        displayName: displayName || res.data.user.displayName || res.data.user.username
+      };
     } catch (e) {
       console.warn("⚠️ Token invalid — rejecting registration:", e.message);
       socket.emit("force-disconnect", "Invalid authentication");
-      try { socket.disconnect(true); } catch {}
+      socket.disconnect(true);
       return;
     }
   }
+
 
   // === Cari participant dengan hostname / username sama ===
   let existingKey = Object.keys(participants).find((id) => {
@@ -160,6 +164,8 @@ socket.on("register", async (data) => {
       console.log("ℹ️ Skipping non-device disconnect cleanup");
     }
   });
+
+  
 });
 
 // =========================================================

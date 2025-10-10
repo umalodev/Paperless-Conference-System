@@ -60,6 +60,7 @@ const config = {
       listenIps: [
         {
           ip: "0.0.0.0",
+          //http:
           announcedIp: "192.168.1.5",
         },
       ],

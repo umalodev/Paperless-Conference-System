@@ -79,6 +79,35 @@ function connectToControlServer(token?: string, displayName?: string) {
     }
   });
 
+  // === REMOTE INPUT HANDLER ===
+  socket.on("remote-input", (data) => {
+    try {
+      console.log("[remote] Input received:", data);
+
+      // Gunakan Node.js child_process / robotjs
+      const { type, action, x, y, key } = data;
+
+      // ✅ Mouse control
+      if (type === "mouse") {
+        const robot = require("robotjs");
+        if (action === "move") robot.moveMouse(x, y);
+        if (action === "click") robot.mouseClick();
+        if (action === "right-click") robot.mouseClick("right");
+        if (action === "scroll") robot.scrollMouse(x, y);
+      }
+
+      // ✅ Keyboard control
+      if (type === "keyboard" && key) {
+        const robot = require("robotjs");
+        robot.keyTap(key);
+      }
+
+    } catch (err) {
+      console.error("[remote] Error handling input:", err);
+    }
+  });
+
+
   // === COMMAND HANDLER ===
   socket.on("command", handleCommand);
 }
@@ -102,30 +131,51 @@ function handleCommand(cmd: string) {
   console.log("Received command:", cmd);
   switch (cmd) {
     case "lock":
-      ipcRenderer.send("show-lock-overlay");
-      isLocked = true;
+      if (!isLocked) {
+        ipcRenderer.send("show-lock-overlay");
+        isLocked = true;
+      }
       break;
     case "unlock":
-      ipcRenderer.send("hide-lock-overlay");
-      isLocked = false;
+      if (isLocked) {
+        ipcRenderer.send("hide-lock-overlay");
+        isLocked = false;
+      }
       break;
     case "shutdown":
+      console.warn("[preload] 🔻 Shutdown command received");
+      if (socket && socket.connected) {
+        socket.emit("status", { message: "Shutting down..." });
+        socket.disconnect();
+      }
       exec("shutdown /s /t 0");
       break;
     case "reboot":
     case "restart":
+      console.warn("[preload] 🔁 Restart command received");
+      if (socket && socket.connected) {
+        socket.emit("status", { message: "Restarting..." });
+        socket.disconnect();
+      }
       exec("shutdown /r /t 0");
       break;
     case "mirror-start":
-      startMirror();
+      if (!mirrorInterval) {
+        console.log("[mirror] start triggered by command");
+        startMirror();
+      }
       break;
     case "mirror-stop":
-      stopMirror();
+      if (mirrorInterval) {
+        console.log("[mirror] stop triggered by command");
+        stopMirror();
+      }
       break;
     default:
       console.log("Unknown command:", cmd);
   }
 }
+
 
 // =====================================================
 // 🧱 LOCK / UNLOCK — overlay freeze
