@@ -12,14 +12,24 @@ if (!fs.existsSync(uploadsDir)) {
 // Configure storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Create meeting-specific folder - get meetingId from params since route is /upload/:meetingId
-    const meetingId = req.params.meetingId || req.body.meetingId || "temp";
-    const meetingDir = path.join(uploadsDir, meetingId.toString());
-
-    if (!fs.existsSync(meetingDir)) {
-      fs.mkdirSync(meetingDir, { recursive: true });
+    // Ekstrak meetingId dari URL jika belum ada di params
+    let meetingId = req.params?.meetingId || req.body?.meetingId;
+    if (!meetingId) {
+      const match = req.url.match(/\/meeting\/(\d+)\/upload/);
+      if (match) meetingId = match[1];
     }
+    if (!meetingId) meetingId = "temp";
 
+    const meetingDir = path.join(uploadsDir, meetingId.toString());
+    fs.mkdirSync(meetingDir, { recursive: true });
+    console.log(
+      "[multer] dest -> meetingId:",
+      meetingId,
+      "dir:",
+      meetingDir,
+      "url:",
+      req.originalUrl || req.url
+    );
     cb(null, meetingDir);
   },
   filename: function (req, file, cb) {

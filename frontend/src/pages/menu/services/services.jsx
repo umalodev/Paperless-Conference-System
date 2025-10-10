@@ -13,6 +13,7 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import "./services.css";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 
 export default function Services() {
   const [user, setUser] = useState(null);
@@ -21,6 +22,7 @@ export default function Services() {
   const [errMenus, setErrMenus] = useState("");
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
+  const { notify } = useModal();
 
   // Services state
   const [selectedService, setSelectedService] = useState(null);
@@ -85,6 +87,30 @@ export default function Services() {
     startCam,
     stopCam,
   } = useMediaRoom();
+
+  const showSuccess = useCallback(
+    (msg, opts = {}) => {
+      notify({
+        variant: "success",
+        title: "Request terkirim",
+        message: msg || "Permintaan Anda berhasil dikirim.",
+        autoCloseMs: opts.autoCloseMs ?? 3000,
+      });
+    },
+    [notify]
+  );
+
+  const showError = useCallback(
+    (msg, opts = {}) => {
+      notify({
+        variant: "error",
+        title: "Gagal mengirim",
+        message: msg || "Terjadi kesalahan saat mengirim permintaan.",
+        autoCloseMs: opts.autoCloseMs ?? 5000,
+      });
+    },
+    [notify]
+  );
 
   const onToggleMic = useCallback(() => {
     if (!mediaReady) return;
@@ -221,13 +247,13 @@ export default function Services() {
 
     const meetingId = resolveMeetingId();
     if (!meetingId) {
-      alert("Meeting belum aktif/terpilih.");
+      showError("Meeting belum aktif/terpilih.");
       return;
     }
 
     const displayName = (getMeetingDisplayName() || "").trim();
     if (!displayName) {
-      alert("Nama peminta (name) kosong. Mohon set display name Anda.");
+      showError("Nama peminta kosong. Mohon set display name Anda.");
       return;
     }
 
@@ -267,12 +293,11 @@ export default function Services() {
       setNote("");
       setSelectedService(null);
       await loadRequests();
-      
+
       // Show success notification
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3000);
+      showSuccess(`"${body.serviceLabel}" dengan prioritas ${body.priority}.`);
     } catch (e) {
-      alert(`Failed to send request: ${e.message || e}`);
+      showError(`Failed to send request: ${e.message || e}`);
       console.error("POST /api/services failed. Payload:", body);
     }
   };
@@ -289,7 +314,7 @@ export default function Services() {
       await res.json();
       await loadRequests();
     } catch (e) {
-      alert(`Assign failed: ${String(e.message || e)}`);
+      showError(`Assign gagal: ${String(e.message || e)}`);
     } finally {
       setBusyId(null);
     }
@@ -392,13 +417,6 @@ export default function Services() {
         }
       })()}
     >
-      {showNotification && (
-        <div className="notification-popup">
-          <div className="notification-content">
-            <span>Successfully sent</span>
-          </div>
-        </div>
-      )}
       <div className="pd-app">
         <header className="pd-topbar">
           <div className="pd-left">
