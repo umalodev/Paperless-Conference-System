@@ -2,6 +2,7 @@ import React from "react";
 import styles from "./Start.module.css";
 import { useNavigate } from "react-router-dom";
 import meetingService from "../../services/meetingService.js";
+import { API_URL, CONTROL_URL, MEDIA_URL } from "../../config.js";
 
 export default function Start() {
   const [user, setUser] = React.useState(null);
@@ -114,14 +115,16 @@ export default function Start() {
       // Simpan displayName ke localStorage
       localStorage.setItem("pconf.displayName", username || "");
       localStorage.setItem("pconf.useAccountName", useAccountName ? "1" : "0");
+      // Setelah localStorage diset dan sebelum navigate()
+      try {
+        const token = localStorage.getItem("token");
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
 
-      // === Ambil token & user info
-      const token = localStorage.getItem("token");
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        if (!token || !userData?.username) {
+          console.warn("⚠️ Missing token or user data — skip syncParticipant");
+          return;
+        }
 
-      if (!token || !userData?.username) {
-        console.warn("⚠️ Missing token or user data — skip ControlServer registration");
-      } else {
         // Ambil info PC dari preload Electron
         let pcInfo = { hostname: "Browser-Client", os: navigator.platform };
         if (window.electronAPI?.getPCInfo) {

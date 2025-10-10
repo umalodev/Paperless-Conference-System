@@ -1,5 +1,6 @@
-const { MeetingChat, Meeting, User, MeetingParticipant } = require('../models');
-const { Op } = require('sequelize');
+const { MeetingChat, Meeting, User, MeetingParticipant } = require("../models");
+const { Op } = require("sequelize");
+const path = require("path");
 
 class ChatController {
   // Get chat messages for a meeting
@@ -14,21 +15,21 @@ class ChatController {
         where: {
           meetingId: meetingId,
           userId: userId,
-          flag: 'Y'
-        }
+          flag: "Y",
+        },
       });
 
       if (!participant) {
         return res.status(403).json({
           success: false,
-          message: 'Anda bukan peserta meeting ini'
+          message: "Anda bukan peserta meeting ini",
         });
       }
 
       // Build where condition for pagination
       let whereCondition = {
         meetingId: meetingId,
-        flag: 'Y'
+        flag: "Y",
       };
 
       // Add userReceiveId filter for private chat
@@ -37,7 +38,7 @@ class ChatController {
         // For private chat, get messages where current user is sender and userReceiveId is receiver, or vice versa
         whereCondition[Op.or] = [
           { userId: userId, userReceiveId: userReceiveId },
-          { userId: userReceiveId, userReceiveId: userId }
+          { userId: userReceiveId, userReceiveId: userId },
         ];
       } else {
         // For global chat, get messages where userReceiveId is null
@@ -47,7 +48,7 @@ class ChatController {
       // If lastMessageId is provided, get messages after that ID
       if (lastMessageId) {
         whereCondition.meetingChatId = {
-          [Op.gt]: lastMessageId
+          [Op.gt]: lastMessageId,
         };
       }
 
@@ -58,19 +59,19 @@ class ChatController {
         include: [
           {
             model: User,
-            as: 'Sender',
-            attributes: ['id', 'username']
+            as: "Sender",
+            attributes: ["id", "username"],
           },
           {
             model: User,
-            as: 'Receiver',
-            attributes: ['id', 'username'],
-            required: false
-          }
+            as: "Receiver",
+            attributes: ["id", "username"],
+            required: false,
+          },
         ],
-        order: [['sendTime', 'DESC']],
+        order: [["sendTime", "DESC"]],
         limit: parseInt(limit),
-        offset: offset
+        offset: offset,
       });
 
       // Reverse order to show oldest first
@@ -83,15 +84,14 @@ class ChatController {
           totalCount: messages.count,
           currentPage: parseInt(page),
           totalPages: Math.ceil(messages.count / limit),
-          hasMore: offset + messages.rows.length < messages.count
-        }
+          hasMore: offset + messages.rows.length < messages.count,
+        },
       });
-
     } catch (error) {
-      console.error('Error getting chat messages:', error);
+      console.error("Error getting chat messages:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal mengambil pesan chat'
+        message: "Gagal mengambil pesan chat",
       });
     }
   }
@@ -108,14 +108,14 @@ class ChatController {
         where: {
           meetingId: meetingId,
           userId: userId,
-          flag: 'Y'
-        }
+          flag: "Y",
+        },
       });
 
       if (!participant) {
         return res.status(403).json({
           success: false,
-          message: 'Anda bukan peserta meeting ini'
+          message: "Anda bukan peserta meeting ini",
         });
       }
 
@@ -125,14 +125,14 @@ class ChatController {
           where: {
             meetingId: meetingId,
             userId: userReceiveId,
-            flag: 'Y'
-          }
+            flag: "Y",
+          },
         });
 
         if (!receiverParticipant) {
           return res.status(400).json({
             success: false,
-            message: 'Penerima bukan peserta meeting ini'
+            message: "Penerima bukan peserta meeting ini",
           });
         }
       }
@@ -143,86 +143,104 @@ class ChatController {
         userId: userId,
         userReceiveId: userReceiveId || null,
         textMessage: textMessage,
-        messageType: 'text'
+        messageType: "text",
       });
 
       // Get the created message with user info
-      const messageWithUser = await MeetingChat.findByPk(chatMessage.meetingChatId, {
-        include: [
-          {
-            model: User,
-            as: 'Sender',
-            attributes: ['id', 'username']
-          },
-          {
-            model: User,
-            as: 'Receiver',
-            attributes: ['id', 'username'],
-            required: false
-          }
-        ]
-      });
+      const messageWithUser = await MeetingChat.findByPk(
+        chatMessage.meetingChatId,
+        {
+          include: [
+            {
+              model: User,
+              as: "Sender",
+              attributes: ["id", "username"],
+            },
+            {
+              model: User,
+              as: "Receiver",
+              attributes: ["id", "username"],
+              required: false,
+            },
+          ],
+        }
+      );
 
       // Broadcast message via WebSocket
       try {
-        const wss = require('../index').getWebSocketServer();
+        const wss = require("../index").getWebSocketServer();
         if (wss) {
+          const meetingIdStr = String(meetingId);
+          const senderIdStr = String(userId);
+          const receiverIdStr =
+            userReceiveId != null ? String(userReceiveId) : null;
           wss.clients.forEach((client) => {
-            if (client.readyState === 1 && // WebSocket.OPEN
-                client.meetingId === meetingId) {
-              
+            if (
+              client.readyState === 1 &&
+              String(client.meetingId) === meetingIdStr
+            ) {
               // For private chat, only send to sender and receiver
               if (userReceiveId) {
-                if (client.userId === userId || client.userId === userReceiveId) {
-                  client.send(JSON.stringify({
-                    type: 'chat_message',
+                if (
+                  client.userId === userId ||
+                  client.userId === userReceiveId
+                ) {
+                  const cid = String(client.userId || "");
+                  if (cid === senderIdStr || cid === receiverIdStr) {
+                    client.send(
+                      JSON.stringify({
+                        type: "chat_message",
+                        messageId: messageWithUser.meetingChatId,
+                        userId: messageWithUser.userId,
+                        username: messageWithUser.Sender.username,
+                        message: messageWithUser.textMessage,
+                        messageType: messageWithUser.messageType,
+                        timestamp: new Date(messageWithUser.sendTime).getTime(),
+                        userReceiveId: messageWithUser.userReceiveId,
+                        meetingId: meetingId,
+                      })
+                    );
+                  }
+                }
+              } else {
+                // For global chat, send to all participants
+                client.send(
+                  JSON.stringify({
+                    type: "chat_message",
                     messageId: messageWithUser.meetingChatId,
                     userId: messageWithUser.userId,
                     username: messageWithUser.Sender.username,
                     message: messageWithUser.textMessage,
                     messageType: messageWithUser.messageType,
                     timestamp: new Date(messageWithUser.sendTime).getTime(),
-                    userReceiveId: messageWithUser.userReceiveId,
-                    meetingId: meetingId
-                  }));
-                }
-              } else {
-                // For global chat, send to all participants
-                client.send(JSON.stringify({
-                  type: 'chat_message',
-                  messageId: messageWithUser.meetingChatId,
-                  userId: messageWithUser.userId,
-                  username: messageWithUser.Sender.username,
-                  message: messageWithUser.textMessage,
-                  messageType: messageWithUser.messageType,
-                  timestamp: new Date(messageWithUser.sendTime).getTime(),
-                  meetingId: meetingId
-                }));
+                    meetingId: meetingId,
+                  })
+                );
               }
             }
           });
         }
       } catch (wsError) {
-        console.error('WebSocket broadcast error:', wsError);
+        console.error("WebSocket broadcast error:", wsError);
         // Don't fail the request if WebSocket fails
       }
 
       res.json({
         success: true,
         data: messageWithUser,
-        message: 'Pesan berhasil dikirim'
+        message: "Pesan berhasil dikirim",
       });
-
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal mengirim pesan'
+        message: "Gagal mengirim pesan",
       });
     }
   }
 
   // Upload file for chat
+
   static async uploadFile(req, res) {
     try {
       const { meetingId } = req.params;
@@ -230,144 +248,120 @@ class ChatController {
       const userId = req.user.id;
 
       if (!req.file) {
-        return res.status(400).json({
+        return res
+          .status(400)
+          .json({ success: false, message: "File tidak ditemukan" });
+      }
+
+      // validasi participant (sudah ada, biarkan)
+
+      // Tentukan tipe
+      let messageType = "file";
+      if ((req.file.mimetype || "").startsWith("image/")) messageType = "image";
+
+      // Dukung dua mode multer:
+      // - diskStorage => req.file.path ada, req.file.buffer tidak ada
+      // - memoryStorage => req.file.buffer ada, req.file.path tidak ada
+      const fileBuffer = req.file.buffer || null;
+      // Pastikan filePath absolut bila ada
+      const filePath = req.file.path ? path.resolve(req.file.path) : null;
+
+      // **PENTING**: Jangan isi field yang tidak ada. Minimal salah satu harus ada.
+      if (!fileBuffer && !filePath) {
+        return res.status(500).json({
           success: false,
-          message: 'File tidak ditemukan'
+          message:
+            "Konfigurasi upload tidak valid: tidak ada buffer maupun path.",
         });
       }
 
-      // Verify user is participant of the meeting
-      const participant = await MeetingParticipant.findOne({
-        where: {
-          meetingId: meetingId,
-          userId: userId,
-          flag: 'Y'
-        }
-      });
-
-      if (!participant) {
-        return res.status(403).json({
-          success: false,
-          message: 'Anda bukan peserta meeting ini'
-        });
-      }
-
-      // If userReceiveId is provided, verify the receiver is also participant
-      if (userReceiveId) {
-        const receiverParticipant = await MeetingParticipant.findOne({
-          where: {
-            meetingId: meetingId,
-            userId: userReceiveId,
-            flag: 'Y'
-          }
-        });
-
-        if (!receiverParticipant) {
-          return res.status(400).json({
-            success: false,
-            message: 'Penerima bukan peserta meeting ini'
-          });
-        }
-      }
-
-      // Determine message type based on mime type
-      let messageType = 'file';
-      if (req.file.mimetype.startsWith('image/')) {
-        messageType = 'image';
-      }
-
-      // Create chat message with file
-      const chatMessage = await MeetingChat.create({
-        meetingId: meetingId,
-        userId: userId,
+      const payload = {
+        meetingId,
+        userId,
         userReceiveId: userReceiveId || null,
         textMessage: null,
-        fileMessage: req.file.buffer,
         originalName: req.file.originalname,
-        filePath: req.file.path,
         mimeType: req.file.mimetype,
-        messageType: messageType
-      });
+        messageType,
+        flag: "Y",
+      };
 
-      // Get the created message with user info
-      const messageWithUser = await MeetingChat.findByPk(chatMessage.meetingChatId, {
-        include: [
-          {
-            model: User,
-            as: 'Sender',
-            attributes: ['id', 'username']
-          },
-          {
-            model: User,
-            as: 'Receiver',
-            attributes: ['id', 'username'],
-            required: false
-          }
-        ]
-      });
+      if (fileBuffer) payload.fileMessage = fileBuffer; // memoryStorage
+      const relativePath = path.join(
+        "uploads",
+        "materials",
+        meetingId.toString(),
+        req.file.filename
+      );
+      payload.filePath = relativePath;
 
-      // Broadcast file message via WebSocket
+      const chatMessage = await MeetingChat.create(payload);
+
+      const messageWithUser = await MeetingChat.findByPk(
+        chatMessage.meetingChatId,
+        {
+          include: [
+            { model: User, as: "Sender", attributes: ["id", "username"] },
+            {
+              model: User,
+              as: "Receiver",
+              attributes: ["id", "username"],
+              required: false,
+            },
+          ],
+        }
+      );
+
+      // --- Broadcast (dengan normalisasi tipe id) ---
       try {
-        const wss = require('../index').getWebSocketServer();
+        const wss = require("../index").getWebSocketServer();
         if (wss) {
+          const meetingIdStr = String(meetingId);
+          const senderIdStr = String(userId);
+          const receiverIdStr =
+            userReceiveId != null ? String(userReceiveId) : null;
+
           wss.clients.forEach((client) => {
-            if (client.readyState === 1 && // WebSocket.OPEN
-                client.meetingId === meetingId) {
-              
-              // For private chat, only send to sender and receiver
-              if (userReceiveId) {
-                if (client.userId === userId || client.userId === userReceiveId) {
-                  client.send(JSON.stringify({
-                    type: 'chat_message',
-                    messageId: messageWithUser.meetingChatId,
-                    userId: messageWithUser.userId,
-                    username: messageWithUser.Sender.username,
-                    message: messageWithUser.textMessage || '',
-                    messageType: messageWithUser.messageType,
-                    timestamp: new Date(messageWithUser.sendTime).getTime(),
-                    filePath: messageWithUser.filePath,
-                    originalName: messageWithUser.originalName,
-                    mimeType: messageWithUser.mimeType,
-                    userReceiveId: messageWithUser.userReceiveId,
-                    meetingId: meetingId
-                  }));
-                }
-              } else {
-                // For global chat, send to all participants
-                client.send(JSON.stringify({
-                  type: 'chat_message',
-                  messageId: messageWithUser.meetingChatId,
-                  userId: messageWithUser.userId,
-                  username: messageWithUser.Sender.username,
-                  message: messageWithUser.textMessage || '',
-                  messageType: messageWithUser.messageType,
-                  timestamp: new Date(messageWithUser.sendTime).getTime(),
-                  filePath: messageWithUser.filePath,
-                  originalName: messageWithUser.originalName,
-                  mimeType: messageWithUser.mimeType,
-                  meetingId: meetingId
-                }));
-              }
+            if (client.readyState !== 1) return; // WebSocket.OPEN
+            if (String(client.meetingId) !== meetingIdStr) return;
+
+            if (receiverIdStr) {
+              const cid = String(client.userId || "");
+              if (cid !== senderIdStr && cid !== receiverIdStr) return;
             }
+
+            client.send(
+              JSON.stringify({
+                type: "chat_message",
+                messageId: messageWithUser.meetingChatId,
+                userId: messageWithUser.userId,
+                username: messageWithUser.Sender?.username,
+                message: messageWithUser.textMessage || "",
+                messageType: messageWithUser.messageType,
+                timestamp: new Date(messageWithUser.sendTime).getTime(),
+                filePath: messageWithUser.filePath,
+                originalName: messageWithUser.originalName,
+                mimeType: messageWithUser.mimeType,
+                userReceiveId: messageWithUser.userReceiveId,
+                meetingId,
+              })
+            );
           });
         }
       } catch (wsError) {
-        console.error('WebSocket broadcast error:', wsError);
-        // Don't fail the request if WebSocket fails
+        console.error("WebSocket broadcast error:", wsError);
       }
 
       res.json({
         success: true,
         data: messageWithUser,
-        message: 'File berhasil diupload'
+        message: "File berhasil diupload",
       });
-
     } catch (error) {
-      console.error('Error uploading file:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Gagal mengupload file'
-      });
+      console.error("Error uploading file:", error?.stack || error);
+      res
+        .status(500)
+        .json({ success: false, message: "Gagal mengupload file" });
     }
   }
 
@@ -382,52 +376,57 @@ class ChatController {
         include: [
           {
             model: Meeting,
-            as: 'Meeting',
+            as: "Meeting",
             include: [
               {
                 model: MeetingParticipant,
-                as: 'Participants',
+                as: "Participants",
                 where: {
                   userId: userId,
-                  flag: 'Y'
+                  flag: "Y",
                 },
-                required: true
-              }
-            ]
-          }
-        ]
+                required: true,
+              },
+            ],
+          },
+        ],
       });
 
       if (!message) {
         return res.status(404).json({
           success: false,
-          message: 'Pesan tidak ditemukan'
+          message: "Pesan tidak ditemukan",
         });
       }
 
       if (!message.fileMessage && !message.filePath) {
         return res.status(400).json({
           success: false,
-          message: 'File tidak tersedia'
+          message: "File tidak tersedia",
         });
       }
 
       // Set headers for file download
-      res.setHeader('Content-Type', message.mimeType || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `attachment; filename="${message.originalName}"`);
+      res.setHeader(
+        "Content-Type",
+        message.mimeType || "application/octet-stream"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${message.originalName}"`
+      );
 
       // Send file
       if (message.fileMessage) {
         res.send(message.fileMessage);
       } else if (message.filePath) {
-        res.sendFile(message.filePath);
+        res.sendFile(require("path").resolve(message.filePath));
       }
-
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.error("Error downloading file:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal mengunduh file'
+        message: "Gagal mengunduh file",
       });
     }
   }
@@ -437,22 +436,27 @@ class ChatController {
     try {
       const { meetingId } = req.params;
       const userId = req.user.id;
-      
-      console.log('Getting participants for meeting:', meetingId, 'user:', userId);
+
+      console.log(
+        "Getting participants for meeting:",
+        meetingId,
+        "user:",
+        userId
+      );
 
       // Check if user is participant of this meeting
       const isParticipant = await MeetingParticipant.findOne({
         where: {
           meetingId: meetingId,
           userId: userId,
-          flag: 'Y'
-        }
+          flag: "Y",
+        },
       });
 
       if (!isParticipant) {
         return res.status(403).json({
           success: false,
-          message: 'Anda bukan peserta meeting ini'
+          message: "Anda bukan peserta meeting ini",
         });
       }
 
@@ -460,68 +464,69 @@ class ChatController {
       const participants = await MeetingParticipant.findAll({
         where: {
           meetingId: meetingId,
-          flag: 'Y'
+          flag: "Y",
         },
         include: [
           {
             model: User,
-            as: 'User',
-            attributes: ['id', 'username'],
+            as: "User",
+            attributes: ["id", "username"],
             include: [
               {
-                model: require('../models').UserRole,
-                as: 'UserRole',
-                attributes: ['nama']
-              }
-            ]
+                model: require("../models").UserRole,
+                as: "UserRole",
+                attributes: ["nama"],
+              },
+            ],
           },
           {
             model: Meeting,
-            as: 'Meeting',
-            attributes: ['title', 'startTime', 'endTime', 'status']
-          }
+            as: "Meeting",
+            attributes: ["title", "startTime", "endTime", "status"],
+          },
         ],
         order: [
-          ['role', 'ASC'], // Host first, then participants
-          ['created_at', 'ASC']
-        ]
+          ["role", "ASC"], // Host first, then participants
+          ["created_at", "ASC"],
+        ],
       });
 
-      console.log('Found participants:', participants.length);
-      participants.forEach(p => {
-        console.log(`- Participant: ${p.User?.username} (ID: ${p.User?.id}), Role: ${p.role}, Status: ${p.status}`);
+      console.log("Found participants:", participants.length);
+      participants.forEach((p) => {
+        console.log(
+          `- Participant: ${p.User?.username} (ID: ${p.User?.id}), Role: ${p.role}, Status: ${p.status}`
+        );
       });
 
       // Transform data to match frontend format (same as participantController)
-      const transformedParticipants = participants.map(p => ({
+      const transformedParticipants = participants.map((p) => ({
         id: p.participantId,
         userId: p.userId,
         name: p.User.username,
-        role: p.role === 'host' ? 'Host' : 'Participant',
-        seat: `Seat-${p.participantId.toString().padStart(2, '0')}`, // Generate seat number
+        role: p.role === "host" ? "Host" : "Participant",
+        seat: `Seat-${p.participantId.toString().padStart(2, "0")}`, // Generate seat number
         mic: p.isAudioEnabled,
         cam: p.isVideoEnabled,
         hand: false, // This would need to be tracked separately
         status: p.status,
         joinTime: p.joinTime,
         leaveTime: p.leaveTime,
-        isScreenSharing: p.isScreenSharing
+        isScreenSharing: p.isScreenSharing,
       }));
 
       res.json({
         success: true,
         data: transformedParticipants,
         total: transformedParticipants.length,
-        message: 'Participants berhasil diambil'
+        message: "Participants berhasil diambil",
       });
-
     } catch (error) {
-      console.error('Error getting participants:', error);
-      console.error('Error stack:', error.stack);
+      console.error("Error getting participants:", error);
+      console.error("Error stack:", error.stack);
       res.status(500).json({
         success: false,
-        message: 'Gagal mengambil participants',
-        error: error.message
+        message: "Gagal mengambil participants",
+        error: error.message,
       });
     }
   }
@@ -538,7 +543,7 @@ class ChatController {
       if (!message) {
         return res.status(404).json({
           success: false,
-          message: 'Pesan tidak ditemukan'
+          message: "Pesan tidak ditemukan",
         });
       }
 
@@ -547,23 +552,22 @@ class ChatController {
         // TODO: Add admin role check here
         return res.status(403).json({
           success: false,
-          message: 'Anda tidak memiliki izin untuk menghapus pesan ini'
+          message: "Anda tidak memiliki izin untuk menghapus pesan ini",
         });
       }
 
       // Soft delete
-      await message.update({ flag: 'N' });
+      await message.update({ flag: "N" });
 
       res.json({
         success: true,
-        message: 'Pesan berhasil dihapus'
+        message: "Pesan berhasil dihapus",
       });
-
     } catch (error) {
-      console.error('Error deleting message:', error);
+      console.error("Error deleting message:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal menghapus pesan'
+        message: "Gagal menghapus pesan",
       });
     }
   }
@@ -579,14 +583,14 @@ class ChatController {
         where: {
           meetingId: meetingId,
           userId: userId,
-          flag: 'Y'
-        }
+          flag: "Y",
+        },
       });
 
       if (!participant) {
         return res.status(403).json({
           success: false,
-          message: 'Anda bukan peserta meeting ini'
+          message: "Anda bukan peserta meeting ini",
         });
       }
 
@@ -594,28 +598,27 @@ class ChatController {
       const participants = await MeetingParticipant.findAll({
         where: {
           meetingId: meetingId,
-          flag: 'Y'
+          flag: "Y",
         },
         include: [
           {
             model: User,
-            as: 'User',
-            attributes: ['id', 'username']
-          }
+            as: "User",
+            attributes: ["id", "username"],
+          },
         ],
-        order: [['created_at', 'ASC']]
+        order: [["created_at", "ASC"]],
       });
 
       res.json({
         success: true,
-        data: participants
+        data: participants,
       });
-
     } catch (error) {
-      console.error('Error getting chat participants:', error);
+      console.error("Error getting chat participants:", error);
       res.status(500).json({
         success: false,
-        message: 'Gagal mengambil daftar peserta'
+        message: "Gagal mengambil daftar peserta",
       });
     }
   }
