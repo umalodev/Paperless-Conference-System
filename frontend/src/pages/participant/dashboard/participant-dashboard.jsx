@@ -62,39 +62,65 @@ export default function ParticipantDashboard() {
   };
 
   // Immediate check meeting status when component mounts
+  // ============================================================
+  // 🔍 Check Meeting Status + Auto Disconnect jika meeting berakhir
+  // ============================================================
   const checkMeetingStatusImmediately = async (meetingId) => {
     try {
       console.log(`Immediate check meeting status for meeting ${meetingId}...`);
       const result = await meetingService.checkMeetingStatus(meetingId);
-
       console.log("Immediate meeting status check result:", result);
 
-      // Jika meeting sudah ended, langsung exit
-      if (result?.data?.status === "ended") {
-        console.log("Meeting already ended, immediate exit...");
+      // ✅ Helper untuk disconnect socket & cleanup
+      const disconnectAndExit = (reasonMsg) => {
+        console.log(`🛑 ${reasonMsg}`);
+
+        // 🔌 Putuskan socket Control Server (jika terhubung)
+        try {
+          if (window.electronAPI?.disconnectFromControlServer) {
+            window.electronAPI.disconnectFromControlServer();
+            console.log("🔌 Disconnected from Control Server (meeting ended)");
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to disconnect socket:", err);
+        }
+
+        // 🧹 Bersihkan storage & arahkan ke start
         localStorage.removeItem("currentMeeting");
-        alert("Meeting telah berakhir. Anda akan dikeluarkan dari meeting.");
+        alert(reasonMsg);
         navigate("/start");
+      };
+
+      // 💀 Meeting sudah berakhir
+      if (result?.data?.status === "ended") {
+        disconnectAndExit("Meeting telah berakhir. Anda akan dikeluarkan dari meeting.");
         return;
       }
 
-      // Jika meeting tidak aktif, juga exit
+      // 🚫 Meeting tidak aktif
       if (!result?.data?.isActive) {
-        console.log("Meeting not active, immediate exit...");
-        localStorage.removeItem("currentMeeting");
-        alert("Meeting tidak aktif. Anda akan dikeluarkan dari meeting.");
-        navigate("/start");
+        disconnectAndExit("Meeting tidak aktif. Anda akan dikeluarkan dari meeting.");
         return;
       }
     } catch (error) {
       console.error("Error in immediate meeting status check:", error);
 
-      // Jika error 404, meeting mungkin sudah dihapus
+      // ❌ Meeting mungkin sudah dihapus (404)
       if (
         error.message.includes("404") ||
         error.message.includes("not found")
       ) {
         console.log("Meeting not found, immediate exit...");
+
+        try {
+          if (window.electronAPI?.disconnectFromControlServer) {
+            window.electronAPI.disconnectFromControlServer();
+            console.log("🔌 Disconnected from Control Server (meeting not found)");
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to disconnect socket:", err);
+        }
+
         localStorage.removeItem("currentMeeting");
         alert("Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.");
         navigate("/start");

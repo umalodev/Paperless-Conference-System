@@ -293,7 +293,7 @@ const executeCommand = async (targetId, action) => {
           <div className="pd-right">
             <button
               className="note-btn ghost"
-              onClick={() => window.location.reload()}
+              onClick={() => fetchParticipants()}
               title="Refresh"
               aria-label="Refresh"
             >

@@ -45,61 +45,63 @@ io.on("connection", (socket) => {
 
   // ================= REGISTER =================
 socket.on("register", async (data) => {
-  const { hostname, user, os, token, displayName, account: clientAccount } = data; // ✅ tambahkan account dari client
-  let account = clientAccount || null; // gunakan langsung dari client
+  const { hostname, user, os, token, displayName, account: clientAccount, role } = data;
+
+  // ✅ skip non-device
+  if (role && role !== "device") {
+    console.log(`ℹ️ Non-device client (${role}) connected: ${hostname || socket.id}`);
+    socket.data.isDevice = false;
+    return;
+  }
+
+  socket.data.isDevice = true;
+  let account = clientAccount || null;
 
   console.log("\n📩 Register data received:", data);
 
-  // ✅ Cari participant dengan hostname atau username sama
-  let existingKey = Object.keys(participants).find((id) => {
-    const p = participants[id];
-    if (!p) return false;
-    return (
-      p.hostname?.toLowerCase() === hostname?.toLowerCase() ||
-      (p.account && p.account.username === user)
-    );
-  });
-
-  // 🔐 Validasi token kalau ada — hanya untuk user asli (bukan sim)
+  // === Token Validation ===
   if (token) {
     try {
       const res = await axios.get(`${BACKEND_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data.success && res.data.user) {
-        account = res.data.user;
-        if (displayName) account.displayName = displayName;
-      }
+      if (!res.data.success) throw new Error("Invalid token");
+      account = res.data.user;
     } catch (e) {
-      console.warn("⚠️ Token check failed:", e.message);
+      console.warn("⚠️ Token invalid — rejecting registration:", e.message);
+      socket.emit("force-disconnect", "Invalid authentication");
+      try { socket.disconnect(true); } catch {}
+      return;
     }
   }
 
-  // 🧩 Update existing atau buat baru
+  // === Cari participant dengan hostname / username sama ===
+  let existingKey = Object.keys(participants).find((id) => {
+    const p = participants[id];
+    if (!p) return false;
+    return (
+      p.hostname?.toLowerCase() === hostname?.toLowerCase() ||
+      p.account?.username === account?.username
+    );
+  });
+
   if (existingKey) {
-    participants[existingKey] = {
-      ...participants[existingKey],
-      os,
-      user,
-      hostname,
-      account: {
-        ...(participants[existingKey].account || {}),
-        ...account,
-        displayName:
-          displayName ||
-          account?.displayName ||
-          participants[existingKey].account?.displayName ||
-          user,
-      },
-    };
-    console.log(`🔁 Updated existing participant: ${hostname}`);
+    // 🧠 Jika socket.id berubah → migrasikan
+    if (existingKey !== socket.id) {
+      console.log(`🔁 Migrating participant ${hostname} to new socket ID`);
+      const old = participants[existingKey];
+      delete participants[existingKey];
+      participants[socket.id] = { ...old, id: socket.id, os, user, hostname, account };
+    } else {
+      participants[existingKey] = { ...participants[existingKey], os, user, hostname, account };
+    }
   } else {
     participants[socket.id] = {
       id: socket.id,
       hostname,
       user,
       os,
-      account, // ✅ sekarang diisi dengan account dari client (simulator)
+      account,
       isLocked: false,
     };
     console.log(`🆕 Registered new participant: ${hostname}`);
@@ -150,9 +152,13 @@ socket.on("register", async (data) => {
 
   // ================= DISCONNECT =================
   socket.on("disconnect", () => {
-    console.log(`🔴 Participant disconnected: ${socket.id}`);
-    delete participants[socket.id];
-    io.emit("participants", Object.values(participants));
+    console.log(`🔴 Disconnected: ${socket.id}`);
+    if (socket.data?.isDevice) {
+      delete participants[socket.id];
+      io.emit("participants", Object.values(participants));
+    } else {
+      console.log("ℹ️ Skipping non-device disconnect cleanup");
+    }
   });
 });
 

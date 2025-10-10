@@ -8872,9 +8872,16 @@ function connectToControlServer(token, displayName) {
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName };
+    const payload = { hostname, user, os: platform, token, displayName, role: "device" };
     socket.emit("register", payload);
     console.log("[preload] Registered participant:", payload);
+  });
+  socket.io.on("reconnect", () => {
+    const hostname = os.hostname();
+    const user = os.userInfo().username;
+    const platform = os.platform();
+    const payload = { hostname, user, os: platform, token, displayName, role: "device" };
+    socket.emit("register", payload);
   });
   socket.on("connect_error", (err) => {
     console.error("❌ Socket connection error:", err.message);

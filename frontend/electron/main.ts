@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow, session, globalShortcut, Menu } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -273,3 +273,42 @@ ipcMain.on("hide-lock-overlay", () => {
 
 
 app.whenReady().then(createWindow);
+
+/* gunakan ketika production untuk menghilagngkan browser window */
+
+/* 
+app.whenReady().then(() => {
+  createWindow();
+
+  // 🧱 Disable default menu (hilangkan menu bar & context reload)
+  Menu.setApplicationMenu(null);
+
+  // 🛡️ Register global shortcuts yang diblokir
+  const shortcutsToBlock = [
+    "CommandOrControl+R",   // Refresh
+    "F5",                   // Refresh key
+    "CommandOrControl+Shift+R", // Hard reload
+    "CommandOrControl+Alt+I",   // DevTools
+    "CommandOrControl+Shift+I"  // DevTools (variasi)
+  ];
+
+  shortcutsToBlock.forEach((sc) => {
+    const success = globalShortcut.register(sc, () => {
+      console.log(`🚫 Blocked shortcut: ${sc}`);
+    });
+    if (!success) console.warn(`⚠️ Failed to block ${sc}`);
+  });
+
+  app.on("browser-window-focus", () => {
+    shortcutsToBlock.forEach((sc) => {
+      if (!globalShortcut.isRegistered(sc)) {
+        globalShortcut.register(sc, () => console.log(`🚫 Blocked shortcut: ${sc}`));
+      }
+    });
+  });
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
+ */

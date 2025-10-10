@@ -37,12 +37,21 @@ function connectToControlServer(token?: string, displayName?: string) {
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName };
+    const payload = { hostname, user, os: platform, token, displayName, role: "device" }; 
 
     // Kirim register setelah koneksi benar-benar terbentuk
     socket!.emit("register", payload);
     console.log("[preload] Registered participant:", payload);
   });
+
+  socket.io.on("reconnect", () => {
+    const hostname = os.hostname();
+    const user = os.userInfo().username;
+    const platform = os.platform();
+    const payload = { hostname, user, os: platform, token, displayName, role: "device" }; 
+    socket!.emit("register", payload);
+  });
+
 
   // === ERROR HANDLER ===
   socket.on("connect_error", (err) => {
