@@ -22,8 +22,45 @@ router.post(
 router.post(
   "/meeting/:meetingId/upload",
   auth.isAuthenticated,
-  upload.single("file"),
-  ChatController.uploadFile
+  (req, res, next) => {
+    upload.single("file")(req, res, function (err) {
+      if (err) {
+        // error khusus dari filter kita
+        if (err.code === "UNSUPPORTED_FILE_TYPE") {
+          return res.status(400).json({
+            success: false,
+            code: "UNSUPPORTED_FILE_TYPE",
+            message:
+              "Format file tidak didukung. Silakan unggah PDF, DOCX, XLSX, PPTX, gambar (JPG/PNG/WEBP), ZIP, MP4, MP3, dll.",
+          });
+        }
+        // error dari Multer (ukuran, dll)
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({
+              success: false,
+              code: "LIMIT_FILE_SIZE",
+              message: "Ukuran file terlalu besar (maks 200MB).",
+            });
+          }
+          return res.status(400).json({
+            success: false,
+            code: "MULTER_ERROR",
+            message: "Gagal mengunggah file.",
+            detail: err.message,
+          });
+        }
+        // error lain
+        return res.status(500).json({
+          success: false,
+          code: "UPLOAD_ERROR",
+          message: "Terjadi kesalahan saat mengunggah file.",
+        });
+      }
+      // lanjut ke controller jika tidak ada error
+      return ChatController.uploadFile(req, res, next);
+    });
+  }
 );
 
 // Download file from chat

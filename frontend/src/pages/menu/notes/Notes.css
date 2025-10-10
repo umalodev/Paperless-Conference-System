@@ -175,36 +175,41 @@
   object-fit: contain;
 }
 /* ikon + teks judul */
-.notes-title-icon{
+.notes-title-icon {
   width: 26px;
   height: 26px;
   display: block;
   object-fit: contain;
 }
 
-.notes-title-text{
-  font-weight: 800;      /* bold */
+.notes-title-text {
+  font-weight: 800; /* bold */
   line-height: 1.1;
-  margin-left: 4px;      /* sedikit geser kanan */
+  margin-left: 4px; /* sedikit geser kanan */
   position: relative;
-  top: -2px;             /* naikkan dikit agar sejajar ikon */
+  top: -2px; /* naikkan dikit agar sejajar ikon */
 }
 
 /* responsif kecil */
-@media (max-width: 560px){
-  .notes-title-icon{ width: 22px; height: 22px; }
-  .notes-title-text{ top: -1px; }
+@media (max-width: 560px) {
+  .notes-title-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .notes-title-text {
+    top: -1px;
+  }
 }
 /* tombol kecil */
 .note-btn.sm {
-  padding: 6px 10px;      /* lebih kecil dari default */
+  padding: 6px 10px; /* lebih kecil dari default */
   border-radius: 10px;
   font-size: 13px;
   line-height: 1.1;
 }
 
 .note-btn.sm .pd-icon-img {
-  width: 16px;            /* ikon diperkecil */
+  width: 16px; /* ikon diperkecil */
   height: 16px;
 }
 
@@ -239,4 +244,40 @@
   gap: 6px;
 }
 
+/* container untuk field textarea */
+.note-field {
+  position: relative;
+}
 
+/* tooltip di atas textarea, nunjuk ke field */
+.notes-tooltip {
+  position: absolute;
+  top: -36px; /* naikkan di atas textarea */
+  right: 10px; /* pojok kanan atas field */
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+  z-index: 3;
+}
+
+/* panah kecil menunjuk ke textarea */
+.notes-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: -6px; /* di bawah bubble, mengarah ke textarea */
+  right: 18px; /* sejajarkan dengan bubble */
+  border-width: 6px 6px 0 6px;
+  border-style: solid;
+  border-color: #111827 transparent transparent transparent;
+}
+
+/* opsional: beri ring merah saat invalid */
+.note-textarea[aria-invalid="true"] {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}

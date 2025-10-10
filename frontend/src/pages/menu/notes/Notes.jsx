@@ -38,6 +38,9 @@ export default function Notes() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const titleRef = useRef(null);
+  const bodyRef = useRef(null);
+  const [showBodyHint, setShowBodyHint] = useState(false);
+  const bodyHintTimerRef = useRef(null);
 
   // editing
   const [editingId, setEditingId] = useState(null);
@@ -89,6 +92,10 @@ export default function Notes() {
     if (u) setUser(JSON.parse(u));
     const dn = localStorage.getItem("pconf.displayName") || "";
     setDisplayName(dn);
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(bodyHintTimerRef.current);
   }, []);
 
   // Removed global close handler
@@ -180,10 +187,15 @@ export default function Notes() {
     e.preventDefault();
     const t = title.trim();
     const b = body.trim();
-    if (titleRef.current && !titleRef.current.checkValidity()) {
-      titleRef.current.reportValidity();
+
+    if (!b) {
+      setShowBodyHint(true);
+      bodyRef.current?.focus();
+      clearTimeout(bodyHintTimerRef.current);
+      bodyHintTimerRef.current = setTimeout(() => setShowBodyHint(false), 1800);
       return;
     }
+
     if (!meetingId) {
       notify({
         variant: "error",
@@ -212,7 +224,7 @@ export default function Notes() {
       notify({
         variant: "success",
         title: "Success",
-message: "Note has been successfully added",
+        message: "Note has been successfully added",
         autoCloseMs: 3000,
       });
     } catch (e) {
@@ -260,7 +272,7 @@ message: "Note has been successfully added",
       notify({
         variant: "success",
         title: "Success",
-          message: "Note has been successfully saved",
+        message: "Note has been successfully saved",
         autoCloseMs: 3000,
       });
     } catch (e) {
@@ -278,14 +290,15 @@ message: "Note has been successfully added",
   const handleDelete = async (id) => {
     const confirmed = await confirm({
       title: "Hapus Catatan?",
-      message: "Catatan ini akan dihapus dari meeting. Tindakan ini tidak dapat dibatalkan.",
+      message:
+        "Catatan ini akan dihapus dari meeting. Tindakan ini tidak dapat dibatalkan.",
       destructive: true,
       okText: "Hapus",
-      cancelText: "Batal"
+      cancelText: "Batal",
     });
-    
+
     if (!confirmed) return;
-    
+
     setSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/notes/${id}`, {
@@ -399,31 +412,31 @@ message: "Note has been successfully added",
 
             {/* Composer */}
             <form className="notes-composer" onSubmit={handleAdd}>
-              <div style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>
-                * Judul wajib diisi
-              </div>
               <input
-                ref={titleRef}
                 className="note-input"
                 placeholder="Note title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                required
-                onInvalid={(e) =>
-                  e.currentTarget.setCustomValidity(
-                    "Judul catatan wajib diisi."
-                  )
-                }
                 onInput={(e) => e.currentTarget.setCustomValidity("")}
               />
 
-              <textarea
-                className="note-textarea"
-                placeholder="Write note..."
-                rows={3}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-              />
+              <div className="note-field note-field--body">
+                <textarea
+                  ref={bodyRef}
+                  className="note-textarea"
+                  placeholder="Write note..."
+                  rows={3}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  aria-invalid={showBodyHint ? "true" : undefined}
+                  aria-describedby={showBodyHint ? "body-tip" : undefined}
+                />
+                {showBodyHint && (
+                  <span id="body-tip" className="notes-tooltip" role="tooltip">
+                    Isi catatan tidak boleh kosong
+                  </span>
+                )}
+              </div>
               <div className="notes-composer-actions">
                 <button
                   className="note-btn primary"
@@ -439,7 +452,11 @@ message: "Note has been successfully added",
                     onClick={resetComposer}
                     disabled={saving}
                   >
-                    <img src="/img/delete.png" alt="Delete" style={{width: "20px", height: "20px"}} />
+                    <img
+                      src="/img/delete.png"
+                      alt="Delete"
+                      style={{ width: "20px", height: "20px" }}
+                    />
                     <span>Clear</span>
                   </button>
                 )}

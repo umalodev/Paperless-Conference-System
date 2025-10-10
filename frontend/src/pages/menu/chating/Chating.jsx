@@ -16,9 +16,11 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../contexts/ModalProvider.jsx";
 
 export default function Chat() {
   const [user, setUser] = useState(null);
+  const { notify } = useModal();
 
   // bottom nav
   const [menus, setMenus] = useState([]);
@@ -69,6 +71,18 @@ export default function Chat() {
     if (!mediaReady) return;
     camOn ? stopCam() : startCam();
   }, [mediaReady, camOn, startCam, stopCam]);
+
+  const showUploadError = useCallback(
+    (msg, opts = {}) => {
+      notify({
+        variant: "error",
+        title: "Upload gagal",
+        message: msg || "Terjadi kesalahan saat mengunggah file.",
+        autoCloseMs: opts.autoCloseMs ?? 5000,
+      });
+    },
+    [notify]
+  );
 
   // Helper function to get meeting ID
   const getMeetingId = () => {
@@ -485,7 +499,7 @@ export default function Chat() {
     const newMsg = {
       id: tempId,
       userId: me.id || me.username,
-      name: myDbDisplayName || fallbackLocalName, // pakai nama DB
+      name: myDbDisplayName || fallbackLocalName,
       text: trimmed,
       ts: Date.now(),
       _optimistic: true,
@@ -545,6 +559,72 @@ export default function Chat() {
     const file = event.target.files[0];
     if (!file) return;
 
+    const allowedMimes = new Set([
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "text/plain",
+      "text/csv",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/bmp",
+      "application/zip",
+      "application/x-rar-compressed",
+      "application/x-7z-compressed",
+      "video/mp4",
+      "video/avi",
+      "video/mov",
+      "video/wmv",
+      "audio/mp3",
+      "audio/wav",
+      "audio/ogg",
+    ]);
+    const bannedExts = [
+      ".exe",
+      ".msi",
+      ".bat",
+      ".cmd",
+      ".sh",
+      ".ps1",
+      ".vbs",
+      ".js",
+      ".mjs",
+      ".jar",
+      ".com",
+      ".scr",
+      ".dll",
+      ".so",
+      ".dylib",
+      ".php",
+      ".pl",
+      ".py",
+      ".rb",
+    ];
+    const lowerName = (file.name || "").toLowerCase();
+    const ext = lowerName.slice(lowerName.lastIndexOf("."));
+    const base = lowerName.substring(0, lowerName.length - ext.length);
+    const secondExt = base.includes(".")
+      ? base.slice(base.lastIndexOf("."))
+      : "";
+    if (
+      bannedExts.includes(ext) ||
+      bannedExts.includes(secondExt) ||
+      !allowedMimes.has(file.type)
+    ) {
+      showUploadError(
+        "Format file tidak didukung. Unggah dokumen/gambar/arsip/media yang diizinkan."
+      );
+      event.target.value = "";
+      return;
+    }
+
     const meetingId = meetingIdMemo || getMeetingId();
     if (!meetingId) {
       setErrMsg("Meeting ID tidak ditemukan");
@@ -561,33 +641,38 @@ export default function Chat() {
     setSending(true);
 
     try {
+      const authHeaders = meetingService.getAuthHeaders();
+      delete authHeaders["Content-Type"];
+
       const res = await fetch(
         `${API_URL}/api/chat/meeting/${meetingId}/upload`,
         {
           method: "POST",
-          headers: meetingService.getAuthHeaders(),
-          body: formData,
+          headers: authHeaders,
+          body: formData, // browser otomatis set Content-Type multipart/form-data
         }
       );
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // coba ekstrak pesan dari server
+        let serverMsg = "";
+        try {
+          const data = await res.json();
+          serverMsg = data?.message || "";
+        } catch {}
+        if (res.status === 400) {
+          setErrMsg(serverMsg || "File tidak valid.");
+        } else {
+          setErrMsg(serverMsg || `Gagal mengunggah file (HTTP ${res.status}).`);
+        }
+        return; // stop di sini
+      }
+
       const json = await res.json();
 
       if (json.success) {
-        const newMessage = {
-          id: json.data.meetingChatId,
-          userId: user?.id,
-          name: myDbDisplayName || fallbackLocalName, // pakai nama DB
-          text: "",
-          ts: new Date(json.data.sendTime).getTime(),
-          messageType: json.data.messageType,
-          filePath: json.data.filePath,
-          originalName: json.data.originalName,
-          mimeType: json.data.mimeType,
-        };
-        setMessages((prev) => [...prev, newMessage]);
       } else {
-        throw new Error(json.message || "Failed to upload file");
+        setErrMsg(json.message || "Gagal mengunggah file.");
       }
     } catch (e) {
       setErrMsg(String(e.message || e));
@@ -774,7 +859,7 @@ export default function Chat() {
 
                   <div className="chat-composer">
                     <div className="composer-left">
-                      {/* <label className="chat-iconbtn" title="Lampirkan File">
+                      <label className="chat-iconbtn" title="Lampirkan File">
                         <Icon
                           slug="attach"
                           iconUrl="/img/icons/attach.svg"
@@ -784,9 +869,8 @@ export default function Chat() {
                           type="file"
                           style={{ display: "none" }}
                           onChange={handleFileUpload}
-                          
                         />
-                      </label> */}
+                      </label>
                     </div>
                     <textarea
                       className="chat-input"
