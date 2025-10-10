@@ -8902,6 +8902,25 @@ function connectToControlServer(token, displayName) {
       console.log(`[socket event] ${event}`, data);
     }
   });
+  socket.on("remote-input", (data) => {
+    try {
+      console.log("[remote] Input received:", data);
+      const { type, action, x, y, key } = data;
+      if (type === "mouse") {
+        const robot = require("robotjs");
+        if (action === "move") robot.moveMouse(x, y);
+        if (action === "click") robot.mouseClick();
+        if (action === "right-click") robot.mouseClick("right");
+        if (action === "scroll") robot.scrollMouse(x, y);
+      }
+      if (type === "keyboard" && key) {
+        const robot = require("robotjs");
+        robot.keyTap(key);
+      }
+    } catch (err) {
+      console.error("[remote] Error handling input:", err);
+    }
+  });
   socket.on("command", handleCommand);
 }
 function disconnectFromControlServer() {
