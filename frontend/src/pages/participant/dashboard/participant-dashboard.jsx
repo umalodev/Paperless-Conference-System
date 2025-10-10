@@ -177,12 +177,22 @@ export default function ParticipantDashboard() {
       cancelText: "Batal",
       onConfirm: async () => {
         cleanupRealtime();
+
+        // ✅ Disconnect dari Control Server
+        if (window.electronAPI?.disconnectFromControlServer) {
+          window.electronAPI.disconnectFromControlServer();
+          console.log("🛑 Disconnected from Control Server via logout");
+        }
+
         if (meetingId) await meetingService.leaveMeeting(meetingId);
+
         try {
           if (typeof meetingService.logout === "function") {
             await meetingService.logout();
           }
         } catch {}
+
+        // Hapus session data
         localStorage.removeItem("user");
         localStorage.removeItem("token");
         localStorage.removeItem("pconf.displayName");

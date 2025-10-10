@@ -68,16 +68,42 @@ export default function MeetingFooter({
     } catch {}
   };
 
-  // Default behaviors
+// =========================================================
+// 🏠 Default Back to Home (cleanup + conditional disconnect)
+// =========================================================
   const defaultBack = async () => {
     try {
+      // 🧹 1️⃣ Bersihkan koneksi internal (screen share, websocket)
       cleanupRealtime();
-      if (meetingId) await meetingService.leaveMeeting(meetingId);
+
+      // 🚪 2️⃣ Jika participant → kirim leaveMeeting & putus socket
+      if (!isHost) {
+        // 🔌 Putuskan koneksi ke Control Server (hanya untuk participant)
+        try {
+          if (window.electronAPI?.disconnectFromControlServer) {
+            console.log("🔌 [Participant] Disconnecting from Control Server (Home button)...");
+            window.electronAPI.disconnectFromControlServer();
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to disconnect Control Server:", err);
+        }
+
+        // 🚪 Informasikan ke backend kalau participant keluar dari meeting
+        if (meetingId) {
+          await meetingService.leaveMeeting(meetingId);
+        }
+      } else {
+        console.log("ℹ️ Host navigates home — connection stays active.");
+      }
+    } catch (err) {
+      console.error("⚠️ Error during back/cleanup:", err);
     } finally {
+      // 🧽 3️⃣ Bersihkan sesi meeting & navigasi sesuai role
       localStorage.removeItem("currentMeeting");
       navigate(isHost ? "/setup" : "/start");
     }
   };
+
 
   const defaultEndMeeting = async () => {
     const ok = await confirm({

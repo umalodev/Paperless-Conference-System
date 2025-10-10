@@ -4,13 +4,30 @@
  */
 
 // ========================== GET PARTICIPANTS ==========================
+// controllers/controlController.js
 exports.getParticipants = (req, res) => {
-  const list = Object.values(global.participants || {});
-  return res.json({
-    success: true,
-    total: list.length,
-    participants: list,
-  });
+  try {
+    // Ambil semua peserta dari global
+    const all = Object.values(global.participants || {});
+
+    // Ambil daftar ID socket yang masih aktif
+    const activeSocketIds = new Set(global.io ? [...global.io.sockets.sockets.keys()] : []);
+
+    // Filter hanya yang masih aktif
+    const list = all.filter((p) => activeSocketIds.has(p.id));
+
+    return res.json({
+      success: true,
+      total: list.length,
+      participants: list,
+    });
+  } catch (err) {
+    console.error("❌ Error getParticipants:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error when fetching participants",
+    });
+  }
 };
 
 // ========================== SEND COMMAND ==========================

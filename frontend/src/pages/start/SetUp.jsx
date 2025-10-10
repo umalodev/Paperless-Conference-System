@@ -74,46 +74,83 @@ export default function SetUp() {
     }
   };
 
-  const handleLogout = async () => {
-    const ok = await confirm({
-      title: "Logout from dashboard?",
-      message: "You will be signed out and redirected to the login page.",
-      destructive: true,
-      okText: "Logout",
-      cancelText: "Cancel",
-      onConfirm: async () => {
-        // cleanup realtime (aman dipanggil walau tidak ada)
-        try {
-          if (window.simpleScreenShare?.isSharing)
-            window.simpleScreenShare.stopScreenShare();
-        } catch {}
-        try {
-          window.meetingWebSocket?.close?.();
-        } catch {}
+const handleLogout = async () => {
+  const ok = await confirm({
+    title: "Logout from dashboard?",
+    message: "You will be signed out and redirected to the login page.",
+    destructive: true,
+    okText: "Logout",
+    cancelText: "Cancel",
+    onConfirm: async () => {
+      // ===============================
+      // 🧹 1️⃣ Hentikan aktivitas realtime
+      // ===============================
+      try {
+        if (window.simpleScreenShare?.isSharing) {
+          console.log("🛑 Stopping screen share before logout...");
+          window.simpleScreenShare.stopScreenShare();
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to stop screen share:", err);
+      }
 
-        try {
-          if (typeof meetingService.logout === "function")
-            await meetingService.logout();
-        } catch {}
+      try {
+        if (window.meetingWebSocket?.readyState === WebSocket.OPEN) {
+          console.log("🛑 Closing meeting WebSocket...");
+          window.meetingWebSocket.close();
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to close meeting WebSocket:", err);
+      }
 
-        // bersihkan storage
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        localStorage.removeItem("currentMeeting");
-        // (Biarkan pconf.displayName tetap ada kalau kamu ingin auto-fill next time)
-      },
+      // ===============================
+      // 🧩 2️⃣ Putuskan koneksi Control Server (Electron)
+      // ===============================
+      try {
+        if (window.electronAPI?.disconnectFromControlServer) {
+          console.log("🔌 Disconnecting from Control Server...");
+          window.electronAPI.disconnectFromControlServer();
+        }
+      } catch (err) {
+        console.warn("⚠️ Control server disconnect failed:", err);
+      }
+
+      // ===============================
+      // 🔒 3️⃣ Logout API (jika ada)
+      // ===============================
+      try {
+        if (typeof meetingService.logout === "function") {
+          await meetingService.logout();
+          console.log("✅ Logged out from backend API");
+        }
+      } catch (err) {
+        console.warn("⚠️ meetingService.logout failed:", err);
+      }
+
+      // ===============================
+      // 🗑️ 4️⃣ Bersihkan semua session storage
+      // ===============================
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("currentMeeting");
+      // Biarkan pconf.displayName tetap untuk auto-fill di login berikutnya
+      console.log("🧹 Cleared user session data");
+    },
+  });
+
+  // ===============================
+  // 🎉 5️⃣ Redirect setelah logout
+  // ===============================
+  if (ok) {
+    await notify({
+      variant: "success",
+      title: "Signed out",
+      message: "See you soon.",
+      autoCloseMs: 900,
     });
-
-    if (ok) {
-      await notify({
-        variant: "success",
-        title: "Signed out",
-        message: "See you soon.",
-        autoCloseMs: 900,
-      });
-      navigate("/");
-    }
-  };
+    navigate("/");
+  }
+};
 
   const handleSaveMeeting = async (payload) => {
     try {
