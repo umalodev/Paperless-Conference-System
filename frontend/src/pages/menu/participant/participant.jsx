@@ -342,23 +342,25 @@ export default function ParticipantsPage() {
   }, [participants.length, remotePeers, micOn, camOn]);
 
   // wiring tombol footer -> media produce/close + update DB flag utk current user
-  const onToggleMic = useCallback(() => {
-    if (!mediaReady) return;
-    if (micOn) {
-      stopMic();
-    } else {
-      startMic();
-    }
-  }, [mediaReady, micOn, startMic, stopMic]);
+  const onToggleMic = useCallback(
+    (force) => {
+      if (!mediaReady) return;
+      const next = typeof force === "boolean" ? force : !micOn;
+      if (next) startMic();
+      else stopMic();
+    },
+    [mediaReady, micOn, startMic, stopMic]
+  );
 
-  const onToggleCam = useCallback(() => {
-    if (!mediaReady) return;
-    if (camOn) {
-      stopCam();
-    } else {
-      startCam();
-    }
-  }, [mediaReady, camOn, startCam, stopCam]);
+  const onToggleCam = useCallback(
+    (force) => {
+      if (!mediaReady) return;
+      const next = typeof force === "boolean" ? force : !camOn;
+      if (next) startCam();
+      else stopCam();
+    },
+    [mediaReady, camOn, startCam, stopCam]
+  );
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
@@ -431,7 +433,7 @@ export default function ParticipantsPage() {
                 className={`prt-tab${activeTab === "video" ? " active" : ""}`}
                 onClick={() => setActiveTab("video")}
               >
-                Camera 
+                Camera
               </button>
             </div>
 

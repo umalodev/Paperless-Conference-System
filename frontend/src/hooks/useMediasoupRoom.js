@@ -577,50 +577,87 @@ export default function useMediasoupRoom({ roomId, peerId }) {
   }, []);
 
   // PUBLIC: toggle cam
+  // dalam useMediasoupRoom
   const startCam = useCallback(async () => {
-    if (!sendTransportRef.current) return;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { width: 1280, height: 720 },
-    });
-    const track = stream.getVideoTracks()[0];
-    const existing = videoProducerRef.current;
-    if (existing) {
-      // kamera dihidupkan kembali: ganti track & resume
-      await existing.replaceTrack({ track });
-      await existing.resume();
-      setLocalStream(stream);
-      setCamOn(true);
+    const transport = sendTransportRef.current;
+    if (!transport || transport.closed) {
+      setError("send transport not ready");
       return;
     }
-    // pertama kali produce
-    const p = await sendTransportRef.current.produce({
-      track,
-      appData: { type: "cam", peerId },
-    });
-    videoProducerRef.current = p;
-    setLocalStream(stream);
-    setCamOn(true);
-    p.on("trackended", () => stopCam());
-    p.on("transportclose", () => setCamOn(false));
-  }, [peerId]);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { width: 1280, height: 720 },
+      });
+      const track = stream.getVideoTracks()[0];
+
+      let p = videoProducerRef.current;
+      // ⛑️ kalau ada producer tapi sudah closed, anggap tidak ada
+      if (p?.closed) p = null;
+
+      if (p) {
+        try {
+          await p.replaceTrack({ track });
+          await p.resume();
+          setLocalStream(stream);
+          setCamOn(true);
+          return;
+        } catch (e) {
+          // jika gagal karena state closed/invalid, fallback buat producer baru
+          console.warn("resume/replaceTrack failed, recreating producer:", e);
+          try {
+            p.close?.();
+          } catch {}
+          videoProducerRef.current = null;
+        }
+      }
+
+      // buat producer baru
+      const newProducer = await transport.produce({
+        track,
+        appData: { type: "cam", peerId },
+      });
+      videoProducerRef.current = newProducer;
+      setLocalStream(stream);
+      setCamOn(true);
+
+      newProducer.on("trackended", () => stopCam());
+      newProducer.on("transportclose", () => {
+        setCamOn(false);
+        videoProducerRef.current = null; // ❗ penting: buang ref saat transport tutup
+      });
+      newProducer.on("close", () => {
+        // ❗ penting: buang ref saat producer close
+        if (videoProducerRef.current === newProducer)
+          videoProducerRef.current = null;
+      });
+    } catch (e) {
+      console.error("startCam failed", e);
+      setError(e?.message || String(e));
+      setCamOn(false);
+      try {
+        localStream?.getTracks()?.forEach((t) => t.stop());
+      } catch {}
+      setLocalStream(null);
+    }
+  }, [peerId, localStream]);
 
   const stopCam = useCallback(async () => {
     const p = videoProducerRef.current;
-    if (!p) return;
     try {
-      await p.pause();
+      await p?.pause?.();
     } catch {}
     try {
-      p.track?.stop();
+      p?.track?.stop?.();
     } catch {}
-
     try {
-      localStream?.getTracks().forEach((t) => t.stop());
+      localStream?.getTracks()?.forEach((t) => t.stop());
     } catch {}
+    videoProducerRef.current = null; // ❗ jangan biarkan ref ke producer closed
     setLocalStream(null);
     setCamOn(false);
-  }, []);
+  }, [localStream]);
 
   const muteAllOthers = useCallback(async () => {
     const socket = socketRef.current;

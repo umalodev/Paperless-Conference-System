@@ -6,7 +6,6 @@ import { ipcMain, desktopCapturer, screen } from "electron";
 
 let lockWindows: BrowserWindow[] = [];
 
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -81,7 +80,7 @@ function createWindow() {
       experimentalFeatures: true,
       // Enable screen capture APIs
       // Additional permissions for screen sharing
-      additionalArguments: ['--enable-features=VaapiVideoDecoder'],
+      additionalArguments: ["--enable-features=VaapiVideoDecoder"],
     },
   });
 
@@ -115,13 +114,15 @@ function createWindow() {
   });
 
   // Set additional permissions for screen capture
-  session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, _details) => {
-    console.log(`[main] Permission check: ${permission}`);
-    if (permission === "media") {
+  session.defaultSession.setPermissionCheckHandler(
+    (_wc, permission, _origin, _details) => {
+      console.log(`[main] Permission check: ${permission}`);
+      if (permission === "media") {
+        return true;
+      }
       return true;
     }
-    return true;
-  });
+  );
 
   if (VITE_DEV_SERVER_URL) win.loadURL(VITE_DEV_SERVER_URL);
   else win.loadFile(path.join(RENDERER_DIST, "index.html"));
@@ -152,10 +153,10 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 // Add command line arguments for better screen capture support
-app.commandLine.appendSwitch('--enable-usermedia-screen-capture');
-app.commandLine.appendSwitch('--disable-features', 'VizDisplayCompositor');
-app.commandLine.appendSwitch('--enable-features', 'VaapiVideoDecoder');
-app.commandLine.appendSwitch('--autoplay-policy', 'no-user-gesture-required');
+app.commandLine.appendSwitch("--enable-usermedia-screen-capture");
+app.commandLine.appendSwitch("--disable-features", "VizDisplayCompositor");
+app.commandLine.appendSwitch("--enable-features", "VaapiVideoDecoder");
+app.commandLine.appendSwitch("--autoplay-policy", "no-user-gesture-required");
 
 ipcMain.handle("capture-screen", async () => {
   const primary = screen.getPrimaryDisplay();
@@ -295,8 +296,6 @@ ipcMain.on("hide-lock-overlay", () => {
   });
   lockWindows = [];
 });
-
-
 
 app.whenReady().then(createWindow);
 
