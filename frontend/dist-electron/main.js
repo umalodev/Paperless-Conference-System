@@ -145,8 +145,9 @@ ipcMain.handle("capture-screen", async () => {
   });
   if (!sources.length) return null;
   const image = sources[0].thumbnail;
-  const img = image.toJPEG(90).toString("base64");
-  return img;
+  const adaptiveQuality = captureWidth >= 1920 ? 70 : captureWidth >= 1280 ? 75 : 80;
+  const base64 = image.toJPEG(adaptiveQuality).toString("base64");
+  return base64;
 });
 ipcMain.on("show-lock-overlay", () => {
   if (lockWindows.length > 0) return;

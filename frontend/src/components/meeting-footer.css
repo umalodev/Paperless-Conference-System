@@ -237,4 +237,3 @@
 .pd-ctrl .pd-label { display: none; font-size: 11px; margin-top: 4px; color: var(--muted-light); }
 @media (max-width: 420px) { .pd-ctrl .pd-label { display: block; } }
 
-/* End of file */
