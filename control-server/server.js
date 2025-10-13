@@ -119,8 +119,14 @@ socket.on("register", async (data) => {
   socket.on("mirror-frame", (frame) => {
     if (!frame) return;
     console.log(`🪞 Mirror frame received from ${socket.id}, size: ${frame.length}`);
+    
+    // kirim ke semua viewer
     io.emit("mirror-frame", { from: socket.id, frame });
+
+    // kirim ack balik ke pengirim
+    socket.emit("mirror-ack");
   });
+
 
   // ================= EXECUTE COMMAND =================
   socket.on("execute-command", (payload) => {
@@ -155,17 +161,53 @@ socket.on("register", async (data) => {
   });
 
   // ================= DISCONNECT =================
-  socket.on("disconnect", () => {
-    console.log(`🔴 Disconnected: ${socket.id}`);
-    if (socket.data?.isDevice) {
-      delete participants[socket.id];
-      io.emit("participants", Object.values(participants));
-    } else {
-      console.log("ℹ️ Skipping non-device disconnect cleanup");
+socket.on("disconnect", (reason) => {
+  console.log(`🔴 Disconnected: ${socket.id} (${reason})`);
+  if (socket.data?.isDevice) {
+    console.log(`🗑️ Removing device: ${socket.data.hostname || "unknown"}`);
+    delete participants[socket.id];
+    io.emit("participants", Object.values(participants));
+  } else {
+    console.log("ℹ️ Skipping non-device disconnect cleanup");
+  }
+});
+
+  // ================= LATENCY CHECK (PING / PONG) =================
+  socket.on("ping-check", (data) => {
+    socket.emit("pong-check", { ts: data.ts });
+    if (participants[socket.id]) {
+      participants[socket.id].lastPing = Date.now(); // update heartbeat
     }
   });
 
-  
+
+  // =========================================================
+  // 🫀 HEARTBEAT WATCHDOG (Ping Loss Detector)
+  // =========================================================
+  const TIMEOUT_MS = 8000; // 8 detik tanpa ping dianggap offline
+
+  setInterval(() => {
+    const now = Date.now();
+    let removed = 0;
+
+    for (const id in participants) {
+      const p = participants[id];
+      // kalau belum pernah ping-check, skip
+      if (!p.lastPing) continue;
+
+      if (now - p.lastPing > TIMEOUT_MS) {
+        console.warn(`⚠️ Participant timeout: ${p.hostname || id}`);
+        delete participants[id];
+        removed++;
+      }
+    }
+
+    if (removed > 0) {
+      console.log(`🧹 Cleaned up ${removed} inactive participant(s)`);
+      io.emit("participants", Object.values(participants));
+    }
+  }, 5000);
+
 });
 
 // =========================================================

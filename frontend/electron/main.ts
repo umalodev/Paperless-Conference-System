@@ -162,8 +162,7 @@ ipcMain.handle("capture-screen", async () => {
   const primary = screen.getPrimaryDisplay();
   const { width, height } = primary.size;
 
-  // 🔹 Ambil screenshot sesuai resolusi asli (bukan 640x360)
-  // Batasi maksimum agar tidak terlalu berat
+  // 🔹 Batasi maksimum resolusi untuk efisiensi
   const maxWidth = 1920;
   const maxHeight = 1080;
   const scale = Math.min(maxWidth / width, maxHeight / height, 1);
@@ -171,17 +170,21 @@ ipcMain.handle("capture-screen", async () => {
   const captureWidth = Math.floor(width * scale);
   const captureHeight = Math.floor(height * scale);
 
+  // 🔹 Ambil screenshot layar utama dengan resolusi tinggi
   const sources = await desktopCapturer.getSources({
     types: ["screen"],
     thumbnailSize: { width: captureWidth, height: captureHeight },
   });
 
   if (!sources.length) return null;
-
-  // 🔹 JPEG quality ditingkatkan (90)
   const image = sources[0].thumbnail;
-  const img = image.toJPEG(90).toString("base64");
-  return img;
+
+  // ✅ Adaptive compression (tidak burik, tapi ringan)
+  const adaptiveQuality =
+    captureWidth >= 1920 ? 70 : captureWidth >= 1280 ? 75 : 80;
+
+  const base64 = image.toJPEG(adaptiveQuality).toString("base64");
+  return base64;
 });
 
 // =========================================================
