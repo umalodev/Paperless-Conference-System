@@ -2,7 +2,7 @@ import React from "react";
 import styles from "./Start.module.css";
 import { useNavigate } from "react-router-dom";
 import meetingService from "../../services/meetingService.js";
-import { API_URL, CONTROL_URL, MEDIA_URL } from "../../config.js";
+import { API_URL } from "../../config.js";
 
 export default function Start() {
   const [user, setUser] = React.useState(null);
@@ -12,11 +12,6 @@ export default function Start() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const navigate = useNavigate();
-
-  const getAccountName = React.useCallback(
-    () => user?.username || user?.name || user?.full_name || "",
-    [user]
-  );
 
   // ===========================================================
   // Load user dari localStorage
@@ -52,20 +47,23 @@ export default function Start() {
   }, []);
 
   // ===========================================================
-  // Update localStorage saat toggle "Use my account name"
+  // Update username saat toggle “Use my account name”
   // ===========================================================
   React.useEffect(() => {
-    if (useAccountName) {
-      const accountName = getAccountName();
+    if (useAccountName && user) {
+      const accountName =
+        user?.username ||
+        user?.name ||
+        user?.full_name ||
+        (user?.email ? user.email.split("@")[0] : "") ||
+        "";
       setUsername(accountName);
       localStorage.setItem("pconf.displayName", accountName);
       localStorage.setItem("pconf.useAccountName", "1");
     } else {
-      setUsername("");
       localStorage.removeItem("pconf.useAccountName");
-      localStorage.removeItem("pconf.displayName");
     }
-  }, [useAccountName, getAccountName]);
+  }, [useAccountName, user]);
 
   const handleChangeUsername = (e) => {
     const val = e.target.value;
@@ -75,27 +73,13 @@ export default function Start() {
     }
   };
 
-  const handleToggleUseAccountName = (e) => {
-    const checked = e.target.checked;
-    setUseAccountName(checked);
-
-    if (checked) {
-      const accountName =
-        user?.username ||
-        user?.name ||
-        user?.full_name ||
-        (user?.email ? user.email.split("@")[0] : "") ||
-        "";
-      setUsername(accountName);
-    } else {
-      setUsername("");
-    }
-  };
-
   const isHost = role === "host";
   const intentText = isHost ? "Host a meeting" : "Join a meeting";
   const ctaText = isHost ? "Set Meeting" : "Join Meeting";
 
+  // ===========================================================
+  // Fungsi bantu set nama meeting di localStorage
+  // ===========================================================
   const setMeetingLocalName = (meetingId, name) => {
     const n = (name || "").trim();
     localStorage.setItem(`meeting:${meetingId}:displayName`, n);
@@ -112,88 +96,79 @@ export default function Start() {
     setLoading(true);
 
     try {
-  // Simpan displayName ke localStorage
-  localStorage.setItem("pconf.displayName", username || "");
-  localStorage.setItem("pconf.useAccountName", useAccountName ? "1" : "0");
+      // Simpan displayName ke localStorage
+      localStorage.setItem("pconf.displayName", username || "");
+      localStorage.setItem("pconf.useAccountName", useAccountName ? "1" : "0");
 
-  // Setelah localStorage diset dan sebelum navigate()
-  try {
-    const token = localStorage.getItem("token");
-    const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      // Ambil token dan user
+      const token = localStorage.getItem("token");
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
 
-    if (!token || !userData?.username) {
-      console.warn("⚠️ Missing token or user data — skip syncParticipant");
-      return;
-    }
+      // Ambil info PC (dari Electron preload)
+      let pcInfo = { hostname: "Browser-Client", os: navigator.platform };
+      if (window.electronAPI?.getPCInfo) {
+        pcInfo = await window.electronAPI.getPCInfo();
+      }
 
-    // Ambil info PC dari preload Electron
-    let pcInfo = { hostname: "Browser-Client", os: navigator.platform };
-    if (window.electronAPI?.getPCInfo) {
-      pcInfo = await window.electronAPI.getPCInfo();
-    }
+      // 🔌 Connect ke Control Server jika preload tersedia
+      if (window.electronAPI?.connectToControlServer && token && username) {
+        window.electronAPI.connectToControlServer(token, username);
+        console.log("✅ Connected to Control Server:", pcInfo.hostname);
+      } else {
+        console.warn("⚠️ Control Server not available (browser mode)");
+      }
 
-    // ✅ Connect & register ke Control Server (via socket)
-    if (window.electronAPI?.connectToControlServer) {
-      window.electronAPI.connectToControlServer(token, username);
-      console.log("✅ Connected to Control Server via socket with name:", username);
-    }
-
-  } catch (innerError) {
-    console.error("❌ Error during control server connect:", innerError);
-  }
-      // === Navigasi meeting
+      // === Host ===
       if (isHost) {
         navigate("/setup");
-      } else {
-        try {
-          const publicActives = await meetingService.getPublicActiveMeetings();
-          let picked = null;
-
-          if (publicActives?.success && Array.isArray(publicActives.data)) {
-            picked =
-              publicActives.data.find((m) => !m.isDefault) ||
-              publicActives.data[0] ||
-              null;
-          }
-
-          if (picked && !picked.isDefault) {
-            const meetingInfo = {
-              id: picked.meetingId,
-              code: picked.meetingId,
-              title: picked.title || "Active Meeting",
-              status: picked.status || "started",
-              isDefault: !!picked.isDefault,
-            };
-            localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
-            setMeetingLocalName(meetingInfo.id, username);
-            navigate("/waiting");
-            return;
-          }
-
-          const joinDefault = await meetingService.joinDefaultMeeting();
-          if (!joinDefault?.success) {
-            throw new Error(
-              joinDefault?.message || "Gagal bergabung ke default meeting."
-            );
-          }
-
-          const defInfo =
-            joinDefault.data || (await meetingService.getDefaultMeeting()).data;
-          const meetingInfo = {
-            id: defInfo.meetingId,
-            code: defInfo.meetingId,
-            title: defInfo.title || "UP-CONNECT Default Room",
-            status: defInfo.status || "started",
-            isDefault: true,
-          };
-          localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
-          setMeetingLocalName(meetingInfo.id, username);
-          navigate("/waiting");
-        } catch (statusError) {
-          console.log("Error getting active meetings:", statusError);
-          setError(statusError?.message || "Gagal memuat meeting aktif.");
-        }
+        return;
       }
+
+      // === Participant ===
+      const publicActives = await meetingService.getPublicActiveMeetings();
+      let picked = null;
+
+      if (publicActives?.success && Array.isArray(publicActives.data)) {
+        picked =
+          publicActives.data.find((m) => !m.isDefault) ||
+          publicActives.data[0] ||
+          null;
+      }
+
+      if (picked && !picked.isDefault) {
+        const meetingInfo = {
+          id: picked.meetingId,
+          code: picked.meetingId,
+          title: picked.title || "Active Meeting",
+          status: picked.status || "started",
+          isDefault: !!picked.isDefault,
+        };
+        localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
+        setMeetingLocalName(meetingInfo.id, username);
+        navigate("/waiting");
+        return;
+      }
+
+      // Jika tidak ada meeting aktif → join default
+      const joinDefault = await meetingService.joinDefaultMeeting();
+      if (!joinDefault?.success) {
+        throw new Error(
+          joinDefault?.message || "Gagal bergabung ke default meeting."
+        );
+      }
+
+      const defInfo =
+        joinDefault.data || (await meetingService.getDefaultMeeting()).data;
+      const meetingInfo = {
+        id: defInfo.meetingId,
+        code: defInfo.meetingId,
+        title: defInfo.title || "UP-CONNECT Default Room",
+        status: defInfo.status || "started",
+        isDefault: true,
+      };
+      localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
+      setMeetingLocalName(meetingInfo.id, username);
+      navigate("/waiting");
     } catch (error) {
       console.error("Error in handleSubmit:", error);
       setError(error.message || "An error occurred");
@@ -221,7 +196,7 @@ export default function Start() {
         <label className={styles["label-bold"]}>I want to :</label>
         <div className={styles["option-box"]}>
           <img
-            src={isHost ? "/img/pc.png" : "/img/pc.png"}
+            src="/img/pc.png"
             alt={isHost ? "Host" : "Participant"}
             className={styles["icon"]}
           />
@@ -249,7 +224,7 @@ export default function Start() {
               <input
                 type="checkbox"
                 checked={useAccountName}
-                onChange={handleToggleUseAccountName}
+                onChange={(e) => setUseAccountName(e.target.checked)}
               />
               <span>Use my account name</span>
             </label>
