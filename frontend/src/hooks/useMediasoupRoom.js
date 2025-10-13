@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import React, { createContext, useContext } from "react";
+import React from "react";
 import { io as socketIO } from "socket.io-client";
 import * as mediasoupClient from "mediasoup-client";
 import { MEDIA_URL } from "../config";
@@ -18,7 +18,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
   const [error, setError] = useState("");
 
   const [remotePeers, setRemotePeers] = useState(new Map());
-  // local states
   const [micOn, setMicOn] = useState(false);
   const [camOn, setCamOn] = useState(false);
 
@@ -44,7 +43,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
       const next = new Map(prev);
       const cur = next.get(peerId);
       if (!cur) return prev;
-      // no direct track handle here; track will end when consumer closed
       cur.consumers.delete(consumerId);
       const track = cur.consumerTracks?.get(consumerId);
       if (track) {
@@ -64,7 +62,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         );
       }
 
-      // rapikan: jika tidak ada track lagi, buat stream baru kosong
       if (!cur.stream || cur.stream.getTracks().length === 0) {
         cur.stream = new MediaStream();
       }
@@ -77,7 +74,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     const socket = socketRef.current;
     return new Promise((resolve, reject) => {
       if (!socket) return reject(new Error("socket not ready"));
-      // Socket.IO v4 punya .timeout(); fallback ke setTimeout kalau versi lama
       if (socket.timeout) {
         socket.timeout(timeoutMs).emit(event, payload, (err, res) => {
           if (err) return reject(err);
@@ -96,7 +92,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     });
   }, []);
 
-  // Connect & join room
   useEffect(() => {
     let cancelled = false;
 
@@ -106,16 +101,13 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         setError("");
         setReady(false);
 
-        // 1) connect socket
         const socket = socketIO(MEDIA_URL, {
-          // biarkan default transports (polling -> upgrade WS)
-          timeout: 10000, // built-in connect timeout
-          path: "/socket.io", // eksplisit (aman kalau ada proxy)
+          timeout: 10000,
+          path: "/socket.io",
           withCredentials: false,
         });
         socketRef.current = socket;
 
-        // log semua event penting supaya ketahuan akar masalahnya
         socket.io.on("error", (err) => {
           console.error("[socket.io manager error]", err);
         });
@@ -129,6 +121,7 @@ export default function useMediasoupRoom({ roomId, peerId }) {
             context: err?.context,
           });
         });
+
         await new Promise((resolve, reject) => {
           const onConnect = () => {
             socket.off("connect_error", onErr);
@@ -142,14 +135,12 @@ export default function useMediasoupRoom({ roomId, peerId }) {
           socket.once("connect_error", onErr);
         });
 
-        // 2) join room
         socket.emit("join-room", {
           roomId,
           roomName: `room-${roomId}`,
           peerId,
         });
 
-        // 3) get router rtpCapabilities
         const rtpCaps = await new Promise((resolve, reject) => {
           const onCaps = (payload) => {
             resolve(payload?.rtpCapabilities);
@@ -159,19 +150,16 @@ export default function useMediasoupRoom({ roomId, peerId }) {
           setTimeout(() => reject(new Error("No rtpCapabilities")), 10000);
         });
 
-        // 4) load device
         const device = new mediasoupClient.Device();
         await device.load({ routerRtpCapabilities: rtpCaps });
         deviceRef.current = device;
 
-        // 5) create send transport (producer)
         const sendTransport = await createTransport(socket, {
           direction: "send",
           roomId,
         });
         sendTransportRef.current = sendTransport;
 
-        // hookup connect/produce events
         sendTransport.on("connect", ({ dtlsParameters }, cb, errb) => {
           socket.emit("connect-transport", {
             transportId: sendTransport.id,
@@ -197,7 +185,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
           }
         );
 
-        // 6) create recv transport (consumer)
         const recvTransport = await createTransport(socket, {
           direction: "recv",
           roomId,
@@ -210,8 +197,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
           });
           cb();
         });
-
-        // 7) handle new producers from others
 
         try {
           const res = await emitAck("get-producers", {
@@ -234,6 +219,7 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         } catch (e) {
           console.warn("get-producers error:", e);
         }
+
         socket.on(
           "new-producer",
           async ({ producerId, kind, peerId: ownerPeerId }) => {
@@ -251,7 +237,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
           }
         );
 
-        // 8) clean-up when someone leaves (server already handles consumer close by transport close)
         socket.on("peer-left", ({ peerId: leftPeerId }) => {
           setRemotePeers((prev) => {
             const next = new Map(prev);
@@ -282,13 +267,10 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     return () => {
       cancelled = true;
       try {
-        // close producers
         audioProducerRef.current?.close();
         videoProducerRef.current?.close();
-        // close transports
         sendTransportRef.current?.close();
         recvTransportRef.current?.close();
-        // close socket
         socketRef.current?.disconnect();
       } catch {}
       deviceRef.current = null;
@@ -297,13 +279,11 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     };
   }, [roomId, peerId]);
 
-  // helpers
   async function createTransport(socket, { direction, roomId }) {
     return new Promise((resolve, reject) => {
       socket.emit("create-transport", { direction, roomId });
       const onCreated = async (payload) => {
         try {
-          // payload: id, iceParameters, iceCandidates, dtlsParameters, sctpParameters
           const device = deviceRef.current;
           const transport =
             direction === "send"
@@ -338,7 +318,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
       });
 
       const onConsumed = async (payload) => {
-        // payload: { id, producerId, kind, rtpParameters, type, producerPaused }
         try {
           const consumer = await recvTransport.consume({
             id: payload.id,
@@ -347,51 +326,49 @@ export default function useMediasoupRoom({ roomId, peerId }) {
             rtpParameters: payload.rtpParameters,
           });
 
+          // ✅ Helper untuk update active flags
+          const updateActiveFlags = (isActive) => {
+            updateRemotePeer(ownerPeerId, (cur) => {
+              const info = cur.consumersInfo.get(consumer.id);
+              if (info) info.active = isActive;
+              cur.audioActive = [...cur.consumersInfo.values()].some(
+                (i) => i.kind === "audio" && i.active
+              );
+              cur.videoActive = [...cur.consumersInfo.values()].some(
+                (i) => i.kind === "video" && i.active
+              );
+              return { ...cur };
+            });
+          };
+
+          // ✅ Event listeners untuk sinkronisasi pause/resume
+          consumer.on("producerpause", () => {
+            console.log(
+              `🔇 Producer paused for consumer ${consumer.id} (${consumer.kind})`
+            );
+            updateActiveFlags(false);
+          });
+
           consumer.on("producerresume", async () => {
+            console.log(
+              `🔊 Producer resumed for consumer ${consumer.id} (${consumer.kind})`
+            );
             try {
               if (consumer.paused) await consumer.resume();
             } catch {}
-            updateRemotePeer(ownerPeerId, (cur) => {
-              const info = cur.consumersInfo.get(consumer.id);
-              if (info) info.active = true;
-              cur.audioActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "audio" && i.active
-              );
-              cur.videoActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "video" && i.active
-              );
-              return { ...cur };
-            });
+            updateActiveFlags(true);
           });
 
-          // Sinkronkan UI kalau server mem-pause/resume consumer (bukan producer)
           consumer.on("pause", () => {
-            updateRemotePeer(ownerPeerId, (cur) => {
-              const info = cur.consumersInfo.get(consumer.id);
-              if (info) info.active = false;
-              cur.audioActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "audio" && i.active
-              );
-              cur.videoActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "video" && i.active
-              );
-              return { ...cur };
-            });
+            console.log(`⏸️ Consumer paused ${consumer.id} (${consumer.kind})`);
+            updateActiveFlags(false);
           });
 
-          consumer.on("resume", async () => {
-            // jaga-jaga: kalau autoplay policy, panggil play() lagi via update RemoteAudio (opsional)
-            updateRemotePeer(ownerPeerId, (cur) => {
-              const info = cur.consumersInfo.get(consumer.id);
-              if (info) info.active = true;
-              cur.audioActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "audio" && i.active
-              );
-              cur.videoActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "video" && i.active
-              );
-              return { ...cur };
-            });
+          consumer.on("resume", () => {
+            console.log(
+              `▶️ Consumer resumed ${consumer.id} (${consumer.kind})`
+            );
+            updateActiveFlags(true);
           });
 
           if (consumer.kind === "video") {
@@ -411,7 +388,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
 
           const activeNow = !payload.producerPaused && !consumer.paused;
 
-          // add track to that peer’s stream
           updateRemotePeer(ownerPeerId, (cur) => {
             const stream = cur.stream || new MediaStream();
             stream.addTrack(consumer.track);
@@ -433,34 +409,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
             return { ...cur };
           });
 
-          consumer.on("producerpause", () =>
-            updateRemotePeer(ownerPeerId, (cur) => {
-              const info = cur.consumersInfo.get(consumer.id);
-              if (info) info.active = false;
-              cur.audioActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "audio" && i.active
-              );
-              cur.videoActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "video" && i.active
-              );
-              return { ...cur };
-            })
-          );
-          consumer.on("producerresume", () =>
-            updateRemotePeer(ownerPeerId, (cur) => {
-              const info = cur.consumersInfo.get(consumer.id);
-              if (info) info.active = true;
-              cur.audioActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "audio" && i.active
-              );
-              cur.videoActive = [...cur.consumersInfo.values()].some(
-                (i) => i.kind === "video" && i.active
-              );
-              return { ...cur };
-            })
-          );
-
-          // when consumer ends/transport closes
           consumer.on("transportclose", () =>
             removeConsumer(ownerPeerId, consumer.id)
           );
@@ -481,7 +429,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     });
   }
 
-  // PUBLIC: toggle mic
   const startMic = useCallback(async () => {
     const transport = sendTransportRef.current;
     if (!transport || transport.closed) {
@@ -500,13 +447,12 @@ export default function useMediasoupRoom({ roomId, peerId }) {
       });
       const track = stream.getAudioTracks()[0];
 
-      // SATUKAN ke satu variabel
       let p = audioProducerRef.current;
       if (p?.closed) p = null;
 
       if (p) {
         await p.replaceTrack({ track });
-        await p.resume(); // resume sisi client
+        await p.resume();
       } else {
         p = await transport.produce({
           track,
@@ -528,7 +474,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         });
       }
 
-      // PENTING: sinkronkan ke server (producer sebelumnya di-pause saat "mute all")
       try {
         const socket = socketRef.current;
         if (socket && p?.id) {
@@ -538,7 +483,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         }
       } catch {}
 
-      // rapikan stream lokal
       try {
         localAudioStreamRef.current?.getTracks()?.forEach((t) => t.stop());
       } catch {}
@@ -576,8 +520,7 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     setMicOn(false);
   }, []);
 
-  // PUBLIC: toggle cam
-  // dalam useMediasoupRoom
+  // ✅ FIXED: startCam dengan cleanup & resume yang proper
   const startCam = useCallback(async () => {
     const transport = sendTransportRef.current;
     if (!transport || transport.closed) {
@@ -586,6 +529,7 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     }
 
     try {
+      console.log("📹 Starting camera...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { width: 1280, height: 720 },
@@ -593,49 +537,84 @@ export default function useMediasoupRoom({ roomId, peerId }) {
       const track = stream.getVideoTracks()[0];
 
       let p = videoProducerRef.current;
-      // ⛑️ kalau ada producer tapi sudah closed, anggap tidak ada
-      if (p?.closed) p = null;
 
-      if (p) {
-        try {
-          await p.replaceTrack({ track });
-          await p.resume();
-          setLocalStream(stream);
-          setCamOn(true);
-          return;
-        } catch (e) {
-          // jika gagal karena state closed/invalid, fallback buat producer baru
-          console.warn("resume/replaceTrack failed, recreating producer:", e);
-          try {
-            p.close?.();
-          } catch {}
-          videoProducerRef.current = null;
-        }
+      if (p?.closed) {
+        console.log("🔄 Producer closed, creating new one");
+        p = null;
       }
 
-      // buat producer baru
+      if (p) {
+        console.log("🔄 Replacing track on existing producer");
+
+        try {
+          const oldTrack = p.track;
+          if (oldTrack) oldTrack.stop();
+        } catch (e) {
+          console.warn("Failed to stop old track:", e);
+        }
+
+        await p.replaceTrack({ track });
+        await p.resume();
+
+        // ✅ Notify server untuk resume
+        try {
+          const socket = socketRef.current;
+          if (socket && p.id) {
+            await new Promise((resolve) => {
+              socket.emit("resume-producer", { producerId: p.id }, (ack) => {
+                console.log("📡 resume-producer response:", ack);
+                resolve(ack);
+              });
+            });
+          }
+        } catch (e) {
+          console.warn("Failed to notify server resume:", e);
+        }
+
+        setLocalStream(stream);
+        setCamOn(true);
+
+        console.log("✅ Camera restarted successfully");
+        return;
+      }
+
+      console.log("🆕 Creating new video producer");
       const newProducer = await transport.produce({
         track,
         appData: { type: "cam", peerId },
       });
+
       videoProducerRef.current = newProducer;
       setLocalStream(stream);
       setCamOn(true);
 
-      newProducer.on("trackended", () => stopCam());
+      newProducer.on("trackended", () => {
+        console.log("📹 Track ended");
+        stopCam();
+      });
+
       newProducer.on("transportclose", () => {
+        console.log("📹 Transport closed");
         setCamOn(false);
-        videoProducerRef.current = null; // ❗ penting: buang ref saat transport tutup
-      });
-      newProducer.on("close", () => {
-        // ❗ penting: buang ref saat producer close
-        if (videoProducerRef.current === newProducer)
+        setLocalStream(null);
+        if (videoProducerRef.current === newProducer) {
           videoProducerRef.current = null;
+        }
       });
+
+      newProducer.on("close", () => {
+        console.log("📹 Producer closed");
+        if (videoProducerRef.current === newProducer) {
+          videoProducerRef.current = null;
+        }
+      });
+
+      console.log("✅ New camera started successfully");
     } catch (e) {
-      console.error("startCam failed", e);
+      console.error("❌ startCam failed:", e);
       setError(e?.message || String(e));
       setCamOn(false);
+
       try {
         localStream?.getTracks()?.forEach((t) => t.stop());
       } catch {}
@@ -644,19 +623,55 @@ export default function useMediasoupRoom({ roomId, peerId }) {
   }, [peerId, localStream]);
 
   const stopCam = useCallback(async () => {
+    console.log("🛑 Stopping camera");
     const p = videoProducerRef.current;
+
+    if (!p) {
+      console.log("⚠️ No producer to stop");
+      return;
+    }
+
     try {
-      await p?.pause?.();
-    } catch {}
+      if (!p.closed) {
+        await p.pause();
+        console.log("⏸️ Producer paused");
+      }
+    } catch (e) {
+      console.warn("Failed to pause producer:", e);
+    }
+
+    // ✅ PENTING: Notify server bahwa producer di-pause
     try {
-      p?.track?.stop?.();
-    } catch {}
+      const socket = socketRef.current;
+      if (socket && p.id) {
+        await new Promise((resolve) => {
+          socket.emit("pause-producer", { producerId: p.id }, (ack) => {
+            console.log("📡 pause-producer response:", ack);
+            resolve(ack);
+          });
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to notify server pause:", e);
+    }
+
+    try {
+      if (p.track) {
+        p.track.stop();
+        console.log("🎥 Track stopped");
+      }
+    } catch (e) {
+      console.warn("Failed to stop track:", e);
+    }
+
     try {
       localStream?.getTracks()?.forEach((t) => t.stop());
     } catch {}
-    videoProducerRef.current = null; // ❗ jangan biarkan ref ke producer closed
+
     setLocalStream(null);
     setCamOn(false);
+
+    console.log("✅ Camera stopped");
   }, [localStream]);
 
   const muteAllOthers = useCallback(async () => {
@@ -672,7 +687,7 @@ export default function useMediasoupRoom({ roomId, peerId }) {
   return {
     ready,
     error,
-    remotePeers, // Map<peerId, {stream, consumers}>
+    remotePeers,
     micOn,
     camOn,
     startMic,
