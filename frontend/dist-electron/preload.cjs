@@ -8851,13 +8851,23 @@ Object.assign(lookup, {
   connect: lookup
 });
 const CONTROL_SERVER = "http://192.168.1.5:4000";
-const MIRROR_FPS = 2;
+const MIRROR_FPS = 1;
 let socket = null;
 let mirrorInterval = null;
 let isLocked = false;
+if (!globalThis.__CONTROL_CONNECTED__) {
+  globalThis.__CONTROL_CONNECTED__ = true;
+  console.log("[preload] Control connection guard initialized");
+} else {
+  console.log("[preload] Duplicate preload detected, skipping socket init");
+}
 function connectToControlServer(token, displayName) {
   if (socket && socket.connected) {
     console.log("[preload] Socket already connected as", socket.id);
+    return;
+  }
+  if (socket && !socket.connected) {
+    socket.connect();
     return;
   }
   console.log("[preload] Connecting to Control Server...");
@@ -8876,12 +8886,17 @@ function connectToControlServer(token, displayName) {
     socket.emit("register", payload);
     console.log("[preload] Registered participant:", payload);
   });
-  socket.io.on("reconnect", () => {
+  socket.io.on("reconnect_attempt", (attempt) => {
+    console.log(`[preload] Attempting to reconnect... (try ${attempt})`);
+  });
+  socket.io.on("reconnect", (attempt) => {
+    console.log(`[preload] ✅ Reconnected to Control Server (attempt ${attempt})`);
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
     const payload = { hostname, user, os: platform, token, displayName, role: "device" };
     socket.emit("register", payload);
+    console.log("[preload] Re-register after reconnect:", payload);
   });
   socket.on("connect_error", (err) => {
     console.error("❌ Socket connection error:", err.message);
@@ -8922,6 +8937,9 @@ function connectToControlServer(token, displayName) {
     }
   });
   socket.on("command", handleCommand);
+  socket.on("mirror-ack", () => {
+    lastAck = Date.now();
+  });
 }
 function disconnectFromControlServer() {
   if (socket && socket.connected) {
@@ -8990,26 +9008,50 @@ window.addEventListener("keydown", preventInput, true);
 window.addEventListener("mousedown", preventInput, true);
 window.addEventListener("mousemove", preventInput, true);
 window.addEventListener("contextmenu", preventInput, true);
+let lastAck = Date.now();
+setInterval(() => {
+  if (mirrorInterval && Date.now() - lastAck > 5e3) {
+    console.warn("[mirror] No ACK for 5s, restarting mirror...");
+    stopMirror();
+    startMirror();
+  }
+}, 3e3);
+let isMirroring = false;
 async function startMirror() {
-  if (mirrorInterval) return;
+  if (isMirroring) return;
+  isMirroring = true;
   console.log("[mirror] Started");
-  mirrorInterval = window.setInterval(async () => {
+  let dynamicDelay = 1e3 / MIRROR_FPS;
+  let lastSizeKB = 0;
+  const loop = async () => {
+    if (!isMirroring) return;
     try {
       if (!socket || !socket.connected) return;
       const img = await electron.ipcRenderer.invoke("capture-screen");
       if (!img) return;
+      lastSizeKB = img.length / 1024;
       socket.emit("mirror-frame", img);
+      if (lastSizeKB > 800) dynamicDelay = 400;
+      else if (lastSizeKB > 400) dynamicDelay = 200;
+      else dynamicDelay = 100;
     } catch (err) {
-      console.error("Mirror error:", err);
+      console.error("[mirror] Error:", err);
     }
-  }, 1e3 / MIRROR_FPS);
+    if (isMirroring) {
+      mirrorInterval = window.setTimeout(loop, dynamicDelay);
+    }
+  };
+  loop();
 }
 function stopMirror() {
+  if (!isMirroring) return;
+  console.log("[mirror] Stopping mirror...");
+  isMirroring = false;
   if (mirrorInterval) {
-    clearInterval(mirrorInterval);
+    clearTimeout(mirrorInterval);
     mirrorInterval = null;
-    console.log("[mirror] Stopped");
   }
+  console.log("[mirror] Stopped");
 }
 async function getScreenSources() {
   const sources = await electron.desktopCapturer.getSources({

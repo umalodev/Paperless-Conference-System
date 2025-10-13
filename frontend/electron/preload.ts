@@ -6,12 +6,20 @@ import { io, Socket } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
 const CONTROL_SERVER = "http://192.168.1.5:4000"; // Ganti sesuai IP server
-const MIRROR_FPS = 2; // frame per detik
+const MIRROR_FPS = 1; // frame per detik
 
 // ====== STATE ======
 let socket: Socket | null = null;
 let mirrorInterval: number | null = null;
 let isLocked = false;
+
+if (!(globalThis as any).__CONTROL_CONNECTED__) {
+  (globalThis as any).__CONTROL_CONNECTED__ = true;
+  console.log("[preload] Control connection guard initialized");
+} else {
+  console.log("[preload] Duplicate preload detected, skipping socket init");
+}
+
 
 // =====================================================
 // 🧩 SOCKET CONNECTION (Manual connect via Start.jsx)
@@ -20,6 +28,11 @@ function connectToControlServer(token?: string, displayName?: string) {
   // Jika sudah terkoneksi, jangan buat ulang
   if (socket && socket.connected) {
     console.log("[preload] Socket already connected as", socket.id);
+    return;
+  }
+
+    if (socket && !socket.connected) {
+    socket.connect();
     return;
   }
 
@@ -44,13 +57,24 @@ function connectToControlServer(token?: string, displayName?: string) {
     console.log("[preload] Registered participant:", payload);
   });
 
-  socket.io.on("reconnect", () => {
-    const hostname = os.hostname();
-    const user = os.userInfo().username;
-    const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName, role: "device" }; 
-    socket!.emit("register", payload);
-  });
+// === RECONNECT HANDLER (modern socket.io)
+socket.io.on("reconnect_attempt", (attempt) => {
+  console.log(`[preload] Attempting to reconnect... (try ${attempt})`);
+});
+
+socket.io.on("reconnect", (attempt) => {
+  console.log(`[preload] ✅ Reconnected to Control Server (attempt ${attempt})`);
+
+  const hostname = os.hostname();
+  const user = os.userInfo().username;
+  const platform = os.platform();
+  const payload = { hostname, user, os: platform, token, displayName, role: "device" };
+  
+  // kirim ulang register setelah reconnect sukses
+  socket!.emit("register", payload);
+  console.log("[preload] Re-register after reconnect:", payload);
+});
+
 
 
   // === ERROR HANDLER ===
@@ -110,6 +134,13 @@ function connectToControlServer(token?: string, displayName?: string) {
 
   // === COMMAND HANDLER ===
   socket.on("command", handleCommand);
+
+  // === MIRROR ACK HANDLER ===
+  socket.on("mirror-ack", () => {
+    lastAck = Date.now();
+    // console.log("[mirror] ACK received");
+  });
+
 }
 
 
@@ -191,31 +222,75 @@ window.addEventListener("mousedown", preventInput, true);
 window.addEventListener("mousemove", preventInput, true);
 window.addEventListener("contextmenu", preventInput, true);
 
+
+// === Mirror Watchdog ===
+let lastAck = Date.now();
+
+// periksa setiap 3 detik apakah mirror macet
+setInterval(() => {
+  if (mirrorInterval && Date.now() - lastAck > 5000) {
+    console.warn("[mirror] No ACK for 5s, restarting mirror...");
+    stopMirror();
+    startMirror();
+  }
+}, 3000);
+
+
 // =====================================================
 // 🪞 SCREEN MIRROR STREAM
 // =====================================================
+let isMirroring = false; // tambahkan di atas preload.ts, dekat mirrorInterval
+
 async function startMirror() {
-  if (mirrorInterval) return;
+  if (isMirroring) return; // jangan mulai kalau sudah jalan
+  isMirroring = true;
   console.log("[mirror] Started");
-  mirrorInterval = window.setInterval(async () => {
+
+  let dynamicDelay = 1000 / MIRROR_FPS;
+  let lastSizeKB = 0;
+
+  const loop = async () => {
+    if (!isMirroring) return; // keluar jika sudah disetop
     try {
       if (!socket || !socket.connected) return;
       const img = await ipcRenderer.invoke("capture-screen");
       if (!img) return;
+
+      // Hitung ukuran frame
+      lastSizeKB = img.length / 1024;
+
+      // Kirim frame
       socket.emit("mirror-frame", img);
+
+      // Adaptive delay
+      if (lastSizeKB > 800) dynamicDelay = 400;
+      else if (lastSizeKB > 400) dynamicDelay = 200;
+      else dynamicDelay = 100;
     } catch (err) {
-      console.error("Mirror error:", err);
+      console.error("[mirror] Error:", err);
     }
-  }, 1000 / MIRROR_FPS);
+
+    if (isMirroring) {
+      mirrorInterval = window.setTimeout(loop, dynamicDelay);
+    }
+  };
+
+  loop(); // mulai loop pertama
 }
 
 function stopMirror() {
+  if (!isMirroring) return;
+  console.log("[mirror] Stopping mirror...");
+  isMirroring = false;
+
   if (mirrorInterval) {
-    clearInterval(mirrorInterval);
+    clearTimeout(mirrorInterval);
     mirrorInterval = null;
-    console.log("[mirror] Stopped");
   }
+
+  console.log("[mirror] Stopped");
 }
+
 
 // =====================================================
 // 🧰 SCREEN CAPTURE HELPERS
