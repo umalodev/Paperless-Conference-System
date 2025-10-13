@@ -84,90 +84,88 @@ export default function ParticipantsPage() {
   }, []);
 
   // Participants polling (unchanged)
-  useEffect(() => {
-    let cancel = false;
+useEffect(() => {
+  if (!meetingId) return;
 
-    const loadParticipants = async () => {
-      try {
-        if (!meetingId) return;
-        setLoadingList(true);
-        setErrList("");
+  const token = localStorage.getItem("token");
+  if (!token) return;
 
-        const qs = `?meetingId=${encodeURIComponent(meetingId)}`;
-        let res = await fetch(`${API_URL}/api/participants/list${qs}`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(meetingService.getAuthHeaders?.() || {}),
-          },
-          credentials: "include",
-        });
+  const WS_URL = `${API_URL.replace(/^http/, "ws")}/meeting/${meetingId}?token=${token}`;
+  const ws = new WebSocket(WS_URL);
 
-        // fallback dev-only
-        if (!res.ok) {
-          res = await fetch(`${API_URL}/api/participants/test-data`, {
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const json = await res.json();
-
-        if (!cancel) {
-          if (json.success) {
-            const raw = Array.isArray(json.data) ? json.data : [];
-
-            const stableIdOf = (p) =>
-              String(p.participantId ?? p.userId ?? p.peerId ?? p.id);
-
-            const fresh = raw.map((p) => ({
-              ...p,
-              id: stableIdOf(p),
-              displayName:
-                p.displayName ||
-                localStorage.getItem(`meeting:${meetingId}:displayName`) ||
-                p.name ||
-                "Participant",
-              mic: p.mic ?? !!p.isAudioEnabled,
-              cam: p.cam ?? !!p.isVideoEnabled,
-            }));
-
-            setParticipants((prev) => {
-              if (prev.length === 0) {
-                return [...fresh].sort((a, b) => {
-                  const ta = new Date(a.joinTime || a.createdAt || 0).getTime();
-                  const tb = new Date(b.joinTime || b.createdAt || 0).getTime();
-                  return ta - tb;
-                });
-              }
-              const freshById = new Map(fresh.map((p) => [p.id, p]));
-              const prevIds = new Set(prev.map((p) => p.id));
-              const merged = prev.map((old) => {
-                const f = freshById.get(old.id);
-                return f ? { ...old, ...f } : old;
-              });
-              fresh.forEach((p) => {
-                if (!prevIds.has(p.id)) merged.push(p);
-              });
-              return merged;
-            });
-          } else {
-            setErrList(json.message || "Failed to load participants");
-          }
-        }
-      } catch (e) {
-        if (!cancel) setErrList(String(e.message || e));
-      } finally {
-        if (!cancel) setLoadingList(false);
+  // helper untuk reload list dari REST API
+  const reloadParticipants = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/participants/list?meetingId=${meetingId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(meetingService.getAuthHeaders?.() || {}),
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        const formatted = json.data.map((p) => ({
+          id: String(p.participantId ?? p.userId ?? p.id),
+          displayName:
+            p.displayName ||
+            localStorage.getItem(`meeting:${meetingId}:displayName`) ||
+            p.name ||
+            "Participant",
+          mic: !!p.isAudioEnabled,
+          cam: !!p.isVideoEnabled,
+          role: p.role || "participant",
+        }));
+        setParticipants(formatted);
       }
-    };
+    } catch (e) {
+      console.error("Failed to reload participants:", e);
+    }
+  };
 
-    loadParticipants();
-    const interval = setInterval(loadParticipants, 5000);
-    return () => {
-      cancel = true;
-      clearInterval(interval);
-    };
-  }, [meetingId]);
+  ws.onopen = () => {
+    console.log("[ParticipantsPage] ✅ WS Connected");
+    // Ambil daftar awal saat pertama connect
+    reloadParticipants();
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log("[WS]", data);
+
+      if (data.type === "participant_joined" || data.type === "participant_left") {
+        console.log("[WS] Trigger reload because participants changed");
+        reloadParticipants();
+      }
+
+      // (Optional) kalau server punya event participant_updated
+      if (data.type === "participant_updated") {
+        setParticipants((prev) =>
+          prev.map((p) =>
+            String(p.id) === String(data.participantId)
+              ? { ...p, ...data.updates }
+              : p
+          )
+        );
+      }
+    } catch (err) {
+      console.error("[WS] parse error:", err);
+    }
+  };
+
+  ws.onclose = (e) => {
+    console.warn("[ParticipantsPage] ❌ WS closed:", e.code, e.reason);
+  };
+
+  ws.onerror = (err) => {
+    console.error("[ParticipantsPage] WS error:", err);
+  };
+
+  return () => {
+    ws.close();
+  };
+}, [meetingId]);
 
   const visibleMenus = useMemo(
     () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
@@ -352,6 +350,39 @@ export default function ParticipantsPage() {
     [mediaReady, micOn, startMic, stopMic]
   );
 
+  const reloadParticipants = useCallback(async () => {
+    if (!meetingId) return;
+    try {
+      setLoadingList(true);
+      const res = await fetch(`${API_URL}/api/participants/list?meetingId=${meetingId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(meetingService.getAuthHeaders?.() || {}),
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        const formatted = json.data.map((p) => ({
+          id: String(p.participantId ?? p.userId ?? p.id),
+          displayName:
+            p.displayName ||
+            localStorage.getItem(`meeting:${meetingId}:displayName`) ||
+            p.name ||
+            "Participant",
+          mic: !!p.isAudioEnabled,
+          cam: !!p.isVideoEnabled,
+          role: p.role || "participant",
+        }));
+        setParticipants(formatted);
+      }
+    } catch (e) {
+      console.error("❌ Failed to reload participants:", e);
+    } finally {
+      setLoadingList(false);
+    }
+  }, [meetingId]);
+
   const onToggleCam = useCallback(
     (force) => {
       if (!mediaReady) return;
@@ -453,6 +484,29 @@ export default function ParticipantsPage() {
                     />
                   </div>
                   <div className="prt-actions">
+                    {/* Tombol Refresh untuk semua role */}
+                    <button
+                      className="prt-btn"
+                      title="Reload participants list"
+                      onClick={async () => {
+                        try {
+                          setLoadingList(true);
+                          await reloadParticipants();
+                        } finally {
+                          setLoadingList(false);
+                        }
+                      }}
+                    >
+                      <img
+                        src="/img/refresh.png"
+                        alt="Refresh"
+                        className="mute-img"
+                        aria-hidden="true"
+                      />
+                      <span className="prt-btn-label">Refresh</span>
+                    </button>
+
+                    {/* Tombol Mute All hanya untuk host */}
                     {(user?.role === "host" || user?.role === "Host") && (
                       <button
                         className="prt-btn danger"
@@ -474,6 +528,7 @@ export default function ParticipantsPage() {
                       </button>
                     )}
                   </div>
+
                 </div>
 
                 <div className="prt-summary">

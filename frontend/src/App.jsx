@@ -197,7 +197,7 @@ function App() {
           <Route
             path="/master-controller"
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole="host">
                 <MediaRoomProvider>
                   <ScreenShareProvider>
                     <MasterController />
