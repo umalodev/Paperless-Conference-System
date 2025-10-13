@@ -93,13 +93,15 @@ function createWindow() {
     console.log(`[main] Granting permission: ${permission}`);
     cb(true);
   });
-  session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, _details) => {
-    console.log(`[main] Permission check: ${permission}`);
-    if (permission === "media") {
+  session.defaultSession.setPermissionCheckHandler(
+    (_wc, permission, _origin, _details) => {
+      console.log(`[main] Permission check: ${permission}`);
+      if (permission === "media") {
+        return true;
+      }
       return true;
     }
-    return true;
-  });
+  );
   if (VITE_DEV_SERVER_URL) win.loadURL(VITE_DEV_SERVER_URL);
   else win.loadFile(path.join(RENDERER_DIST, "index.html"));
   win.webContents.once("did-finish-load", () => {

@@ -342,23 +342,25 @@ export default function ParticipantsPage() {
   }, [participants.length, remotePeers, micOn, camOn]);
 
   // wiring tombol footer -> media produce/close + update DB flag utk current user
-  const onToggleMic = useCallback(() => {
-    if (!mediaReady) return;
-    if (micOn) {
-      stopMic();
-    } else {
-      startMic();
-    }
-  }, [mediaReady, micOn, startMic, stopMic]);
+  const onToggleMic = useCallback(
+    (force) => {
+      if (!mediaReady) return;
+      const next = typeof force === "boolean" ? force : !micOn;
+      if (next) startMic();
+      else stopMic();
+    },
+    [mediaReady, micOn, startMic, stopMic]
+  );
 
-  const onToggleCam = useCallback(() => {
-    if (!mediaReady) return;
-    if (camOn) {
-      stopCam();
-    } else {
-      startCam();
-    }
-  }, [mediaReady, camOn, startCam, stopCam]);
+  const onToggleCam = useCallback(
+    (force) => {
+      if (!mediaReady) return;
+      const next = typeof force === "boolean" ? force : !camOn;
+      if (next) startCam();
+      else stopCam();
+    },
+    [mediaReady, camOn, startCam, stopCam]
+  );
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
@@ -431,7 +433,7 @@ export default function ParticipantsPage() {
                 className={`prt-tab${activeTab === "video" ? " active" : ""}`}
                 onClick={() => setActiveTab("video")}
               >
-                Camera 
+                Camera
               </button>
             </div>
 
@@ -656,7 +658,12 @@ export default function ParticipantsPage() {
                         `User ${peerId.slice(-4)}`;
 
                       return (
-                        <VideoTile key={pid} name={name} stream={obj.stream} />
+                        <VideoTile
+                          key={pid}
+                          name={name}
+                          stream={obj.stream}
+                          placeholder={!obj.videoActive}
+                        />
                       );
                     })}
 
@@ -706,20 +713,50 @@ function VideoTile({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (stream && stream.getTracks().length) {
-      el.srcObject = stream;
-      const tryPlay = () => el.play().catch(() => {});
-      el.onloadedmetadata = tryPlay;
-      tryPlay();
-    } else {
-      el.srcObject = null;
+
+    const hasVideo =
+      !!stream &&
+      typeof stream.getVideoTracks === "function" &&
+      stream.getVideoTracks().length > 0;
+
+    // Saat placeholder: pastikan elemen video benar-benar dikosongkan
+    if (placeholder || !hasVideo) {
+      try {
+        el.pause?.();
+      } catch {}
+      try {
+        el.srcObject = null;
+      } catch {}
+      try {
+        el.removeAttribute?.("src");
+      } catch {}
+      try {
+        el.load?.();
+      } catch {}
+      return;
     }
-  }, [stream]);
+
+    // Saat kembali aktif: reattach dan play
+    try {
+      // reset dulu kalau sedang terpasang stream lama
+      if (el.srcObject && el.srcObject !== stream) {
+        el.pause?.();
+        el.srcObject = null;
+        el.removeAttribute?.("src");
+        el.load?.();
+      }
+    } catch {}
+
+    el.srcObject = stream;
+    const tryPlay = () => el.play().catch(() => {});
+    el.onloadedmetadata = tryPlay;
+    tryPlay();
+  }, [stream, placeholder]); // ❗ penting: placeholder ikut di deps
 
   return (
     <div className="video-item">
       {placeholder ? (
-        <div className="video-dummy">
+        <div className="video-dummy" aria-label="camera off">
           <span role="img" aria-label="video">
             🎥
           </span>
@@ -734,6 +771,7 @@ function VideoTile({
         />
       )}
 
+      {/* biar aman, audio tetap hidden di tile */}
       <AudioSink stream={stream} muted={true} />
       <div className="video-name">{name}</div>
     </div>
