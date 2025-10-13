@@ -6,11 +6,8 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import LockOverlay from "./components/LockOverlay.jsx";
 import "./components/LockOverlay.css";
 
-
 // Import role-specific dashboards
-
 import AdminDashboard from "./pages/admin/dashboard/admin-dashboard.jsx";
-
 import ParticipantDashboard from "./pages/participant/dashboard/participant-dashboard.jsx";
 
 import Agenda from "./pages/menu/agenda/Agenda.jsx";
@@ -35,52 +32,185 @@ import { ModalProvider } from "./contexts/ModalProvider.jsx";
 function App() {
   return (
     <HashRouter>
-      <MediaRoomProvider>
-        <ScreenShareProvider>
-          <ModalProvider>
-            <Routes>
-              <Route path="/" element={<Login />} />
+      <ModalProvider>
+        {" "}
+        {/* Modal bisa global */}
+        <Routes>
+          {/* Route publik: Login, Start, Waiting — TANPA MediaRoomProvider */}
+          <Route path="/" element={<Login />} />
+          <Route path="/start" element={<Start />} />
+          <Route path="/waiting" element={<WaitingRoom />} />
+          <Route path="/setup" element={<SetUp />} />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute requiredRole="admin">
+          {/* Route protected: Wrap dengan MediaRoomProvider & ScreenShareProvider */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <MediaRoomProvider>
+                  {" "}
+                  <ScreenShareProvider>
                     <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
 
-              <Route
-                path="/participant/dashboard"
-                element={
-                  <ProtectedRoute requiredRole="participant">
+          <Route
+            path="/participant/dashboard"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
                     <ParticipantDashboard />
-                  </ProtectedRoute>
-                }
-              />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
 
-              <Route path="/start" element={<Start />} />
-              <Route path="/dashboard" element={<Navigate to="/" replace />} />
-              <Route path="/menu/agenda" element={<Agenda />} />
-              <Route path="/menu/materials" element={<Materials />} />
-              <Route path="/menu/participant" element={<ParticipantsPage />} />
-              <Route path="/menu/survey" element={<Survey />} />
-              <Route path="/menu/files" element={<Files />} />
-              <Route path="/menu/chating" element={<Chat />} />
-              <Route path="/menu/notes" element={<Notes />} />
-              <Route path="/waiting" element={<WaitingRoom />} />
-              <Route path="/setup" element={<SetUp />} />
-              <Route path="/menu/services" element={<Services />} />
-              <Route path="/menu/screenshare" element={<ScreenSharePage />} />
-              <Route path="/menu/whiteboard" element={<Whiteboard />} />
-              <Route path="/master-controller" element={<MasterController />} />
+          {/* Route menu: Asumsi butuh media, wrap di ProtectedRoute atau langsung */}
+          <Route
+            path="/menu/agenda"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                {" "}
+                {/* Tambah ProtectedRoute jika belum */}
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Agenda />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/materials"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Materials />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/participant"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <ParticipantsPage />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/survey"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Survey />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/files"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Files />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/chating"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Chat />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/notes"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Notes />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/services"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Services />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/screenshare"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <ScreenSharePage />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/menu/whiteboard"
+            element={
+              <ProtectedRoute requiredRole="participant">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <Whiteboard />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master-controller"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <MediaRoomProvider>
+                  <ScreenShareProvider>
+                    <MasterController />
+                  </ScreenShareProvider>
+                </MediaRoomProvider>
+              </ProtectedRoute>
+            }
+          />
 
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            <GlobalAnnotationOverlay />
-          </ModalProvider>
-        </ScreenShareProvider>
-      </MediaRoomProvider>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <GlobalAnnotationOverlay /> {/* Global overlay di luar */}
+      </ModalProvider>
     </HashRouter>
   );
 }
