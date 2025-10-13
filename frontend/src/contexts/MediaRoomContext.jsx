@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import useMediasoupRoom from "../hooks/useMediasoupRoom";
 
 /** Tombol unlock sekali untuk lewati autoplay policy + audio sinks tersembunyi */
@@ -6,14 +14,14 @@ function GlobalAudioLayer({ remotePeers, myPeerId }) {
   const [unlocked, setUnlocked] = useState(
     () => sessionStorage.getItem("audioUnlocked") === "1"
   );
-  React.useEffect(() => {
+  useEffect(() => {
     sessionStorage.setItem("audioUnlocked", unlocked ? "1" : "0");
   }, [unlocked]);
 
   // hitung berapa sink yang masih terblokir
-  const [blockedCount, setBlockedCount] = React.useState(0);
-  const onBlocked = React.useCallback(() => setBlockedCount((c) => c + 1), []);
-  const onUnblocked = React.useCallback(
+  const [blockedCount, setBlockedCount] = useState(0);
+  const onBlocked = useCallback(() => setBlockedCount((c) => c + 1), []);
+  const onUnblocked = useCallback(
     () => setBlockedCount((c) => Math.max(0, c - 1)),
     []
   );
@@ -64,11 +72,11 @@ function AudioSink({
   onBlocked,
   onUnblocked,
 }) {
-  const ref = React.useRef(null);
-  const [needUnlock, setNeedUnlock] = React.useState(false);
-  const prevNeedUnlock = React.useRef(false);
+  const ref = useRef(null);
+  const [needUnlock, setNeedUnlock] = useState(false);
+  const prevNeedUnlock = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const hasAudio = !!stream && stream.getAudioTracks().length > 0;
@@ -80,7 +88,7 @@ function AudioSink({
     }
   }, [stream, muted, unlockedSignal]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (needUnlock !== prevNeedUnlock.current) {
       prevNeedUnlock.current = needUnlock;
       if (needUnlock) onBlocked && onBlocked();
@@ -116,26 +124,95 @@ function AudioSink({
 const MediaRoomContext = createContext(null);
 
 export function MediaRoomProvider({ children }) {
-  // Ambil roomId & peerId dari localStorage (biar konsisten lintas halaman)
-  const meeting = (() => {
-    try {
-      const raw = localStorage.getItem("currentMeeting");
-      const cm = raw ? JSON.parse(raw) : null;
-      return cm?.id || cm?.meetingId || cm?.code || null;
-    } catch {
-      return null;
-    }
-  })();
+  // ✅ FIX: Gunakan useState + useEffect untuk sync localStorage setelah mount
+  const [meeting, setMeeting] = useState(null);
+  const [myPeerId, setMyPeerId] = useState(null);
+  const [localStorageReady, setLocalStorageReady] = useState(false);
 
-  const myPeerId = String(
-    JSON.parse(localStorage.getItem("user") || "{}")?.id ||
-      localStorage.getItem("userId") ||
-      "me"
+  useEffect(() => {
+    console.log("🔍 MediaRoomProvider: Reading localStorage...");
+    try {
+      const rawMeeting = localStorage.getItem("currentMeeting");
+      const rawUser = localStorage.getItem("user");
+      console.log("📦 localStorage raw:", {
+        currentMeeting: rawMeeting,
+        user: rawUser,
+      }); // ✅ Log detail: Ini akan tampil isi exact
+
+      const cm = rawMeeting ? JSON.parse(rawMeeting) : null;
+      const newMeeting = cm?.id || cm?.meetingId || cm?.code || null;
+
+      const userRaw = rawUser || "{}";
+      const newPeerId = String(
+        JSON.parse(userRaw)?.id || localStorage.getItem("userId") || "me"
+      );
+
+      console.log("📦 localStorage parsed:", { newMeeting, newPeerId });
+
+      setMeeting(newMeeting);
+      setMyPeerId(newPeerId);
+      setLocalStorageReady(true);
+    } catch (e) {
+      console.error("❌ Error reading localStorage:", e);
+      setLocalStorageReady(true); // Tetap set true biar UI gak stuck
+    }
+  }, []); // Run sekali setelah mount
+
+  // ✅ Hook hanya jalan jika localStorage ready + valid
+  const media = useMediasoupRoom({
+    roomId: meeting,
+    peerId: myPeerId,
+  });
+
+  const value = useMemo(
+    () => ({
+      ...media,
+      myPeerId,
+      localStorageReady, // Export untuk debug di consumer
+    }),
+    [media, myPeerId, localStorageReady]
   );
 
-  const media = useMediasoupRoom({ roomId: meeting, peerId: myPeerId });
+  // Jika localStorage gak ready atau invalid, tampilkan loading dengan style visible
+  if (!localStorageReady) {
+    return (
+      <div
+        style={{
+          padding: 20,
+          textAlign: "center",
+          backgroundColor: "white", // ✅ Fix black screen: Force white bg
+          color: "black",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        Loading meeting data...
+      </div>
+    );
+  }
 
-  const value = useMemo(() => ({ ...media, myPeerId }), [media, myPeerId]);
+  if (!meeting || !myPeerId) {
+    return (
+      <div
+        style={{
+          padding: 20,
+          textAlign: "center",
+          backgroundColor: "white", // ✅ Fix black screen
+          color: "black",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        Meeting data not found. Please join a meeting first.
+        <br />
+        <small>Check console for localStorage details.</small>
+      </div>
+    );
+  }
 
   return (
     <MediaRoomContext.Provider value={value}>

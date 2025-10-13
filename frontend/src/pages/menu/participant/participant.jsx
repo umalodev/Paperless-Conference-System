@@ -711,6 +711,12 @@ function VideoTile({
   const ref = useRef(null);
 
   useEffect(() => {
+    console.log("🎥 VideoTile update", {
+      name,
+      hasStream: !!stream,
+      placeholder,
+      videoTracks: stream?.getVideoTracks().length,
+    });
     const el = ref.current;
     if (!el) return;
 
