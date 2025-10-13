@@ -14,6 +14,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../contexts/ModalProvider.jsx";
+import { cleanupAllMediaAndRealtime } from "../../../utils/mediaCleanup.js";
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
@@ -24,6 +25,8 @@ export default function ParticipantDashboard() {
   const [currentMeeting, setCurrentMeeting] = useState(null);
   const navigate = useNavigate();
   const { confirm, notify } = useModal();
+
+  const mediaRoom = useMediaRoom?.() || null;
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -93,13 +96,17 @@ export default function ParticipantDashboard() {
 
       // 💀 Meeting sudah berakhir
       if (result?.data?.status === "ended") {
-        disconnectAndExit("Meeting telah berakhir. Anda akan dikeluarkan dari meeting.");
+        disconnectAndExit(
+          "Meeting telah berakhir. Anda akan dikeluarkan dari meeting."
+        );
         return;
       }
 
       // 🚫 Meeting tidak aktif
       if (!result?.data?.isActive) {
-        disconnectAndExit("Meeting tidak aktif. Anda akan dikeluarkan dari meeting.");
+        disconnectAndExit(
+          "Meeting tidak aktif. Anda akan dikeluarkan dari meeting."
+        );
         return;
       }
     } catch (error) {
@@ -115,7 +122,9 @@ export default function ParticipantDashboard() {
         try {
           if (window.electronAPI?.disconnectFromControlServer) {
             window.electronAPI.disconnectFromControlServer();
-            console.log("🔌 Disconnected from Control Server (meeting not found)");
+            console.log(
+              "🔌 Disconnected from Control Server (meeting not found)"
+            );
           }
         } catch (err) {
           console.warn("⚠️ Failed to disconnect socket:", err);
@@ -201,40 +210,68 @@ export default function ParticipantDashboard() {
       destructive: true,
       okText: "Logout",
       cancelText: "Batal",
-      onConfirm: async () => {
-        cleanupRealtime();
+    });
 
-        // ✅ Disconnect dari Control Server
+    if (!ok) return;
+
+    try {
+      // --- 0) Ambil meetingId TERKINI dari state ---
+      const meetingId =
+        currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
+
+      // --- 1) MATIKAN DULU DARI CONTEXT (sangat penting) ---
+      try {
+        if (micOn) await stopMic();
+      } catch {}
+      try {
+        if (camOn) await stopCam();
+      } catch {}
+
+      // --- 2) Cleanup total (screen-share, PC/mediasoup, video tag, ws) ---
+      await cleanupAllMediaAndRealtime({
+        mediaRoom, // supaya room.leave()/stopAll() kepanggil jika ada
+        // Jika kamu punya setter global untuk ikon, bisa kirim di sini:
+        // setMic: (v) => setMicState(v), setCam: (v) => setCamState(v)
+      });
+
+      // --- 3) Putus Control Server (Electron) ---
+      try {
         if (window.electronAPI?.disconnectFromControlServer) {
           window.electronAPI.disconnectFromControlServer();
           console.log("🛑 Disconnected from Control Server via logout");
         }
+      } catch {}
 
+      // --- 4) Beri tahu backend kalau masih tercatat di meeting ---
+      try {
         if (meetingId) await meetingService.leaveMeeting(meetingId);
+      } catch {}
 
-        try {
-          if (typeof meetingService.logout === "function") {
-            await meetingService.logout();
-          }
-        } catch {}
+      // --- 5) Panggil logout backend (jika ada) ---
+      try {
+        if (typeof meetingService.logout === "function") {
+          await meetingService.logout();
+        }
+      } catch {}
 
-        // Hapus session data
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-        localStorage.removeItem("pconf.displayName");
-        localStorage.removeItem("pconf.useAccountName");
-        localStorage.removeItem("currentMeeting");
-      },
-    });
+      // --- 6) Bersihkan session/local storage ---
+      localStorage.removeItem("currentMeeting");
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("pconf.displayName");
+      localStorage.removeItem("pconf.useAccountName");
 
-    if (ok) {
+      // --- 7) Redirect ---
       await notify({
         variant: "success",
         title: "Signed out",
         message: "See you soon.",
         autoCloseMs: 900,
       });
-      navigate("/");
+      navigate("/", { replace: true });
+    } catch (e) {
+      console.error("Logout error:", e);
+      navigate("/", { replace: true });
     }
   };
 

@@ -53,6 +53,145 @@ export default function MeetingFooter({
   const isHost = userRole === "host" || userRole === "admin";
   const isDefaultMeeting =
     Boolean(cm?.isDefault) || String(meetingId) === "1000";
+  // Matikan semua track dalam sebuah stream
+  const stopTracks = (stream) => {
+    if (!stream) return;
+    try {
+      const tracks = [
+        ...(stream.getAudioTracks?.() || []),
+        ...(stream.getVideoTracks?.() || []),
+      ];
+      tracks.forEach((t) => {
+        try {
+          t.stop?.();
+        } catch {}
+        try {
+          t.enabled = false;
+        } catch {}
+      });
+    } catch {}
+  };
+
+  // Kosongkan semua <video> element yang mungkin masih terpasang
+  const detachAllVideoElements = () => {
+    try {
+      const vids = document.querySelectorAll("video");
+      vids.forEach((v) => {
+        try {
+          v.srcObject = null;
+        } catch {}
+        try {
+          v.pause?.();
+        } catch {}
+        try {
+          v.removeAttribute("src");
+        } catch {}
+      });
+    } catch {}
+  };
+
+  // Tutup semua koneksi WebRTC / mediasoup yang mungkin ada
+  const closeRealtimeTransports = async () => {
+    try {
+      // Mediasoup (jika kamu simpan di window.*)
+      const ms = window.mediasoupRoom || window.mediaRoom || window.msRoom;
+      if (ms) {
+        // Tutup producers
+        try {
+          (ms.producers || []).forEach((p) => {
+            try {
+              p.close?.();
+            } catch {}
+          });
+        } catch {}
+        // Tutup consumers
+        try {
+          (ms.consumers || []).forEach((c) => {
+            try {
+              c.close?.();
+            } catch {}
+          });
+        } catch {}
+        // Tutup transports
+        try {
+          (ms.transports || []).forEach((t) => {
+            try {
+              t.close?.();
+            } catch {}
+          });
+        } catch {}
+        // Leave/close room
+        try {
+          ms.leave?.();
+        } catch {}
+        try {
+          ms.close?.();
+        } catch {}
+      }
+
+      // PeerConnection vanilla WebRTC
+      const pcs = [
+        window.rtcPeerConnection,
+        ...(window.peerConnections || []),
+      ].filter(Boolean);
+      pcs.forEach((pc) => {
+        try {
+          pc.getSenders?.().forEach((s) => {
+            try {
+              s.track?.stop?.();
+            } catch {}
+          });
+        } catch {}
+        try {
+          pc.getReceivers?.().forEach((r) => {
+            try {
+              r.track?.stop?.();
+            } catch {}
+          });
+        } catch {}
+        try {
+          pc.close?.();
+        } catch {}
+      });
+      window.peerConnections = [];
+      window.rtcPeerConnection = undefined;
+    } catch {}
+  };
+
+  // Matikan semua mic/cam streams yang umum dipakai
+  const cleanupMediaDevices = () => {
+    try {
+      stopTracks(window.localStream);
+      stopTracks(window.localVideoStream);
+      stopTracks(window.localAudioStream);
+      stopTracks(window.currentMicStream);
+      stopTracks(window.currentCamStream);
+      // beberapa implementasi menyimpan langsung di element
+      stopTracks(document.getElementById("localVideo")?.srcObject);
+      stopTracks(document.getElementById("localAudio")?.srcObject);
+    } catch {}
+    detachAllVideoElements();
+  };
+
+  // Matikan screen share kalau belum dimatikan
+  const stopScreenShareIfAny = () => {
+    try {
+      if (window.simpleScreenShare?.isSharing)
+        window.simpleScreenShare.stopScreenShare();
+    } catch {}
+    try {
+      stopTracks(window.screenShareStream);
+    } catch {}
+  };
+
+  // Panggil semua cleanup realtime + media
+  const cleanupAllMediaAndRealtime = async () => {
+    try {
+      stopScreenShareIfAny();
+      cleanupMediaDevices();
+      await closeRealtimeTransports();
+    } catch {}
+  };
 
   // Common cleanup
   const cleanupRealtime = () => {
@@ -68,42 +207,52 @@ export default function MeetingFooter({
     } catch {}
   };
 
-// =========================================================
-// 🏠 Default Back to Home (cleanup + conditional disconnect)
-// =========================================================
+  // =========================================================
+  // 🏠 Default Back to Home (cleanup + conditional disconnect)
+  // =========================================================
   const defaultBack = async () => {
     try {
-      // 🧹 1️⃣ Bersihkan koneksi internal (screen share, websocket)
-      cleanupRealtime();
+      // 1) Matikan media dan koneksi realtime
+      await cleanupAllMediaAndRealtime();
 
-      // 🚪 2️⃣ Jika participant → kirim leaveMeeting & putus socket
+      // 2) Putuskan control server untuk participant
       if (!isHost) {
-        // 🔌 Putuskan koneksi ke Control Server (hanya untuk participant)
         try {
           if (window.electronAPI?.disconnectFromControlServer) {
-            console.log("🔌 [Participant] Disconnecting from Control Server (Home button)...");
+            console.log(
+              "🔌 [Participant] Disconnecting from Control Server (Home button)..."
+            );
             window.electronAPI.disconnectFromControlServer();
           }
         } catch (err) {
           console.warn("⚠️ Failed to disconnect Control Server:", err);
         }
 
-        // 🚪 Informasikan ke backend kalau participant keluar dari meeting
         if (meetingId) {
-          await meetingService.leaveMeeting(meetingId);
+          try {
+            await meetingService.leaveMeeting(meetingId);
+          } catch {}
         }
       } else {
-        console.log("ℹ️ Host navigates home — connection stays active.");
+        console.log(
+          "ℹ️ Host navigates home — server session may stay, but local media is off."
+        );
       }
+
+      // 3) Sinkronkan UI toggle agar ikon jadi OFF
+      try {
+        onToggleMic?.(false);
+      } catch {}
+      try {
+        onToggleCam?.(false);
+      } catch {}
     } catch (err) {
       console.error("⚠️ Error during back/cleanup:", err);
     } finally {
-      // 🧽 3️⃣ Bersihkan sesi meeting & navigasi sesuai role
       localStorage.removeItem("currentMeeting");
       navigate(isHost ? "/setup" : "/start");
     }
   };
-
 
   const defaultEndMeeting = async () => {
     const ok = await confirm({
@@ -115,13 +264,18 @@ export default function MeetingFooter({
       cancelText: "Cancel",
       onConfirm: async () => {
         if (!meetingId) throw new Error("Meeting ID not found.");
-        cleanupRealtime();
-        await meetingService.endMeeting(meetingId); // jika error, modal tetap terbuka & loading berhenti
+        await cleanupAllMediaAndRealtime();
+        await meetingService.endMeeting(meetingId);
       },
     });
 
     if (ok) {
-      // sukses end meeting
+      try {
+        onToggleMic?.(false);
+      } catch {}
+      try {
+        onToggleCam?.(false);
+      } catch {}
       localStorage.removeItem("currentMeeting");
       await notify({
         variant: "success",
@@ -130,8 +284,6 @@ export default function MeetingFooter({
         autoCloseMs: 1000,
       });
       navigate("/setup");
-    } else {
-      // user cancel -> tidak melakukan apa-apa
     }
   };
 
@@ -143,12 +295,18 @@ export default function MeetingFooter({
       cancelText: "Stay",
       onConfirm: async () => {
         if (!meetingId) throw new Error("Meeting ID not found.");
-        cleanupRealtime();
+        await cleanupAllMediaAndRealtime();
         await meetingService.leaveMeeting(meetingId);
       },
     });
 
     if (ok) {
+      try {
+        onToggleMic?.(false);
+      } catch {}
+      try {
+        onToggleCam?.(false);
+      } catch {}
       localStorage.removeItem("currentMeeting");
       await notify({
         variant: "info",
@@ -159,6 +317,7 @@ export default function MeetingFooter({
       navigate("/start");
     }
   };
+
   const handleEnd = onEndMeeting || defaultEndMeeting;
   const handleLeave = onLeaveMeeting || defaultLeaveMeeting;
   const handleBack = defaultBack;
@@ -207,115 +366,114 @@ export default function MeetingFooter({
 
       {/* 🔹 Right Control Group */}
       {/* 🔹 Right Control Group */}
-<div className="pd-controls-right">
-  {/* 🟩 Screen Share Button (dengan badge) */}
-  <button
-    className="pd-ctrl"
-    title="Screen Share"
-    onClick={() => navigate("/menu/screenshare")}
-    style={{ position: "relative" }}
-  >
-    <Icon slug="screen-share" />
+      <div className="pd-controls-right">
+        {/* 🟩 Screen Share Button (dengan badge) */}
+        <button
+          className="pd-ctrl"
+          title="Screen Share"
+          onClick={() => navigate("/menu/screenshare")}
+          style={{ position: "relative" }}
+        >
+          <Icon slug="screen-share" />
 
-    {/* 🔴 Badge jika ada orang lain share */}
-    {screenShareOn && String(sharingUser) !== String(currentUserId) && (
-      <>
-        <span
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            background: "red",
-            boxShadow: "0 0 6px rgba(0,0,0,0.4)",
-          }}
-        />
-        {location.pathname !== "/menu/screenshare" && (
-          <div
-            style={{
-              position: "absolute",
-              top: -36,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "red",
-              color: "white",
-              fontSize: 12,
-              padding: "4px 8px",
-              borderRadius: 6,
-              whiteSpace: "nowrap",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
-            }}
+          {/* 🔴 Badge jika ada orang lain share */}
+          {screenShareOn && String(sharingUser) !== String(currentUserId) && (
+            <>
+              <span
+                style={{
+                  position: "absolute",
+                  top: 6,
+                  right: 6,
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: "red",
+                  boxShadow: "0 0 6px rgba(0,0,0,0.4)",
+                }}
+              />
+              {location.pathname !== "/menu/screenshare" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -36,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "red",
+                    color: "white",
+                    fontSize: 12,
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  Someone is sharing
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -6,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 0,
+                      height: 0,
+                      borderLeft: "6px solid transparent",
+                      borderRight: "6px solid transparent",
+                      borderTop: "6px solid red",
+                    }}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </button>
+
+        {/* 🟦 Master Controller — hanya untuk Host/Admin */}
+        {isHost && (
+          <button
+            className="pd-ctrl"
+            title="Master Controller"
+            onClick={() => navigate("/master-controller")}
           >
-            Someone is sharing
-            <div
-              style={{
-                position: "absolute",
-                bottom: -6,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 0,
-                height: 0,
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderTop: "6px solid red",
-              }}
-            />
-          </div>
+            <Icon slug="master-controller" />
+          </button>
         )}
-      </>
-    )}
-  </button>
 
-  {/* 🟦 Master Controller — hanya untuk Host/Admin */}
-  {isHost && (
-    <button
-      className="pd-ctrl"
-      title="Master Controller"
-      onClick={() => navigate("/master-controller")}
-    >
-      <Icon slug="master-controller" />
-    </button>
-  )}
+        {/* ✏️ Annotation Button */}
+        {screenShareOn && (
+          <button
+            className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
+            title={
+              isAnnotating
+                ? String(sharingUser) === String(currentUserId)
+                  ? "Stop Annotating Your Screen"
+                  : "Stop Annotating Viewer Mode"
+                : String(sharingUser) === String(currentUserId)
+                ? "Annotate My Screen"
+                : "Annotate Shared Screen"
+            }
+            onClick={() => setIsAnnotating(!isAnnotating)}
+          >
+            <Icon slug="annotate" />
+          </button>
+        )}
 
-  {/* ✏️ Annotation Button */}
-  {screenShareOn && (
-    <button
-      className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
-      title={
-        isAnnotating
-          ? String(sharingUser) === String(currentUserId)
-            ? "Stop Annotating Your Screen"
-            : "Stop Annotating Viewer Mode"
-          : String(sharingUser) === String(currentUserId)
-          ? "Annotate My Screen"
-          : "Annotate Shared Screen"
-      }
-      onClick={() => setIsAnnotating(!isAnnotating)}
-    >
-      <Icon slug="annotate" />
-    </button>
-  )}
+        {/* Menu / Back / End */}
+        <button className="pd-ghost" onClick={handleMenu}>
+          Menu
+        </button>
 
-  {/* Menu / Back / End */}
-  <button className="pd-ghost" onClick={handleMenu}>
-    Menu
-  </button>
+        {showBackButton && (
+          <button className="pd-outline" onClick={handleBack}>
+            Home
+          </button>
+        )}
 
-  {showBackButton && (
-    <button className="pd-outline" onClick={handleBack}>
-      Home
-    </button>
-  )}
-
-  {showEndButton && (
-    <button className="pd-danger" onClick={handleEnd}>
-      End Meeting
-    </button>
-  )}
-</div>
-
+        {showEndButton && (
+          <button className="pd-danger" onClick={handleEnd}>
+            End Meeting
+          </button>
+        )}
+      </div>
     </footer>
   );
 }

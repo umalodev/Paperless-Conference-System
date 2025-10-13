@@ -8850,7 +8850,7 @@ Object.assign(lookup, {
   io: lookup,
   connect: lookup
 });
-const CONTROL_SERVER = "http://192.168.1.5:4000";
+const CONTROL_SERVER = "http://192.168.1.23:4000";
 const MIRROR_FPS = 2;
 let socket = null;
 let mirrorInterval = null;
@@ -8872,7 +8872,14 @@ function connectToControlServer(token, displayName) {
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName, role: "device" };
+    const payload = {
+      hostname,
+      user,
+      os: platform,
+      token,
+      displayName,
+      role: "device"
+    };
     socket.emit("register", payload);
     console.log("[preload] Registered participant:", payload);
   });
@@ -8880,7 +8887,14 @@ function connectToControlServer(token, displayName) {
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName, role: "device" };
+    const payload = {
+      hostname,
+      user,
+      os: platform,
+      token,
+      displayName,
+      role: "device"
+    };
     socket.emit("register", payload);
   });
   socket.on("connect_error", (err) => {

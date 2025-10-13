@@ -5,7 +5,7 @@ import { exec } from "child_process";
 import { io, Socket } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://192.168.1.5:4000"; // Ganti sesuai IP server
+const CONTROL_SERVER = "http://192.168.1.23:4000"; // Ganti sesuai IP server
 const MIRROR_FPS = 2; // frame per detik
 
 // ====== STATE ======
@@ -37,7 +37,14 @@ function connectToControlServer(token?: string, displayName?: string) {
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName, role: "device" }; 
+    const payload = {
+      hostname,
+      user,
+      os: platform,
+      token,
+      displayName,
+      role: "device",
+    };
 
     // Kirim register setelah koneksi benar-benar terbentuk
     socket!.emit("register", payload);
@@ -48,10 +55,16 @@ function connectToControlServer(token?: string, displayName?: string) {
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName, role: "device" }; 
+    const payload = {
+      hostname,
+      user,
+      os: platform,
+      token,
+      displayName,
+      role: "device",
+    };
     socket!.emit("register", payload);
   });
-
 
   // === ERROR HANDLER ===
   socket.on("connect_error", (err) => {
@@ -101,17 +114,14 @@ function connectToControlServer(token?: string, displayName?: string) {
         const robot = require("robotjs");
         robot.keyTap(key);
       }
-
     } catch (err) {
       console.error("[remote] Error handling input:", err);
     }
   });
 
-
   // === COMMAND HANDLER ===
   socket.on("command", handleCommand);
 }
-
 
 function disconnectFromControlServer() {
   if (socket && socket.connected) {
@@ -122,7 +132,6 @@ function disconnectFromControlServer() {
     console.log("[preload] No active socket to disconnect");
   }
 }
-
 
 // =====================================================
 // 🧩 COMMAND HANDLER
@@ -175,7 +184,6 @@ function handleCommand(cmd: string) {
       console.log("Unknown command:", cmd);
   }
 }
-
 
 // =====================================================
 // 🧱 LOCK / UNLOCK — overlay freeze
