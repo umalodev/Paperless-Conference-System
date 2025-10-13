@@ -283,6 +283,44 @@ const executeCommand = async (targetId, action) => {
   }
 };
 
+
+  // =========================================================
+  // 📶 Network Strength Monitor
+  // =========================================================
+  const [latency, setLatency] = React.useState(null);
+
+  React.useEffect(() => {
+    try {
+      const api = window.controlSocketAPI;
+
+      if (!api || !api.isConnected()) {
+        console.warn("⚠️ No active control socket found — skipping ping check");
+        return;
+      }
+
+      console.log("🟢 Using existing Control Server socket for ping test");
+
+      api.on("pong-check", ({ ts }) => {
+        const diff = Date.now() - ts;
+        console.log("📶 Pong received, latency:", diff, "ms");
+        setLatency(diff);
+      });
+
+      const interval = setInterval(() => {
+        const now = Date.now();
+        console.log("📡 Sending ping-check:", now);
+        api.emit("ping-check", { ts: now });
+      }, 3000);
+
+      return () => {
+        clearInterval(interval);
+        api.off("pong-check");
+      };
+    } catch (err) {
+      console.warn("⚠️ Failed to bind ping-check socket:", err);
+    }
+  }, []);
+
   // =====================================================
   // UI SECTION
   // =====================================================
@@ -306,6 +344,19 @@ const executeCommand = async (targetId, action) => {
             </div>
           </div>
           <div className="pd-right">
+              {/* 📶 Network Indicator */}
+        <div className="network-status">
+          {latency === null ? (
+            <span className="net-badge gray">--</span>
+          ) : latency < 100 ? (
+            <span className="net-badge green">{latency} ms</span>
+          ) : latency < 300 ? (
+            <span className="net-badge yellow">{latency} ms</span>
+          ) : (
+            <span className="net-badge red">{latency} ms</span>
+          )}
+        </div>
+
             <button
               className="note-btn ghost"
               onClick={() => fetchParticipants()}

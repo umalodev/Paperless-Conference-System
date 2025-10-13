@@ -146,97 +146,99 @@ ipcMain.handle("capture-screen", async () => {
   const img = image.toJPEG(90).toString("base64");
   return img;
 });
-win.loadURL(
-  `data:text/html;charset=utf-8,` + encodeURIComponent(`
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Locked</title>
-        <style>
-          * {
-            box-sizing: border-box;
-          }
-          html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
-            color: #f5f5f5;
-            font-family: "Poppins", "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            user-select: none;
-            cursor: none;
-            overflow: hidden;
-          }
+ipcMain.on("show-lock-overlay", () => {
+  if (lockWindows.length > 0) return;
+  const displays = screen.getAllDisplays();
+  console.log(`🖥️ Creating lock overlay on ${displays.length} screen(s)`);
+  lockWindows = displays.map((d, idx) => {
+    const { width, height, x, y } = d.bounds;
+    const win2 = new BrowserWindow({
+      x,
+      y,
+      width,
+      height,
+      frame: false,
+      fullscreen: true,
+      kiosk: true,
+      transparent: false,
+      alwaysOnTop: true,
+      movable: false,
+      resizable: false,
+      skipTaskbar: true,
+      backgroundColor: "#000000",
+      webPreferences: { contextIsolation: true }
+    });
+    const lockHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Device Locked</title>
+          <style>
+            html, body {
+              margin: 0;
+              height: 100%;
+              width: 100%;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              background: radial-gradient(circle at center, #101010 0%, #000000 100%);
+              font-family: "Poppins", "Segoe UI", sans-serif;
+              color: #ffffff;
+              user-select: none;
+              overflow: hidden;
+              cursor: none;
+            }
 
-          .lock-container {
-            text-align: center;
-            animation: fadeIn 1s ease-in-out;
-          }
+            .lock-icon {
+              font-size: 90px;
+              color: #ff4444;
+              text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+              animation: pulse 2s infinite;
+            }
 
-          .lock-icon {
-            font-size: 90px;
-            color: #ff4747;
-            text-shadow: 0 0 15px rgba(255, 71, 71, 0.6);
-            animation: pulse 2s infinite;
-          }
+            h1 {
+              font-size: 2.2rem;
+              margin: 15px 0 10px;
+              letter-spacing: 0.5px;
+            }
 
-          h1 {
-            font-size: 2.2rem;
-            font-weight: 600;
-            margin: 18px 0 8px;
-            color: #ffffff;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-          }
+            p {
+              font-size: 1rem;
+              color: #bbbbbb;
+              opacity: 0.8;
+            }
 
-          p {
-            font-size: 1rem;
-            color: #c0c0c0;
-            margin: 0;
-            opacity: 0.8;
-          }
+            .footer {
+              position: absolute;
+              bottom: 40px;
+              font-size: 0.9rem;
+              color: #666;
+              opacity: 0.6;
+            }
 
-          .footer {
-            position: absolute;
-            bottom: 40px;
-            font-size: 0.9rem;
-            opacity: 0.6;
-            letter-spacing: 0.5px;
-            color: #888;
-          }
-
-          @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.97); }
-            to { opacity: 1; transform: scale(1); }
-          }
-
-          @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-          }
-
-          @keyframes floating {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="lock-container">
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.1); opacity: 0.8; }
+            }
+          </style>
+        </head>
+        <body>
           <div class="lock-icon">🔒</div>
           <h1>Device Locked</h1>
-          <p>Controlled by System Administrator</p>
-        </div>
-        <div class="footer">© ${(/* @__PURE__ */ new Date()).getFullYear()} EduSnap Secure Mode</div>
-      </body>
-    </html>
-  `)
-);
+          <p>Please wait until your administrator unlocks this computer.</p>
+          <div class="footer">© ${(/* @__PURE__ */ new Date()).getFullYear()} EduSnap Secure Mode</div>
+        </body>
+      </html>
+    `;
+    win2.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(lockHtml)}`);
+    win2.setAlwaysOnTop(true, "screen-saver");
+    win2.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    console.log(`✅ Lock overlay created on display ${idx + 1}`);
+    return win2;
+  });
+});
 ipcMain.on("hide-lock-overlay", () => {
   if (lockWindows.length === 0) return;
   console.log("🔓 Removing lock overlays...");

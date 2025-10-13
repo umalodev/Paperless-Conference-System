@@ -112,34 +112,35 @@ export default function Start() {
     setLoading(true);
 
     try {
-      // Simpan displayName ke localStorage
-      localStorage.setItem("pconf.displayName", username || "");
-      localStorage.setItem("pconf.useAccountName", useAccountName ? "1" : "0");
-      // Setelah localStorage diset dan sebelum navigate()
-      try {
-        const token = localStorage.getItem("token");
-        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+  // Simpan displayName ke localStorage
+  localStorage.setItem("pconf.displayName", username || "");
+  localStorage.setItem("pconf.useAccountName", useAccountName ? "1" : "0");
 
-        if (!token || !userData?.username) {
-          console.warn("⚠️ Missing token or user data — skip syncParticipant");
-          return;
-        }
+  // Setelah localStorage diset dan sebelum navigate()
+  try {
+    const token = localStorage.getItem("token");
+    const userData = JSON.parse(localStorage.getItem("user") || "{}");
 
-        // Ambil info PC dari preload Electron
-        let pcInfo = { hostname: "Browser-Client", os: navigator.platform };
-        if (window.electronAPI?.getPCInfo) {
-          pcInfo = await window.electronAPI.getPCInfo();
-        }
+    if (!token || !userData?.username) {
+      console.warn("⚠️ Missing token or user data — skip syncParticipant");
+      return;
+    }
 
-          // ✅ Connect & register ke Control Server (via socket)
-          // ✅ Connect & register ke Control Server (via socket)
-if (window.electronAPI?.connectToControlServer) {
-  window.electronAPI.connectToControlServer(token, username);
-  console.log("✅ Connected to Control Server via socket with name:", username);
-}
+    // Ambil info PC dari preload Electron
+    let pcInfo = { hostname: "Browser-Client", os: navigator.platform };
+    if (window.electronAPI?.getPCInfo) {
+      pcInfo = await window.electronAPI.getPCInfo();
+    }
 
-      }
+    // ✅ Connect & register ke Control Server (via socket)
+    if (window.electronAPI?.connectToControlServer) {
+      window.electronAPI.connectToControlServer(token, username);
+      console.log("✅ Connected to Control Server via socket with name:", username);
+    }
 
+  } catch (innerError) {
+    console.error("❌ Error during control server connect:", innerError);
+  }
       // === Navigasi meeting
       if (isHost) {
         navigate("/setup");

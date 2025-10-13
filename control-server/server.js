@@ -165,7 +165,12 @@ socket.on("register", async (data) => {
     }
   });
 
-  
+  // ================= LATENCY CHECK (PING / PONG) =================
+  socket.on("ping-check", (data) => {
+    socket.emit("pong-check", { ts: data.ts });
+  });
+
+
 });
 
 // =========================================================

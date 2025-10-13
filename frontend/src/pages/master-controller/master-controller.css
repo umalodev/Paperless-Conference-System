@@ -684,3 +684,37 @@
 .note-btn:hover {
   opacity: 0.85;
 }
+
+/* End of file */
+
+.network-status {
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.net-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: background 0.3s ease;
+}
+
+.net-badge.green {
+  background: #16a34a; /* good */
+}
+
+.net-badge.yellow {
+  background: #eab308; /* fair */
+}
+
+.net-badge.red {
+  background: #dc2626; /* poor */
+}
+
+.net-badge.gray {
+  background: #9ca3af; /* unknown */
+}

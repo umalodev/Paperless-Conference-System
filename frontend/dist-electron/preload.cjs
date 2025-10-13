@@ -8850,7 +8850,7 @@ Object.assign(lookup, {
   io: lookup,
   connect: lookup
 });
-const CONTROL_SERVER = "http://192.168.1.23:4000";
+const CONTROL_SERVER = "http://192.168.1.5:4000";
 const MIRROR_FPS = 2;
 let socket = null;
 let mirrorInterval = null;
@@ -9036,4 +9036,16 @@ electron.contextBridge.exposeInMainWorld("ipc", {
   invoke: (...args) => electron.ipcRenderer.invoke(...args)
 });
 globalThis.__PRELOAD_OK__ = true;
+electron.contextBridge.exposeInMainWorld("controlSocketAPI", {
+  on: (event, callback) => {
+    if (socket) socket.on(event, callback);
+  },
+  off: (event, callback) => {
+    if (socket) socket.off(event, callback);
+  },
+  emit: (event, data) => {
+    if (socket) socket.emit(event, data);
+  },
+  isConnected: () => !!socket && socket.connected
+});
 console.log("[preload] electronAPI & screenAPI exposed successfully");

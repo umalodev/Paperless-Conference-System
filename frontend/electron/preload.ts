@@ -5,7 +5,7 @@ import { exec } from "child_process";
 import { io, Socket } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://192.168.1.23:4000"; // Ganti sesuai IP server
+const CONTROL_SERVER = "http://192.168.1.5:4000"; // Ganti sesuai IP server
 const MIRROR_FPS = 2; // frame per detik
 
 // ====== STATE ======
@@ -254,4 +254,20 @@ contextBridge.exposeInMainWorld("ipc", {
 });
 
 (globalThis as any).__PRELOAD_OK__ = true;
+
+contextBridge.exposeInMainWorld("controlSocketAPI", {
+  on: (event: string, callback: (...args: any[]) => void) => {
+    if (socket) socket.on(event, callback);
+  },
+  off: (event: string, callback: (...args: any[]) => void) => {
+    if (socket) socket.off(event, callback);
+  },
+  emit: (event: string, data?: any) => {
+    if (socket) socket.emit(event, data);
+  },
+  isConnected: () => !!socket && socket.connected,
+});
+
+
+
 console.log("[preload] electronAPI & screenAPI exposed successfully");
