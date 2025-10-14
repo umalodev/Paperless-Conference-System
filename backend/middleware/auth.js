@@ -15,19 +15,26 @@ async function isAuthenticated(req, res, next) {
     const token = auth.slice(7).trim();
     let payload;
     try {
-      payload = verifyToken(token);
+      payload = verifyToken(token); // => { id, username, role, sid, iat, exp }
     } catch (e) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Token tidak valid atau kedaluwarsa",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Token tidak valid atau kedaluwarsa",
+      });
     }
 
-    // (Opsional) tarik user dari DB agar role/flag terbaru
+    // Wajib ada sid di token
+    if (!payload?.sid || !payload?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Sesi tidak valid: sid hilang",
+      });
+    }
+
+    // Ambil user terbaru dari DB
     const user = await User.findByPk(payload.id, {
       include: [{ model: UserRole, as: "UserRole" }],
+      attributes: { exclude: ["password"] },
     });
     if (!user) {
       return res
@@ -35,14 +42,24 @@ async function isAuthenticated(req, res, next) {
         .json({ success: false, message: "User tidak ditemukan" });
     }
 
+    // **Inti anti multi-login**:
+    // token ini hanya valid jika sid dari token == current_session_id di DB
+    if (user.currentSessionId !== payload.sid) {
+      return res.status(401).json({
+        success: false,
+        message: "Sesi berakhir karena login dari perangkat lain",
+      });
+    }
+
     // simpan ke req.user
     req.user = {
       id: user.id,
       username: user.username,
       role: user.UserRole?.nama || payload.role || "participant",
-      // tambah field lain bila perlu
-      _record: user, // jika controller butuh akses full instance
+      _record: user, // jika controller butuh instance lengkap
     };
+    // (opsional) simpan token mentah kalau perlu di logout
+    req.accessToken = token;
 
     return next();
   } catch (err) {
