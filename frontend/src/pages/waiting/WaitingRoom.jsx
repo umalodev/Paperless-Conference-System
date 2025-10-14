@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./WaitingRoom.css";
 import { useNavigate } from "react-router-dom";
 import meetingService from "../../services/meetingService.js";
+import meetingSocketService from "../../services/meetingSocketService.js";
+import { API_URL } from "../../config.js";
+
 
 export default function WaitingRoom() {
   const [user, setUser] = useState(null);
@@ -14,6 +17,18 @@ export default function WaitingRoom() {
   const [currentMeeting, setCurrentMeeting] = useState(null);
 
   const navigate = useNavigate();
+
+  
+  // meetingId dari currentMeeting state
+  const { meetingId, meetingCode } = useMemo(() => {
+    if (!currentMeeting) {
+      return { meetingId: null, meetingCode: "—" };
+    }
+    return {
+      meetingId: currentMeeting.id || currentMeeting.meetingId,
+      meetingCode: currentMeeting.code || currentMeeting.meetingCode || "—",
+    };
+  }, [currentMeeting]);
 
   // bootstrap user/role
   useEffect(() => {
@@ -50,16 +65,70 @@ export default function WaitingRoom() {
     }
   }, []);
 
-  // meetingId dari currentMeeting state
-  const { meetingId, meetingCode } = useMemo(() => {
-    if (!currentMeeting) {
-      return { meetingId: null, meetingCode: "—" };
-    }
-    return {
-      meetingId: currentMeeting.id || currentMeeting.meetingId,
-      meetingCode: currentMeeting.code || currentMeeting.meetingCode || "—",
+  // ===============================
+  // 🔌 Connect Socket.IO Meeting
+  // ===============================
+useEffect(() => {
+  if (!meetingId || !user) return;
+
+  const token = localStorage.getItem("token");
+  const displayName = localStorage.getItem("pconf.displayName") || user?.username || "User";
+
+  // 1️⃣ Connect ke Socket.IO
+  meetingSocketService.connect(meetingId, user.id, API_URL);
+
+  // 2️⃣ Kirim join-room HANYA setelah koneksi berhasil
+  const onConnected = () => {
+    const joinPayload = {
+      type: "join-room",
+      meetingId,
+      userId: user.id,
+      displayName,
     };
-  }, [currentMeeting]);
+    meetingSocketService.send(joinPayload);
+    console.log("✅ Joined meeting via socket:", joinPayload);
+  };
+
+  // Listen sekali saja untuk event connect
+  meetingSocketService.socket?.on("connect", onConnected);
+
+  return () => {
+    // cleanup
+    meetingSocketService.socket?.off("connect", onConnected);
+    meetingSocketService.disconnect();
+  };
+}, [meetingId, user]);
+
+  // ===============================
+// 🎧 Listen to socket messages
+// ===============================
+useEffect(() => {
+  if (!meetingId) return;
+
+  const handleSocketMessage = (msg) => {
+    if (!msg?.type) return;
+
+    // Jika ada participant baru join
+    if (msg.type === "participant_joined") {
+      console.log("👥 New participant joined:", msg.displayName);
+      // ✅ bisa munculkan notifikasi kecil atau log
+    }
+
+    // Jika ada participant keluar
+    if (msg.type === "participant_left") {
+      console.log("🚪 Participant left:", msg.displayName);
+    }
+
+    // Kalau kamu mau: update state participants di sini nanti
+  };
+
+meetingSocketService.on("message", handleSocketMessage);
+
+  return () => {
+  meetingSocketService.off("message", handleSocketMessage);
+  };
+}, [meetingId]);
+
 
   useEffect(() => {
     const pushName = async () => {
@@ -151,12 +220,31 @@ export default function WaitingRoom() {
   }, [meetingId, role]);
 
   // auto-redirect bila sudah mulai - semua user ke participant dashboard
-  useEffect(() => {
+useEffect(() => {
+  const ensureDisplayNameBeforeJoin = async () => {
     if (!loading && started && meetingId) {
+      const name = (localStorage.getItem("pconf.displayName") || "").trim();
+      if (name) {
+        try {
+          console.log("⏳ Ensuring displayName sync before join:", name);
+          await meetingService.setParticipantDisplayName({
+            meetingId,
+            displayName: name,
+          });
+          console.log("✅ Display name synced before redirect");
+        } catch (err) {
+          console.warn("⚠️ Failed to sync display name:", err);
+        }
+      }
+
       console.log("Redirecting to participant dashboard");
       navigate("/participant/dashboard");
     }
-  }, [started, loading, meetingId, navigate]);
+  };
+
+  ensureDisplayNameBeforeJoin();
+}, [started, loading, meetingId, navigate]);
+
 
   const handleStart = async () => {
     if (!meetingId) {

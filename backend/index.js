@@ -154,30 +154,30 @@ io.on("connection", async (socket) => {
         tryExtract(socket.handshake.headers?.referer);
     }
 
-    if (!meetingId) {
-      console.log("No meeting ID provided, closing connection");
-      socket.emit("error", { code: 4001, message: "No meetingId" });
+    if (!token || !meetingId) {
+      console.log("❌ Missing token or meetingId, closing connection");
+      socket.emit("error", { code: 4001, message: "Missing token or meetingId" });
       socket.disconnect(true);
       return;
     }
 
-    // Auth (verifyToken)
+    // ===== AUTH =====
+    let payload;
     try {
-      if (!token) throw new Error("No token");
-      const payload = verifyToken(token);
+      payload = verifyToken(token);
       socket.data.user = {
         id: payload.id,
         username: payload.username,
         role: payload.role,
       };
     } catch {
-      console.log("Socket.IO auth failed");
+      console.log("❌ Socket.IO auth failed");
       socket.emit("error", { code: 4401, message: "Unauthorized" });
       socket.disconnect(true);
       return;
     }
 
-    // Validasi meeting
+    // ===== VALIDASI MEETING =====
     const isValid = await validateMeetingStatus(meetingId);
     if (!isValid) {
       socket.emit("error", { code: 4403, message: "Meeting invalid" });
@@ -185,247 +185,114 @@ io.on("connection", async (socket) => {
       return;
     }
 
-    // Simpan identitas dasar
+    // ===== SETUP DATA DASAR =====
     socket.data.meetingId = String(meetingId);
-    socket.data.userId =
-      socket.data?.user?.id != null ? String(socket.data.user.id) : null;
+    socket.data.userId = String(payload.id);
+    socket.data.displayName = payload.username;
 
-    // Masuk room khusus meeting
-    const room = roomName(socket.data.meetingId);
-    await socket.join(room);
+    await socket.join(roomName(meetingId));
+    console.log(`✅ User ${payload.username} joined meeting ${meetingId}`);
 
-    console.log(
-      `Socket connected to meeting: ${socket.data.meetingId}, user: ${socket.data.userId}, sid: ${socket.id}`
-    );
+    // ===== KIRIM DAFTAR PESERTA AKTIF KE USER BARU =====
+    const others = [];
+    for (const [sid, s] of io.sockets.sockets) {
+      if (s.data.meetingId === meetingId && sid !== socket.id) {
+        others.push({
+          participantId: s.data.userId,
+          displayName: s.data.displayName || s.data.user?.username,
+        });
+      }
+    }
+    socket.to(roomName(meetingId)).emit("message", {
+      type: "participant_joined",
+      participantId: socket.data.userId,
+      displayName: socket.data.displayName,
+    });
+    socket.emit("message", { type: "participants_list", data: others });
 
-    // ====== Handler "message" (compat dengan payload JSON sebelumnya) ======
+    // ===== HANDLER JOIN-ROOM DARI CLIENT (JIKA ADA) =====
+    socket.on("join-room", ({ meetingId, userId, displayName }) => {
+      socket.data.meetingId = meetingId;
+      socket.data.userId = userId;
+      socket.data.displayName = displayName || payload.username;
+      socket.join(roomName(meetingId));
+      
+      console.log("📢 Broadcast participant_joined to meeting:", meetingId);
+
+      console.log(`✅ join-room: user ${userId} joined meeting ${meetingId}`);
+
+      // kirim ulang daftar peserta lain ke user baru
+      const others = [];
+      for (const [sid, s] of io.sockets.sockets) {
+        if (s.data.meetingId === meetingId && sid !== socket.id) {
+          others.push({
+            participantId: s.data.userId,
+            displayName: s.data.displayName || s.data.user?.username,
+          });
+        }
+      }
+      socket.emit("message", { type: "participants_list", data: others });
+
+      // broadcast join ke semua peserta lain
+      socket.to(roomName(meetingId)).emit("message", {
+        type: "participant_joined",
+        participantId: userId,
+        displayName,
+      });
+    });
+
+    // ===== HANDLER PESAN =====
     socket.on("message", async (message) => {
       try {
-        // Izinkan payload sudah berupa object atau string JSON
         const data = typeof message === "string" ? JSON.parse(message) : message;
         const meetingId = socket.data.meetingId;
 
-        // Set userId jika ada participantId dari payload pertama
+        // update ID jika belum ada
         if (data.participantId && !socket.data.userId) {
           socket.data.userId = String(data.participantId);
-          console.log(
-            `User ${data.participantId} identified in meeting ${meetingId}`
-          );
         }
 
-        // Validasi meeting setiap pesan (sesuai versi lama)
         const stillValid = await validateMeetingStatus(meetingId);
         if (!stillValid) {
-          console.log(`Meeting ${meetingId} is not valid, disconnecting`);
           socket.emit("error", { code: 4403, message: "Meeting invalid" });
           socket.disconnect(true);
           return;
         }
 
-        // === Routing event berdasarkan data.type (mirror logic lama) ===
+        // === Routing berdasarkan type ===
+        const broadcastGeneric = () => broadcastToMeeting(meetingId, data, socket);
 
-        // Broadcast generic ke peserta meeting lain (bukan pengirim)
-        const broadcastGeneric = () => {
-          broadcastToMeeting(meetingId, data, socket);
-        };
-
-        // Khusus: participant_ready_to_receive
-        if (data.type === "participant_ready_to_receive") {
-          console.log(
-            `Participant ${data.from} is ready to receive video in meeting ${meetingId}`
-          );
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "participant_ready_to_receive",
-              from: data.from,
-              meetingId,
-            },
-            socket
-          );
-          return;
-        }
-
-        // Khusus: participant_joined
-        if (data.type === "participant_joined") {
-          console.log(
-            `Participant ${data.participantId} joined meeting ${meetingId}`
-          );
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "participant_joined",
-              participantId: data.participantId,
-              meetingId,
-            },
-            socket
-          );
-          return;
-        }
-
-        // Khusus: chat_message
+        // Chat
         if (data.type === "chat_message") {
-          console.log(
-            `Chat message from ${data.userId} in meeting ${meetingId}:`,
-            data.message
-          );
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "chat_message",
-              messageId: data.messageId,
-              userId: data.userId,
-              username: data.username,
-              message: data.message,
-              messageType: data.messageType,
-              timestamp: data.timestamp,
-              meetingId,
-            },
-            socket
-          );
+          console.log(`💬 Chat from ${data.userId}: ${data.message}`);
+          broadcastToMeeting(meetingId, data, socket);
           return;
         }
 
-        // Khusus: typing indicators
-        if (data.type === "typing_start" || data.type === "typing_stop") {
-          console.log(
-            `Typing ${data.type} from ${data.userId} in meeting ${meetingId}`
-          );
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: data.type,
-              userId: data.userId,
-              username: data.username,
-              meetingId,
-            },
-            socket
-          );
+        // Typing indicators
+        if (["typing_start", "typing_stop"].includes(data.type)) {
+          broadcastToMeeting(meetingId, data, socket);
           return;
         }
 
-        // Screen share: start/stream/stop & producer created/closed
-        if (data.type === "screen-share-start") {
-          console.log(
-            `Screen share started by ${data.userId} in meeting ${meetingId}`
-          );
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "screen-share-start",
-              userId: data.userId,
-              username: data.username,
-              meetingId,
-              timestamp: data.timestamp,
-            },
-            socket
-          );
+        // Screen share
+        if (
+          ["screen-share-start", "screen-share-stream", "screen-share-stop"].includes(data.type)
+        ) {
+          broadcastToMeeting(meetingId, data, socket);
           return;
         }
 
-        if (data.type === "screen-share-stream") {
-          // per frame image data
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "screen-share-stream",
-              userId: data.userId,
-              meetingId,
-              imageData: data.imageData,
-              timestamp: data.timestamp,
-            },
-            socket
-          );
+        // Annotation
+        if (["anno:preview", "anno:commit", "anno:clear", "anno:undo", "anno:redo"].includes(data.type)) {
+          broadcastToMeeting(meetingId, { ...data, from: socket.data.userId }, socket);
           return;
         }
 
-        if (data.type === "screen-share-stop") {
-          console.log(
-            `Screen share stopped by ${data.userId} in meeting ${meetingId}`
-          );
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "screen-share-stopped",
-              userId: data.userId,
-              username: data.username,
-              meetingId,
-              timestamp: data.timestamp,
-            },
-            socket
-          );
-          return;
-        }
-
-        if (data.type === "screen-share-producer-created") {
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "screen-share-producer-created",
-              userId: data.userId,
-              producerId: data.producerId,
-              kind: data.kind,
-              meetingId,
-            },
-            socket
-          );
-          return;
-        }
-
-        if (data.type === "screen-share-producer-closed") {
-          broadcastToMeeting(
-            meetingId,
-            {
-              type: "screen-share-producer-closed",
-              userId: data.userId,
-              producerId: data.producerId,
-              meetingId,
-            },
-            socket
-          );
-          return;
-        }
-
-        // ====== State machine sederhana untuk sharer (seperti versi lama) ======
-        const m = getMeeting(meetingId);
-        switch (data.type) {
-          case "screen_share_start":
-            m.sharerId = data.from || socket.data.userId;
-            break;
-          case "screen_share_stop":
-            if (!m.sharerId || m.sharerId === (data.from || socket.data.userId)) {
-              m.sharerId = null;
-            }
-            break;
-          case "anno:preview":
-          case "anno:commit":
-          case "anno:clear":
-          case "anno:undo":
-          case "anno:redo": {
-            // forward ke peserta lain di meeting yang sama (kecuali sender)
-            broadcastToMeeting(
-              meetingId,
-              { ...data, from: data.from || socket.data.userId },
-              socket
-            );
-            return;
-          }
-        }
-
-        // Khusus: annotate (versi lama mengubah ke "anno:commit" utk viewer & sharer)
         if (data.type === "annotate") {
-          const meeting = getMeeting(meetingId);
-          io.sockets.adapter.rooms.get(roomName(meetingId)); // sentinel
-          // Kirim ke semua viewer lain (kecuali pengirim), serta ke sharer (jika berbeda)
-          // Dengan Socket.IO cukup broadcast biasa; sharer juga di room yang sama
           broadcastToMeeting(
             meetingId,
-            {
-              type: "anno:commit",
-              userId: data.userId,
-              meetingId,
-              shape: data.shape,
-            },
+            { type: "anno:commit", userId: data.userId, meetingId, shape: data.shape },
             socket
           );
           return;
@@ -433,9 +300,6 @@ io.on("connection", async (socket) => {
 
         // Meeting end
         if (data.type === "meeting-end") {
-          console.log(
-            `Meeting ended by ${data.userId} in meeting ${meetingId}`
-          );
           broadcastToMeeting(meetingId, {
             type: "meeting-ended",
             userId: data.userId,
@@ -446,53 +310,35 @@ io.on("connection", async (socket) => {
           return;
         }
 
-        // Default: broadcast generic (kecuali pengirim), mempertahankan perilaku lama
+        // Default: broadcast generic
         broadcastGeneric();
       } catch (err) {
-        console.error("Error handling Socket.IO message:", err);
+        console.error("❌ Error handling Socket.IO message:", err);
       }
     });
 
-    // ====== Disconnect ======
+    // ===== DISCONNECT HANDLER =====
     socket.on("disconnect", (reason) => {
-      const meetingId = socket.data.meetingId;
-      const userId = socket.data.userId || socket.data.user?.id;
-      console.log(
-        `Socket disconnected from meeting: ${meetingId}, user: ${userId}, sid: ${socket.id}, reason: ${reason}`
-      );
-
-      // Notify others bahwa user left
-      if (userId) {
-        broadcastToMeeting(meetingId, {
-          type: "participant_left",
-          participantId: userId,
-          meetingId,
-        });
-      }
-
-      // Jika yang disconnect adalah current sharer → force stop
-      const m = getMeeting(meetingId);
-      if (m && m.sharerId && String(m.sharerId) === String(userId)) {
-        m.sharerId = null;
-        broadcastToMeeting(meetingId, {
-          type: "screen_share_force_stop",
-          meetingId,
-          byDisconnect: true,
-          from: userId,
-        });
-      }
+      console.log(`🔴 ${payload.username} disconnected (${reason})`);
+      socket.to(roomName(meetingId)).emit("message", {
+        type: "participant_left",
+        participantId: payload.id,
+        displayName: payload.username,
+      });
     });
 
-    // (Opsional) error per-socket
+    // ===== ERROR HANDLER =====
     socket.on("error", (err) => {
-      console.error(`Socket.IO error in meeting ${socket.data.meetingId}:`, err);
+      console.error(`⚠️ Socket.IO error in meeting ${socket.data.meetingId}:`, err);
     });
   } catch (err) {
-    console.error("Socket.IO connection error:", err);
-    // Jika terjadi error sebelum join, putuskan koneksi
-    try { socket.disconnect(true); } catch (_) {}
+    console.error("❌ Socket.IO connection error:", err);
+    try {
+      socket.disconnect(true);
+    } catch (_) {}
   }
 });
+
 
 // ====== Express Middlewares ======
 app.use(

@@ -37,22 +37,23 @@ const MeetingLayout = ({
   const annotateHostRef = useRef(null);
 
   // 🔌 Koneksi ke meetingSocketService
-  useEffect(() => {
-    if (disableMeetingSocket) return;
-    if (meetingId && userId) {
-      if (typeof window !== "undefined") {
-        window.meetingSocketService = meetingSocketService;
-      }
-
-      console.log("🧩 [MeetingLayout] Connecting meeting socket...");
-      meetingSocketService.connect(meetingId, userId, API_URL);
-
-      return () => {
-        console.log("🧩 [MeetingLayout] Disconnecting meeting socket...");
-        meetingSocketService.disconnect();
-      };
+useEffect(() => {
+  if (disableMeetingSocket) return;
+  if (meetingId && userId) {
+    if (typeof window !== "undefined") {
+      window.meetingSocketService = meetingSocketService;
     }
-  }, [meetingId, userId, disableMeetingSocket]);
+
+    // Hanya connect kalau belum terkoneksi
+    if (!meetingSocketService.isConnected()) {
+      console.log("🧩 [MeetingLayout] Connecting meeting socket (once)...");
+      meetingSocketService.connect(meetingId, userId, API_URL);
+    }
+
+    // ❌ Jangan disconnect saat unmount, biar socket tetap hidup antar halaman
+  }
+}, [meetingId, userId, disableMeetingSocket]);
+
 
   return (
     <div className={`meeting-layout ${className}`}>
