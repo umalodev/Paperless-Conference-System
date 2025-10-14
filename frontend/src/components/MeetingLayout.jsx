@@ -1,5 +1,6 @@
+// src/components/MeetingLayout.jsx
 import React, { useEffect, useState, useRef } from "react";
-import meetingWebSocketService from "../services/meetingWebSocket.js";
+import meetingSocketService from "../services/meetingSocketService.js"; // ✅ Ganti dari meetingWebSocketService
 import { API_URL } from "../config.js";
 import "./MeetingLayout.css";
 
@@ -15,7 +16,7 @@ const MeetingLayout = ({
   mediasoupDevice,
   className = "",
   meetingTitle = "",
-  disableMeetingSocket = false, // <=== Tambahan
+  disableMeetingSocket = false, // <=== tetap bisa dinonaktifkan
 }) => {
   const [screenShareError, setScreenShareError] = useState("");
   const [title, setTitle] = useState(meetingTitle || "");
@@ -32,31 +33,35 @@ const MeetingLayout = ({
     }
   })();
 
-  // ✅ host untuk kanvas global
+  // host ref untuk kanvas global (overlay anotasi)
   const annotateHostRef = useRef(null);
 
+  // 🔌 Koneksi ke meetingSocketService
   useEffect(() => {
     if (disableMeetingSocket) return;
-
     if (meetingId && userId) {
       if (typeof window !== "undefined") {
-        window.meetingWebSocketService = meetingWebSocketService;
+        window.meetingSocketService = meetingSocketService;
       }
-      meetingWebSocketService.connect(meetingId, userId, API_URL);
+
+      console.log("🧩 [MeetingLayout] Connecting meeting socket...");
+      meetingSocketService.connect(meetingId, userId, API_URL);
+
       return () => {
-        meetingWebSocketService.disconnect();
+        console.log("🧩 [MeetingLayout] Disconnecting meeting socket...");
+        meetingSocketService.disconnect();
       };
     }
   }, [meetingId, userId, disableMeetingSocket]);
 
   return (
     <div className={`meeting-layout ${className}`}>
-      {/* Content */}
+      {/* === CONTENT WRAPPER === */}
       <div className="menu-section">
         <div className="menu-content">{children}</div>
       </div>
 
-      {/* Error notif (optional) */}
+      {/* === OPTIONAL ERROR NOTIFICATION === */}
       {screenShareError && (
         <div
           className="pd-error"
@@ -94,7 +99,7 @@ const MeetingLayout = ({
         </div>
       )}
 
-      {/* 🔹 Global annotate overlay dengan ref sebagai attachTo */}
+      {/* === GLOBAL ANNOTATE OVERLAY === */}
       {isAnnotating && String(sharingUser) === String(currentUserId) && (
         <div
           ref={annotateHostRef}

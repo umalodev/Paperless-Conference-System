@@ -168,62 +168,41 @@ class ChatController {
 
       // Broadcast message via WebSocket
       try {
-        const wss = require("../index").getWebSocketServer();
-        if (wss) {
-          const meetingIdStr = String(meetingId);
-          const senderIdStr = String(userId);
-          const receiverIdStr =
-            userReceiveId != null ? String(userReceiveId) : null;
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === 1 &&
-              String(client.meetingId) === meetingIdStr
-            ) {
-              // For private chat, only send to sender and receiver
-              if (userReceiveId) {
-                if (
-                  client.userId === userId ||
-                  client.userId === userReceiveId
-                ) {
-                  const cid = String(client.userId || "");
-                  if (cid === senderIdStr || cid === receiverIdStr) {
-                    client.send(
-                      JSON.stringify({
-                        type: "chat_message",
-                        messageId: messageWithUser.meetingChatId,
-                        userId: messageWithUser.userId,
-                        username: messageWithUser.Sender.username,
-                        message: messageWithUser.textMessage,
-                        messageType: messageWithUser.messageType,
-                        timestamp: new Date(messageWithUser.sendTime).getTime(),
-                        userReceiveId: messageWithUser.userReceiveId,
-                        meetingId: meetingId,
-                      })
-                    );
+        const io = require("../index").getWebSocketServer(); // Socket.IO instance
+        if (io) {
+          const payload = {
+            type: "chat_message",
+            messageId: messageWithUser.meetingChatId,
+            userId: messageWithUser.userId,
+            username: messageWithUser.Sender.username,
+            message: messageWithUser.textMessage,
+            messageType: messageWithUser.messageType,
+            timestamp: new Date(messageWithUser.sendTime).getTime(),
+            userReceiveId: messageWithUser.userReceiveId,
+            meetingId,
+          };
+
+          if (userReceiveId) {
+            // 🔸 Chat private → hanya kirim ke pengirim & penerima
+            io.to(`meeting:${meetingId}`)
+              .fetchSockets()
+              .then((sockets) => {
+                sockets.forEach((s) => {
+                  const uid = String(s.data?.user?.id || s.data?.userId);
+                  if (uid === String(userId) || uid === String(userReceiveId)) {
+                    s.emit("message", payload);
                   }
-                }
-              } else {
-                // For global chat, send to all participants
-                client.send(
-                  JSON.stringify({
-                    type: "chat_message",
-                    messageId: messageWithUser.meetingChatId,
-                    userId: messageWithUser.userId,
-                    username: messageWithUser.Sender.username,
-                    message: messageWithUser.textMessage,
-                    messageType: messageWithUser.messageType,
-                    timestamp: new Date(messageWithUser.sendTime).getTime(),
-                    meetingId: meetingId,
-                  })
-                );
-              }
-            }
-          });
+                });
+              });
+          } else {
+            // 🔸 Chat global → kirim ke semua peserta room
+            io.to(`meeting:${meetingId}`).emit("message", payload);
+          }
         }
-      } catch (wsError) {
-        console.error("WebSocket broadcast error:", wsError);
-        // Don't fail the request if WebSocket fails
+      } catch (err) {
+        console.error("Socket.IO broadcast error:", err);
       }
+
 
       res.json({
         success: true,
@@ -239,131 +218,91 @@ class ChatController {
     }
   }
 
-  // Upload file for chat
 
-  static async uploadFile(req, res) {
-    try {
-      const { meetingId } = req.params;
-      const { userReceiveId } = req.body;
-      const userId = req.user.id;
+// controllers/chatController.js
+static async uploadFile(req, res) {
+  try {
+    const { meetingId } = req.params;
+    const { userReceiveId } = req.body;
+    const userId = req.user.id;
 
-      if (!req.file) {
-        return res
-          .status(400)
-          .json({ success: false, message: "File tidak ditemukan" });
-      }
+    if (!req.file)
+      return res.status(400).json({ success: false, message: "File tidak ditemukan" });
 
-      // validasi participant (sudah ada, biarkan)
+    // Tentukan tipe file
+    let messageType = "file";
+    if ((req.file.mimetype || "").startsWith("image/")) messageType = "image";
 
-      // Tentukan tipe
-      let messageType = "file";
-      if ((req.file.mimetype || "").startsWith("image/")) messageType = "image";
+    const relativePath = path.join(
+      "uploads",
+      "materials",
+      meetingId.toString(),
+      req.file.filename
+    );
 
-      // Dukung dua mode multer:
-      // - diskStorage => req.file.path ada, req.file.buffer tidak ada
-      // - memoryStorage => req.file.buffer ada, req.file.path tidak ada
-      const fileBuffer = req.file.buffer || null;
-      // Pastikan filePath absolut bila ada
-      const filePath = req.file.path ? path.resolve(req.file.path) : null;
+    const chatMessage = await MeetingChat.create({
+      meetingId,
+      userId,
+      userReceiveId: userReceiveId || null,
+      filePath: relativePath,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      messageType,
+      flag: "Y",
+    });
 
-      // **PENTING**: Jangan isi field yang tidak ada. Minimal salah satu harus ada.
-      if (!fileBuffer && !filePath) {
-        return res.status(500).json({
-          success: false,
-          message:
-            "Konfigurasi upload tidak valid: tidak ada buffer maupun path.",
-        });
-      }
+    const messageWithUser = await MeetingChat.findByPk(chatMessage.meetingChatId, {
+      include: [
+        { model: User, as: "Sender", attributes: ["id", "username"] },
+        { model: User, as: "Receiver", attributes: ["id", "username"], required: false },
+      ],
+    });
 
-      const payload = {
-        meetingId,
-        userId,
-        userReceiveId: userReceiveId || null,
-        textMessage: null,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        messageType,
-        flag: "Y",
-      };
+    // 🔹 Payload realtime
+    const payload = {
+      type: "chat_message",
+      messageId: messageWithUser.meetingChatId,
+      userId: messageWithUser.userId,
+      username: messageWithUser.Sender?.username,
+      message: "",
+      messageType: messageWithUser.messageType,
+      timestamp: new Date(messageWithUser.sendTime).getTime(),
+      filePath: messageWithUser.filePath,
+      originalName: messageWithUser.originalName,
+      mimeType: messageWithUser.mimeType,
+      userReceiveId: messageWithUser.userReceiveId,
+      meetingId,
+    };
 
-      if (fileBuffer) payload.fileMessage = fileBuffer; // memoryStorage
-      const relativePath = path.join(
-        "uploads",
-        "materials",
-        meetingId.toString(),
-        req.file.filename
-      );
-      payload.filePath = relativePath;
-
-      const chatMessage = await MeetingChat.create(payload);
-
-      const messageWithUser = await MeetingChat.findByPk(
-        chatMessage.meetingChatId,
-        {
-          include: [
-            { model: User, as: "Sender", attributes: ["id", "username"] },
-            {
-              model: User,
-              as: "Receiver",
-              attributes: ["id", "username"],
-              required: false,
-            },
-          ],
-        }
-      );
-
-      // --- Broadcast (dengan normalisasi tipe id) ---
-      try {
-        const wss = require("../index").getWebSocketServer();
-        if (wss) {
-          const meetingIdStr = String(meetingId);
-          const senderIdStr = String(userId);
-          const receiverIdStr =
-            userReceiveId != null ? String(userReceiveId) : null;
-
-          wss.clients.forEach((client) => {
-            if (client.readyState !== 1) return; // WebSocket.OPEN
-            if (String(client.meetingId) !== meetingIdStr) return;
-
-            if (receiverIdStr) {
-              const cid = String(client.userId || "");
-              if (cid !== senderIdStr && cid !== receiverIdStr) return;
-            }
-
-            client.send(
-              JSON.stringify({
-                type: "chat_message",
-                messageId: messageWithUser.meetingChatId,
-                userId: messageWithUser.userId,
-                username: messageWithUser.Sender?.username,
-                message: messageWithUser.textMessage || "",
-                messageType: messageWithUser.messageType,
-                timestamp: new Date(messageWithUser.sendTime).getTime(),
-                filePath: messageWithUser.filePath,
-                originalName: messageWithUser.originalName,
-                mimeType: messageWithUser.mimeType,
-                userReceiveId: messageWithUser.userReceiveId,
-                meetingId,
-              })
-            );
+    // 🔹 Ambil instance io
+    const io = require("../index").getWebSocketServer();
+    if (io) {
+      if (userReceiveId) {
+        // private message → kirim hanya ke sender & receiver
+        io.to(`meeting:${meetingId}`)
+          .fetchSockets()
+          .then((sockets) => {
+            sockets.forEach((s) => {
+              const uid = String(s.data?.user?.id || s.data?.userId);
+              if (uid === String(userId) || uid === String(userReceiveId)) {
+                s.emit("message", payload);
+              }
+            });
           });
-        }
-      } catch (wsError) {
-        console.error("WebSocket broadcast error:", wsError);
+      } else {
+        // 🔸 global chat → broadcast ke semua peserta meeting
+        io.to(`meeting:${meetingId}`).emit("message", payload);
       }
-
-      res.json({
-        success: true,
-        data: messageWithUser,
-        message: "File berhasil diupload",
-      });
-    } catch (error) {
-      console.error("Error uploading file:", error?.stack || error);
-      res
-        .status(500)
-        .json({ success: false, message: "Gagal mengupload file" });
     }
+
+    res.json({ success: true, data: messageWithUser, message: "File berhasil diupload" });
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    res.status(500).json({ success: false, message: "Gagal mengupload file" });
   }
+}
+
+
 
   // Download file from chat
   static async downloadFile(req, res) {

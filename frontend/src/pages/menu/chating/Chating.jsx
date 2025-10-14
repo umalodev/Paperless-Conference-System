@@ -17,6 +17,8 @@ import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../contexts/ModalProvider.jsx";
+import meetingSocketService from "../../../services/meetingSocketService.js"; // ⬅️ PAKAI SERVICE BARU
+
 
 export default function Chat() {
   const [user, setUser] = useState(null);
@@ -117,21 +119,13 @@ export default function Chat() {
       setParticipantsLoaded(false);
 
       const qs = `?meetingId=${encodeURIComponent(meetingId)}`;
-      let res = await fetch(`${API_URL}/api/participants/list${qs}`, {
+      const res = await fetch(`${API_URL}/api/participants/list${qs}`, {
         headers: {
           "Content-Type": "application/json",
           ...(meetingService.getAuthHeaders?.() || {}),
         },
         credentials: "include",
       });
-
-      // fallback dev-only (menyerupai ParticipantsPage)
-      if (!res.ok) {
-        res = await fetch(`${API_URL}/api/participants/test-data`, {
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const json = await res.json();
       if (json.success) {
@@ -144,11 +138,8 @@ export default function Chat() {
           mic: p.mic ?? !!p.isAudioEnabled,
           cam: p.cam ?? !!p.isVideoEnabled,
         }));
-        // JANGAN filter diri sendiri di state (agar peta nama mencakup user saat ini)
         setParticipants(normalized);
-      } else {
-        setParticipants([]);
-      }
+      } else setParticipants([]);
     } catch (error) {
       console.error("Error loading participants:", error);
       setParticipants([]);
@@ -157,6 +148,7 @@ export default function Chat() {
       setParticipantsLoaded(true);
     }
   };
+
 
   // who am I
   useEffect(() => {
@@ -168,10 +160,7 @@ export default function Chat() {
 
   // Load participants when user changes
   useEffect(() => {
-    if (user?.id) {
-      loadParticipants();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (user?.id) loadParticipants();
   }, [user?.id]);
 
   // BottomNav menus
@@ -224,10 +213,7 @@ export default function Chat() {
   }, [nameByUserId, user?.id]);
 
   // Load messages (setelah participants siap agar nama terpetakan dari DB)
-  const loadMessages = async (
-    mode = chatMode,
-    participantId = selectedParticipant?.userId
-  ) => {
+  const loadMessages = async (mode = chatMode, participantId = selectedParticipant?.userId) => {
     try {
       setLoadingMsg(true);
       setErrMsg("");
@@ -251,32 +237,24 @@ export default function Chat() {
       const json = await res.json();
 
       if (json.success && json.data?.messages) {
-        const data = json.data.messages.map((msg) => {
-          const senderName =
+        const data = json.data.messages.map((msg) => ({
+          id: msg.meetingChatId,
+          userId: msg.userId,
+          name:
             nameByUserId.get(String(msg.userId)) ||
             msg.Sender?.displayName ||
-            msg.Sender?.name ||
-            msg.Sender?.fullName ||
             msg.Sender?.username ||
-            "Unknown";
-
-          return {
-            id: msg.meetingChatId,
-            userId: msg.userId,
-            name: senderName,
-            text: msg.textMessage || "",
-            ts: new Date(msg.sendTime).getTime(),
-            messageType: msg.messageType,
-            filePath: msg.filePath,
-            originalName: msg.originalName,
-            mimeType: msg.mimeType,
-            userReceiveId: msg.userReceiveId,
-          };
-        });
+            "Unknown",
+          text: msg.textMessage || "",
+          ts: new Date(msg.sendTime).getTime(),
+          messageType: msg.messageType,
+          filePath: msg.filePath,
+          originalName: msg.originalName,
+          mimeType: msg.mimeType,
+          userReceiveId: msg.userReceiveId,
+        }));
         setMessages(data);
-      } else {
-        setMessages([]);
-      }
+      } else setMessages([]);
     } catch (e) {
       setErrMsg(String(e.message || e));
     } finally {
@@ -305,163 +283,64 @@ export default function Chat() {
   // WebSocket connection untuk real-time chat
   useEffect(() => {
     const meetingId = meetingIdMemo || getMeetingId();
-    if (!meetingId) return;
+    if (!meetingId || !user?.id) return;
 
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-    let reconnectTimeout = null;
+    meetingSocketService.connect(meetingId, user.id, API_URL);
 
-    const connectWebSocket = () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+    const handleChatMessage = (data) => {
+      if (data?.type !== "chat_message") return;
+
+      const senderName =
+        nameByUserId.get(String(data.userId)) ||
+        data.displayName ||
+        data.name ||
+        data.username ||
+        "Unknown";
+
+      const newMessage = {
+        id: data.messageId,
+        userId: data.userId,
+        name: senderName,
+        text: data.message,
+        ts: data.timestamp,
+        messageType: data.messageType,
+        filePath: data.filePath,
+        originalName: data.originalName,
+        mimeType: data.mimeType,
+        userReceiveId: data.userReceiveId,
+      };
+
+      let shouldAdd = false;
+      if (chatMode === "global") shouldAdd = !data.userReceiveId;
+      else if (chatMode === "private" && selectedParticipant) {
+        const isFromSelected = String(data.userId) === String(selectedParticipant.userId);
+        const isToSelected = String(data.userReceiveId) === String(selectedParticipant.userId);
+        const isFromMe = String(data.userId) === String(user?.id);
+        const isToMe = String(data.userReceiveId) === String(user?.id);
+        shouldAdd = (isFromSelected && isToMe) || (isFromMe && isToSelected);
       }
 
-      const token = localStorage.getItem("token") || "";
-      const wsUrl = `${API_URL.replace(
-        /^http/,
-        "ws"
-      )}/meeting/${meetingId}?token=${encodeURIComponent(token)}`;
+      if (!shouldAdd) return;
 
-      wsRef.current = new WebSocket(wsUrl);
-
-      wsRef.current.onopen = () => {
-        reconnectAttempts = 0;
-
-        // Kirim identitas dengan displayName dari DB (jika ada)
-        if (user?.id) {
-          wsRef.current.send(
-            JSON.stringify({
-              type: "participant_joined",
-              participantId: user.id,
-              displayName: myDbDisplayName || fallbackLocalName,
-            })
-          );
-        }
-      };
-
-      wsRef.current.onmessage = (evt) => {
-        try {
-          const data = JSON.parse(evt.data);
-
-          if (data?.type === "chat_message") {
-            const senderName =
-              nameByUserId.get(String(data.userId)) ||
-              data.displayName ||
-              data.name ||
-              data.username ||
-              "Unknown";
-
-            const newMessage = {
-              id: data.messageId,
-              userId: data.userId,
-              name: senderName,
-              text: data.message,
-              ts: data.timestamp,
-              messageType: data.messageType,
-              filePath: data.filePath,
-              originalName: data.originalName,
-              mimeType: data.mimeType,
-              userReceiveId: data.userReceiveId,
-            };
-
-            // Filter messages berdasarkan mode
-            let shouldAddMessage = false;
-            if (chatMode === "global") {
-              shouldAddMessage = !data.userReceiveId;
-            } else if (chatMode === "private" && selectedParticipant) {
-              const isFromSelectedParticipant =
-                String(data.userId) === String(selectedParticipant.userId);
-              const isToSelectedParticipant =
-                String(data.userReceiveId) ===
-                String(selectedParticipant.userId);
-              const isFromCurrentUser =
-                String(data.userId) === String(user?.id);
-              const isToCurrentUser =
-                String(data.userReceiveId) === String(user?.id);
-
-              shouldAddMessage =
-                (isFromSelectedParticipant && isToCurrentUser) ||
-                (isFromCurrentUser && isToSelectedParticipant);
-            }
-
-            if (!shouldAddMessage) return;
-
-            // Prevent duplicate messages
-            setMessages((prev) => {
-              const isDuplicate = prev.some(
-                (msg) =>
-                  msg.id === newMessage.id ||
-                  (String(msg.userId) === String(newMessage.userId) &&
-                    msg.text === newMessage.text &&
-                    Math.abs(msg.ts - newMessage.ts) < 1000)
-              );
-              if (isDuplicate) return prev;
-              return [...prev, newMessage];
-            });
-          }
-
-          // Forward event lain
-          else if (data.type === "screen-share-started") {
-            window.dispatchEvent(
-              new CustomEvent("screen-share-started", { detail: data })
-            );
-          } else if (data.type === "screen-share-stopped") {
-            window.dispatchEvent(
-              new CustomEvent("screen-share-stopped", { detail: data })
-            );
-          } else if (data.type === "screen-share-producer-created") {
-            window.dispatchEvent(
-              new CustomEvent("screen-share-producer-created", { detail: data })
-            );
-          } else if (data.type === "screen-share-producer-closed") {
-            window.dispatchEvent(
-              new CustomEvent("screen-share-producer-closed", { detail: data })
-            );
-          }
-        } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
-        }
-      };
-
-      wsRef.current.onclose = (event) => {
-        if (event.code === 1000) return; // normal close
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000);
-          reconnectTimeout = setTimeout(() => {
-            if (
-              !wsRef.current ||
-              wsRef.current.readyState === WebSocket.CLOSED
-            ) {
-              connectWebSocket();
-            }
-          }, delay);
-        } else {
-          console.error("WebSocket max reconnection attempts reached");
-        }
-      };
-
-      wsRef.current.onerror = (error) => {
-        console.error("WebSocket error:", error);
-      };
+      setMessages((prev) => {
+        const isDup = prev.some(
+          (msg) =>
+            msg.id === newMessage.id ||
+            (String(msg.userId) === String(newMessage.userId) &&
+              msg.text === newMessage.text &&
+              Math.abs(msg.ts - newMessage.ts) < 1000)
+        );
+        if (isDup) return prev;
+        return [...prev, newMessage];
+      });
     };
 
-    connectWebSocket();
+    meetingSocketService.on("chat_message", handleChatMessage);
 
     return () => {
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (wsRef.current) wsRef.current.close(1000, "Component unmounting");
+      meetingSocketService.off("chat_message", handleChatMessage);
     };
-    // Sertakan dependensi yang mempengaruhi identitas & filter
-  }, [
-    user?.id,
-    meetingIdMemo,
-    chatMode,
-    selectedParticipant,
-    nameByUserId,
-    myDbDisplayName,
-    fallbackLocalName,
-  ]);
+  }, [user?.id, chatMode, selectedParticipant, nameByUserId]);
 
   // Auto scroll ke bawah saat ada pesan baru
   useEffect(() => {
@@ -469,7 +348,7 @@ export default function Chat() {
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, loadingMsg]);
 
-  const visibleMenus = useMemo(
+    const visibleMenus = useMemo(
     () =>
       (menus || [])
         .filter((m) => (m?.flag ?? "Y") === "Y")
@@ -478,66 +357,57 @@ export default function Chat() {
   );
 
   const activeSlug = useMemo(
-    () => (visibleMenus.some((m) => m.slug === "chat") ? "chat" : "exchange"),
+    () =>
+      visibleMenus.some((m) => m.slug === "chat")
+        ? "chat"
+        : visibleMenus.length
+        ? visibleMenus[0].slug
+        : "",
     [visibleMenus]
   );
 
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
+
 
   const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
 
     const meetingId = meetingIdMemo || getMeetingId();
-    if (!meetingId) {
-      setErrMsg("Meeting ID tidak ditemukan");
-      return;
-    }
+    if (!meetingId) return setErrMsg("Meeting ID tidak ditemukan");
 
     const me = user || { username: "You", id: "me" };
     const tempId = `temp-${Date.now()}`;
     const newMsg = {
       id: tempId,
-      userId: me.id || me.username,
+      userId: me.id,
       name: myDbDisplayName || fallbackLocalName,
       text: trimmed,
       ts: Date.now(),
       _optimistic: true,
     };
-
     setMessages((prev) => [...prev, newMsg]);
     setText("");
     setSending(true);
 
     try {
-      const requestBody = { textMessage: trimmed };
-      if (chatMode === "private" && selectedParticipant?.userId) {
-        requestBody.userReceiveId = selectedParticipant.userId;
-      }
+      const body = { textMessage: trimmed };
+      if (chatMode === "private" && selectedParticipant?.userId)
+        body.userReceiveId = selectedParticipant.userId;
 
       const res = await fetch(`${API_URL}/api/chat/meeting/${meetingId}/send`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...meetingService.getAuthHeaders(),
-        },
-        body: JSON.stringify(requestBody),
+        headers: { "Content-Type": "application/json", ...meetingService.getAuthHeaders() },
+        body: JSON.stringify(body),
       });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-
       if (json.success) {
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === tempId
-              ? { ...m, id: json.data.meetingChatId, _optimistic: false }
-              : m
+            m.id === tempId ? { ...m, id: json.data.meetingChatId, _optimistic: false } : m
           )
         );
-      } else {
-        throw new Error(json.message || "Failed to send message");
-      }
+      } else throw new Error(json.message || "Failed to send");
     } catch (e) {
       setMessages((prev) =>
         prev.map((m) => (m.id === tempId ? { ...m, _error: true } : m))
@@ -547,6 +417,7 @@ export default function Chat() {
       setSending(false);
     }
   };
+
 
   const onKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -669,6 +540,29 @@ export default function Chat() {
       }
 
       const json = await res.json();
+
+
+      if (json.success && json.data) {
+        const msg = json.data;
+        const newMessage = {
+          id: msg.meetingChatId,
+          userId: msg.userId,
+          name:
+            nameByUserId.get(String(msg.userId)) ||
+            msg.Sender?.username ||
+            displayName ||
+            "Me",
+          text: msg.textMessage || "",
+          ts: new Date(msg.sendTime).getTime(),
+          messageType: msg.messageType,
+          filePath: msg.filePath,
+          originalName: msg.originalName,
+          mimeType: msg.mimeType,
+          userReceiveId: msg.userReceiveId,
+        };
+
+      }
+
 
       if (json.success) {
       } else {
