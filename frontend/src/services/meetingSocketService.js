@@ -28,6 +28,7 @@ class MeetingSocketService {
     this.isConnecting = true;
     this.meetingId = meetingId;
     this.userId = userId;
+    
 
     try {
       const token = localStorage.getItem("token");
@@ -63,17 +64,22 @@ class MeetingSocketService {
       this.reconnectAttempts = 0;
 
       // 🔄 Rejoin room jika reconnect
-      if (this.meetingId && this.userId) {
+      if (this._wasConnectedBefore) {
+        console.log("🔄 Reconnected — rejoining room...");
         this.send({
           type: "join-room",
           meetingId: this.meetingId,
           userId: this.userId,
           displayName: localStorage.getItem("pconf.displayName") || "User",
         });
+      } else {
+        this._wasConnectedBefore = true;
       }
     });
 
     socket.on("disconnect", (reason) => {
+      this._lastJoinSent = false;
+
       console.warn("⚠️ Socket disconnected:", reason);
       this.isConnecting = false;
     });
@@ -106,11 +112,11 @@ class MeetingSocketService {
         this.emit("participants_list", data.data || []);
         break;
 
-      case "participant_joined":
-        console.log("👤 Participant joined:", data.displayName);
-        this.emit("participant_joined", data);
-        break;
-
+    case "participant_joined":
+    case "join-room": // ✅ tambahkan ini
+      console.log("⚡ Handling participant joined/join-room:", data);
+      this.emit("participant_joined", data); // panggil event yang sama
+      break;
       case "participant_left":
         console.log("🚪 Participant left:", data.displayName);
         this.emit("participant_left", data);
@@ -155,19 +161,28 @@ class MeetingSocketService {
     }
   }
 
-  send(message) {
-    if (!this.socket) {
-      console.warn("Socket not initialized");
+send(message) {
+  if (!this.socket) {
+    console.warn("Socket not initialized");
+    return;
+  }
+
+  // 🚧 Hindari join-room duplikat
+  if (message?.type === "join-room") {
+    if (this._lastJoinSent) {
+      console.warn("⚠️ Duplicate join-room prevented");
       return;
     }
-
-    if (this.socket.connected) {
-      this.socket.emit("message", message);
-      console.log("📤 Message sent:", message);
-    } else {
-      console.warn("Socket not connected. Message skipped:", message);
-    }
+    this._lastJoinSent = true;
   }
+
+  if (this.socket.connected) {
+    this.socket.emit("message", message);
+    console.log("📤 Message sent:", message);
+  } else {
+    console.warn("Socket not connected. Message skipped:", message);
+  }
+}
 
   on(event, callback) {
     if (!this.eventListeners.has(event)) {
@@ -195,6 +210,37 @@ class MeetingSocketService {
       }
     }
   }
+
+  disconnect(force = false) {
+  if (this.socket) {
+    if (force) {
+      console.log("🧹 Forcing full socket cleanup");
+      try {
+        this.socket.removeAllListeners(); // hapus semua listener internal
+        if (this.socket.io?.opts) this.socket.io.opts.reconnection = false; // matikan auto reconnect
+      } catch (e) {
+        console.warn("⚠️ Cleanup listener error:", e);
+      }
+    }
+
+    this.socket.disconnect();
+    console.log("🔌 Socket.IO manually disconnected");
+  }
+
+  // 🔄 Reset semua state internal
+  this.socket = null;
+  this.meetingId = null;
+  this.userId = null;
+  this.isConnecting = false;
+  this._wasConnectedBefore = false;
+  this._lastJoinSent = false; // <– penting untuk hilangkan duplicate join-room
+  this.reconnectAttempts = 0;
+  this.eventListeners.clear();
+
+  if (typeof window !== "undefined") window.meetingSocket = null;
+}
+
+
 
   disconnect() {
     if (this.socket) {

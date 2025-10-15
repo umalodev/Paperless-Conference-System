@@ -293,17 +293,11 @@ useEffect(() => {
 
         
       try {
-        if (meetingSocketService.isConnected() && meetingId) {
-          meetingSocketService.send({
-            type: "participant_left",
-            meetingId,
-            participantId: user?.id,
-            displayName: displayName || user?.username || "User",
-          });
-          console.log("🚪 Sent participant_left before logout");
-        }
+        await meetingSocketService.disconnect(true); // 💥 pakai force true
+        console.log("🔌 Fully cleaned socket before logout");
+        await new Promise((r) => setTimeout(r, 500)); // beri 0.5s agar server proses disconnect
       } catch (err) {
-        console.warn("⚠️ Failed to send participant_left:", err);
+        console.warn("⚠️ Error disconnecting meeting socket:", err);
       }
 
 
@@ -342,6 +336,7 @@ useEffect(() => {
         }
       } catch {}
 
+      
       // --- 6) Bersihkan session/local storage ---
       localStorage.removeItem("currentMeeting");
       localStorage.removeItem("user");

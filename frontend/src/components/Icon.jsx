@@ -283,8 +283,14 @@ redo: () => (
     <polyline points="9 6 15 12 9 18" />
   </>
 ),
-
-
+master: () => (
+  <>
+    {/* Monitor Screen */}
+    <rect x="4" y="4" width="16" height="12" rx="2" />  {/* Rounded screen */}
+    {/* Monitor Stand */}
+    <rect x="9" y="16" width="6" height="2" rx="1" />  {/* Stand */}
+  </>
+),
 
 
   trash: () => (

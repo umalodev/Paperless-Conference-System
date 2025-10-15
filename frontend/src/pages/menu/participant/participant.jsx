@@ -122,30 +122,55 @@ useEffect(() => {
 
   // ✅ Listener join
   const handleJoin = (data) => {
-    console.log("[Socket] participant_joined:", data);
-    setParticipants((prev) => {
-      const exists = prev.some((p) => String(p.id) === String(data.participantId));
-      if (exists) return prev;
-      return [
-        ...prev,
-        {
-          id: String(data.participantId ?? data.userId),
-          displayName: data.displayName || "Participant",
-          mic: data.mic ?? false,
-          cam: data.cam ?? false,
-          role: data.role || "participant",
-        },
-      ];
-    });
-  };
+  console.log("[Socket] participant_joined:", data);
+  const id = String(data.participantId ?? data.userId);
+  const name = data.displayName || "Participant";
+
+  setParticipants((prev) => {
+    const idx = prev.findIndex((p) => String(p.id) === id);
+    if (idx !== -1) {
+      // kalau sudah ada, update displayName jika berbeda
+      const updated = [...prev];
+      if (updated[idx].displayName !== name) {
+        updated[idx] = { ...updated[idx], displayName: name };
+        console.log("✏️ Updated displayName for", id, "→", name);
+      }
+      return updated;
+    }
+
+    // kalau benar-benar baru
+    return [
+      ...prev,
+      {
+        id,
+        displayName: name,
+        mic: data.mic ?? false,
+        cam: data.cam ?? false,
+        role: data.role || "participant",
+      },
+    ];
+  });
+};
+
+
 
   // ✅ Listener leave
-  const handleLeave = (data) => {
-    console.log("[Socket] participant_left:", data);
-    setParticipants((prev) =>
-      prev.filter((p) => String(p.id) !== String(data.participantId ?? data.userId))
+const handleLeave = (data) => {
+  const id = String(data.participantId ?? data.userId);
+  console.log("[Socket] participant_left:", data);
+
+  setParticipants((prev) => {
+    // kalau user langsung join ulang, jangan hapus
+    const alreadyThere = prev.some(
+      (p) => String(p.id) === id && p.displayName === data.displayName
     );
-  };
+    if (alreadyThere) {
+      console.log(`⏩ Skip removing ${id}, still present`);
+      return prev;
+    }
+    return prev.filter((p) => String(p.id) !== id);
+  });
+};
 
   // ✅ Listener update
   const handleUpdate = (data) => {

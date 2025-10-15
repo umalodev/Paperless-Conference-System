@@ -15,6 +15,7 @@ export default function WaitingRoom() {
   const [err, setErr] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [currentMeeting, setCurrentMeeting] = useState(null);
+  const [participants, setParticipants] = useState([]);
 
   const navigate = useNavigate();
 
@@ -109,15 +110,27 @@ useEffect(() => {
     if (!msg?.type) return;
 
     // Jika ada participant baru join
-    if (msg.type === "participant_joined") {
-      console.log("👥 New participant joined:", msg.displayName);
-      // ✅ bisa munculkan notifikasi kecil atau log
-    }
+if (msg.type === "participant_joined") {
+  console.log("👥 New participant joined:", msg.displayName);
 
-    // Jika ada participant keluar
-    if (msg.type === "participant_left") {
-      console.log("🚪 Participant left:", msg.displayName);
-    }
+  setParticipants((prev) => {
+    // hindari duplikat
+    if (prev.some((p) => p.participantId === msg.participantId)) return prev;
+    return [...prev, { participantId: msg.participantId, displayName: msg.displayName }];
+  });
+}
+
+if (msg.type === "participant_left") {
+  console.log("🚪 Participant left:", msg.displayName);
+  setParticipants((prev) =>
+    prev.filter((p) => p.participantId !== msg.participantId)
+  );
+}
+
+if (msg.type === "participants_list") {
+  setParticipants(msg.data || []);
+}
+
 
     // Kalau kamu mau: update state participants di sini nanti
   };

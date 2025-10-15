@@ -165,17 +165,26 @@ io.on("connection", async (socket) => {
     let payload;
     try {
       payload = verifyToken(token);
-      socket.data.user = {
-        id: payload.id,
-        username: payload.username,
-        role: payload.role,
-      };
     } catch {
-      console.log("❌ Socket.IO auth failed");
       socket.emit("error", { code: 4401, message: "Unauthorized" });
       socket.disconnect(true);
       return;
     }
+
+    // ❗ Pastikan tidak ada koneksi lama untuk user yang sama
+    for (const [sid, s] of io.sockets.sockets) {
+      if (s.data?.userId === String(payload.id) && sid !== socket.id) {
+        console.log(`⚠️ Duplicate connection found for user ${payload.username}, closing old one...`);
+        s.disconnect(true); // tutup socket lama
+      }
+    }
+
+
+    socket.data = {
+      userId: String(payload.id),
+      displayName: payload.username,
+      meetingId: String(meetingId),
+    };
 
     // ===== VALIDASI MEETING =====
     const isValid = await validateMeetingStatus(meetingId);
@@ -195,51 +204,48 @@ io.on("connection", async (socket) => {
 
     // ===== KIRIM DAFTAR PESERTA AKTIF KE USER BARU =====
     const others = [];
-    for (const [sid, s] of io.sockets.sockets) {
-      if (s.data.meetingId === meetingId && sid !== socket.id) {
-        others.push({
-          participantId: s.data.userId,
-          displayName: s.data.displayName || s.data.user?.username,
-        });
-      }
-    }
-    socket.to(roomName(meetingId)).emit("message", {
-      type: "participant_joined",
-      participantId: socket.data.userId,
-      displayName: socket.data.displayName,
-    });
-    socket.emit("message", { type: "participants_list", data: others });
-
-    // ===== HANDLER JOIN-ROOM DARI CLIENT (JIKA ADA) =====
-    socket.on("join-room", ({ meetingId, userId, displayName }) => {
-      socket.data.meetingId = meetingId;
-      socket.data.userId = userId;
-      socket.data.displayName = displayName || payload.username;
-      socket.join(roomName(meetingId));
-      
-      console.log("📢 Broadcast participant_joined to meeting:", meetingId);
-
-      console.log(`✅ join-room: user ${userId} joined meeting ${meetingId}`);
-
-      // kirim ulang daftar peserta lain ke user baru
-      const others = [];
-      for (const [sid, s] of io.sockets.sockets) {
-        if (s.data.meetingId === meetingId && sid !== socket.id) {
-          others.push({
-            participantId: s.data.userId,
-            displayName: s.data.displayName || s.data.user?.username,
-          });
+        for (const [sid, s] of io.sockets.sockets) {
+          if (s.data.meetingId === meetingId && sid !== socket.id) {
+            others.push({
+              participantId: s.data.userId,
+              displayName: s.data.displayName,
+            });
+          }
         }
-      }
-      socket.emit("message", { type: "participants_list", data: others });
+        socket.emit("message", { type: "participants_list", data: others });
 
-      // broadcast join ke semua peserta lain
-      socket.to(roomName(meetingId)).emit("message", {
-        type: "participant_joined",
-        participantId: userId,
-        displayName,
+
+    // ===== HANDLER JOIN-ROOM DARI CLIENT =====
+socket.on("join-room", ({ meetingId, userId, displayName }) => {
+  if (!meetingId || !userId) return;
+
+  socket.data.meetingId = String(meetingId);
+  socket.data.userId = String(userId);
+  socket.data.displayName = displayName || payload.username;
+
+  console.log(`✅ join-room: ${socket.data.displayName} joined meeting ${meetingId}`);
+
+  // Kirim daftar peserta ke user baru
+  const others = [];
+  for (const [sid, s] of io.sockets.sockets) {
+    if (s.data.meetingId === String(meetingId) && sid !== socket.id) {
+      others.push({
+        participantId: s.data.userId,
+        displayName: s.data.displayName,
       });
-    });
+    }
+  }
+  socket.emit("message", { type: "participants_list", data: others });
+
+  // 💥 Broadcast ke peserta lain
+  socket.to(roomName(meetingId)).emit("message", {
+    type: "participant_joined",
+    participantId: socket.data.userId,
+    displayName: socket.data.displayName,
+    joinedAt: Date.now(),
+  });
+});
+
 
     // ===== HANDLER PESAN =====
     socket.on("message", async (message) => {
@@ -318,14 +324,20 @@ io.on("connection", async (socket) => {
     });
 
     // ===== DISCONNECT HANDLER =====
-    socket.on("disconnect", (reason) => {
-      console.log(`🔴 ${payload.username} disconnected (${reason})`);
-      socket.to(roomName(meetingId)).emit("message", {
-        type: "participant_left",
-        participantId: payload.id,
-        displayName: payload.username,
-      });
-    });
+socket.on("disconnect", reason => {
+  const { meetingId, userId, displayName } = socket.data || {};
+  console.log(`🔴 ${displayName} disconnected (${reason})`);
+
+  // 🚪 Langsung broadcast ke peserta lain
+  socket.to(roomName(meetingId)).emit("message", {
+    type: "participant_left",
+    participantId: userId,
+    displayName,
+  });
+});
+
+
+
 
     // ===== ERROR HANDLER =====
     socket.on("error", (err) => {
