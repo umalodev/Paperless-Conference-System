@@ -16,6 +16,7 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import meetingService from "../../../services/meetingService.js";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
+import meetingSocketService from "../../../services/meetingSocketService.js";
 
 export default function ParticipantsPage() {
   const [user, setUser] = useState(null);
@@ -83,18 +84,17 @@ export default function ParticipantsPage() {
     };
   }, []);
 
-  // Participants polling (unchanged)
 useEffect(() => {
   if (!meetingId) return;
+  const userData = localStorage.getItem("user");
+  const user = userData ? JSON.parse(userData) : null;
+  const userId = user?.id;
 
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  // ✅ Hubungkan Socket.IO (service akan handle reconnect, dll)
+  meetingSocketService.connect(meetingId, userId, API_URL);
 
-  const WS_URL = `${API_URL.replace(/^http/, "ws")}/meeting/${meetingId}?token=${token}`;
-  const ws = new WebSocket(WS_URL);
-
-  // helper untuk reload list dari REST API
-  const reloadParticipants = async () => {
+  // Ambil daftar awal via REST API
+  const loadInitialParticipants = async () => {
     try {
       const res = await fetch(`${API_URL}/api/participants/list?meetingId=${meetingId}`, {
         headers: {
@@ -102,85 +102,124 @@ useEffect(() => {
           ...(meetingService.getAuthHeaders?.() || {}),
         },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         const formatted = json.data.map((p) => ({
           id: String(p.participantId ?? p.userId ?? p.id),
-          displayName:
-            p.displayName ||
-            localStorage.getItem(`meeting:${meetingId}:displayName`) ||
-            p.name ||
-            "Participant",
+          displayName: p.displayName || p.name || "Participant",
           mic: !!p.isAudioEnabled,
           cam: !!p.isVideoEnabled,
           role: p.role || "participant",
         }));
         setParticipants(formatted);
       }
-    } catch (e) {
-      console.error("Failed to reload participants:", e);
-    }
-  };
-
-  ws.onopen = () => {
-    console.log("[ParticipantsPage] ✅ WS Connected");
-    // Ambil daftar awal saat pertama connect
-    reloadParticipants();
-  };
-
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      console.log("[WS]", data);
-
-      if (data.type === "participant_joined" || data.type === "participant_left") {
-        console.log("[WS] Trigger reload because participants changed");
-        reloadParticipants();
-      }
-
-      // (Optional) kalau server punya event participant_updated
-      if (data.type === "participant_updated") {
-        setParticipants((prev) =>
-          prev.map((p) =>
-            String(p.id) === String(data.participantId)
-              ? { ...p, ...data.updates }
-              : p
-          )
-        );
-      }
     } catch (err) {
-      console.error("[WS] parse error:", err);
+      console.error("❌ Failed to load participants:", err);
     }
   };
 
-  ws.onclose = (e) => {
-    console.warn("[ParticipantsPage] ❌ WS closed:", e.code, e.reason);
+  loadInitialParticipants();
+
+  // ✅ Listener join
+  const handleJoin = (data) => {
+  console.log("[Socket] participant_joined:", data);
+  const id = String(data.participantId ?? data.userId);
+  const name = data.displayName || "Participant";
+
+  setParticipants((prev) => {
+    const idx = prev.findIndex((p) => String(p.id) === id);
+    if (idx !== -1) {
+      // kalau sudah ada, update displayName jika berbeda
+      const updated = [...prev];
+      if (updated[idx].displayName !== name) {
+        updated[idx] = { ...updated[idx], displayName: name };
+        console.log("✏️ Updated displayName for", id, "→", name);
+      }
+      return updated;
+    }
+
+    // kalau benar-benar baru
+    return [
+      ...prev,
+      {
+        id,
+        displayName: name,
+        mic: data.mic ?? false,
+        cam: data.cam ?? false,
+        role: data.role || "participant",
+      },
+    ];
+  });
+};
+
+
+
+  // ✅ Listener leave
+const handleLeave = (data) => {
+  const id = String(data.participantId ?? data.userId);
+  console.log("[Socket] participant_left:", data);
+
+  setParticipants((prev) => {
+    // kalau user langsung join ulang, jangan hapus
+    const alreadyThere = prev.some(
+      (p) => String(p.id) === id && p.displayName === data.displayName
+    );
+    if (alreadyThere) {
+      console.log(`⏩ Skip removing ${id}, still present`);
+      return prev;
+    }
+    return prev.filter((p) => String(p.id) !== id);
+  });
+};
+
+  // ✅ Listener update
+  const handleUpdate = (data) => {
+    console.log("[Socket] participant_updated:", data);
+    setParticipants((prev) =>
+      prev.map((p) =>
+        String(p.id) === String(data.participantId ?? data.userId)
+          ? { ...p, ...data.updates }
+          : p
+      )
+    );
   };
 
-  ws.onerror = (err) => {
-    console.error("[ParticipantsPage] WS error:", err);
+  // ✅ Listener daftar awal (dikirim dari server saat user join)
+  const handleInitialList = (data) => {
+    console.log("[Socket] participants_list:", data);
+    if (Array.isArray(data)) {
+      setParticipants((prev) => {
+        // Gabungkan dengan existing (hindari duplikat)
+        const ids = new Set(prev.map((p) => String(p.id)));
+        const merged = [
+          ...prev,
+          ...data
+            .filter((p) => !ids.has(String(p.participantId)))
+            .map((p) => ({
+              id: String(p.participantId ?? p.userId ?? p.id),
+              displayName: p.displayName || "Participant",
+              mic: false,
+              cam: false,
+              role: "participant",
+            })),
+        ];
+        return merged;
+      });
+    }
   };
+
+
+  meetingSocketService.on("participant_joined", handleJoin);
+  meetingSocketService.on("participant_left", handleLeave);
+  meetingSocketService.on("participant_updated", handleUpdate);
 
   return () => {
-    ws.close();
+    meetingSocketService.off("participant_joined", handleJoin);
+    meetingSocketService.off("participant_left", handleLeave);
+    meetingSocketService.off("participant_updated", handleUpdate);
   };
 }, [meetingId]);
 
-  const visibleMenus = useMemo(
-    () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
-    [menus]
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return participants;
-    return participants.filter(
-      (p) =>
-        (p.displayName || "").toLowerCase().includes(q) ||
-        (p.role || "").toLowerCase().includes(q)
-    );
-  }, [participants, query]);
 
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
 
@@ -338,6 +377,23 @@ useEffect(() => {
       Array.from(remotePeers.values()).filter((v) => v.videoActive).length;
     return { total, micOn: liveMic, camOn: liveCam };
   }, [participants.length, remotePeers, micOn, camOn]);
+
+ const filtered = useMemo(() => {
+   const q = query.trim().toLowerCase();
+   if (!q) return participants;
+   return participants.filter(
+     (p) =>
+       (p.displayName || "").toLowerCase().includes(q) ||
+       (p.role || "").toLowerCase().includes(q)
+   );
+ }, [participants, query]);
+
+ const visibleMenus = useMemo(
+  () => menus.filter((m) => m.flag === "Y"),
+  [menus]
+);
+
+
 
   // wiring tombol footer -> media produce/close + update DB flag utk current user
   const onToggleMic = useCallback(

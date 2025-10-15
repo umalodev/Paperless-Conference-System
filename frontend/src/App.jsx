@@ -3,6 +3,7 @@ import ProtectedMediaLayout from "./layouts/ProtectedMediaLayout.jsx";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/login/login.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import { MeetingSocketProvider } from "./contexts/MeetingSocketProvider";
 
 import LockOverlay from "./components/LockOverlay.jsx";
 import "./components/LockOverlay.css";

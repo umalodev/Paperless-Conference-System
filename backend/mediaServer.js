@@ -61,7 +61,7 @@ const config = {
         {
           ip: "0.0.0.0",
           //http:
-          announcedIp: "192.168.1.23",
+          announcedIp: "192.168.1.16",
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
@@ -133,46 +133,62 @@ io.on("connection", (socket) => {
   logger.info("Client connected", { socketId: socket.id });
 
   socket.on("join-room", async (data) => {
-    try {
-      const { roomId, roomName, peerId } = data;
-      logger.info("Peer joining room", { roomId, peerId, socketId: socket.id });
+  try {
+    const { roomId, roomName, peerId, displayName } = data; // 🟩 displayName optional
+    logger.info("Peer joining room", { roomId, peerId, socketId: socket.id });
 
-      const room = await getOrCreateRoom(roomId);
+    const room = await getOrCreateRoom(roomId);
 
-      // Store peer info
-      room.peers.set(socket.id, {
-        id: peerId,
-        socket,
-        transports: new Set(),
-        producers: new Set(),
-        consumers: new Set(),
+    // Store peer info
+    room.peers.set(socket.id, {
+      id: peerId,
+      socket,
+      transports: new Set(),
+      producers: new Set(),
+      consumers: new Set(),
+      displayName: displayName || `User-${peerId || socket.id}`,
+    });
+
+    socket.join(roomId);
+
+    // Send router RTP capabilities
+    socket.emit("router-rtp-capabilities", {
+      rtpCapabilities: room.router.rtpCapabilities,
+    });
+
+    // Kirim producer yang sudah ada
+    const existing = [];
+    for (const p of room.producers.values()) {
+      existing.push({
+        producerId: p.id,
+        kind: p.kind,
+        peerId: p.appData?.peerId || null,
       });
-
-      socket.join(roomId);
-
-      // Send router RTP capabilities
-      socket.emit("router-rtp-capabilities", {
-        rtpCapabilities: room.router.rtpCapabilities,
-      });
-
-      // Kirim producer yang sudah ada
-      const existing = [];
-      for (const p of room.producers.values()) {
-        existing.push({
-          producerId: p.id,
-          kind: p.kind,
-          peerId: p.appData?.peerId || null,
-        });
-      }
-      socket.emit("existing-producers", existing);
-
-      // Notify other peers
-      socket.to(roomId).emit("peer-joined", { peerId, socketId: socket.id });
-    } catch (error) {
-      logger.error("Failed to join room:", error);
-      socket.emit("error", { message: "Failed to join room" });
     }
-  });
+    socket.emit("existing-producers", existing);
+
+    // 🟩 Kirim daftar peserta aktif saat ini ke client baru
+    const currentParticipants = Array.from(room.peers.values()).map((p) => ({
+      participantId: p.id,
+      displayName: p.displayName,
+    }));
+    socket.emit("participants_list", currentParticipants);
+
+    // 🟩 Broadcast ke semua peserta lain bahwa peserta baru bergabung
+    socket.to(roomId).emit("message", {
+      type: "participant_joined",
+      participantId: peerId || socket.id,
+      displayName: displayName || `User-${peerId || socket.id}`,
+    });
+
+    // Notify other peers (existing media logic)
+    socket.to(roomId).emit("peer-joined", { peerId, socketId: socket.id });
+  } catch (error) {
+    logger.error("Failed to join room:", error);
+    socket.emit("error", { message: "Failed to join room" });
+  }
+});
+
 
   socket.on("create-transport", async (data) => {
     try {
@@ -510,6 +526,13 @@ io.on("connection", (socket) => {
 
         // Remove peer
         room.peers.delete(socket.id);
+
+      // 🟩 Broadcast ke semua peserta lain bahwa user ini keluar
+      socket.to(roomId).emit("message", {
+        type: "participant_left",
+        participantId: peer.id,
+        displayName: peer.displayName,
+      });
 
         // Notify other peers
         socket

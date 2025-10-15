@@ -3,6 +3,8 @@ import styles from "./Start.module.css";
 import { useNavigate } from "react-router-dom";
 import meetingService from "../../services/meetingService.js";
 import { API_URL } from "../../config.js";
+import meetingSocketService from "../../services/meetingSocketService.js";
+
 
 export default function Start() {
   const [user, setUser] = React.useState(null);

@@ -1,12 +1,13 @@
+// index.js (versi Socket.IO, drop-in menggantikan versi ws)
+
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const { verifyToken } = require("./utils/jwt");
 const http = require("http");
-const WebSocket = require("ws");
-const routes = require("./routes");
 const os = require("os");
 
+// ====== Express + HTTP Server ======
 const app = express();
 const server = http.createServer(app);
 const PORT = Number(process.env.PORT || 3000);
@@ -14,6 +15,7 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 const UPLOAD_DIR = path.resolve(__dirname, "uploads");
 
+// ====== Helper: LAN IPs ======
 function getLanIPs() {
   const ifs = os.networkInterfaces();
   const ips = [];
@@ -25,568 +27,11 @@ function getLanIPs() {
   return ips;
 }
 
-// WebSocket server for meeting rooms
-const wss = new WebSocket.Server({ server });
-
-// Store WebSocket server globally for use in controllers
-global.wss = wss;
-
-// Export WebSocket server for use in controllers
-module.exports.getWebSocketServer = () => wss;
-
-// Function to validate meeting status
-const validateMeetingStatus = async (meetingId) => {
-  try {
-    const models = require("./models");
-
-    // Check if meeting exists
-    const meeting = await models.Meeting.findByPk(meetingId);
-    if (!meeting) {
-      console.log(`Meeting ${meetingId} not found`);
-      return false;
-    }
-
-    // Check if meeting is active or started (both are valid for WebSocket)
-    if (meeting.status !== "active" && meeting.status !== "started") {
-      console.log(
-        `Meeting ${meetingId} is not active/started (status: ${meeting.status})`
-      );
-      return false;
-    }
-
-    // Check if meeting has host
-    const hostParticipant = await models.MeetingParticipant.findOne({
-      where: {
-        meetingId,
-        role: "host",
-        flag: "Y",
-      },
-    });
-
-    if (!hostParticipant) {
-      console.log(`Meeting ${meetingId} has no host`);
-      return false;
-    }
-
-    // Check if host is online (but don't require them to be joined for WebSocket)
-    // WebSocket should work even if host is not yet joined
-    console.log(`Meeting ${meetingId} is valid for WebSocket connection`);
-    return true;
-  } catch (error) {
-    console.error(`Error validating meeting ${meetingId}:`, error);
-    return false;
-  }
-};
-
-// WebSocket connection handling
-wss.on("connection", (ws, req) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const meetingId = url.pathname.split("/")[2];
-  const token = url.searchParams.get("token");
-
-  if (!meetingId) {
-    console.log("No meeting ID provided, closing connection");
-    ws.close();
-    return;
-  }
-
-  try {
-    if (!token) throw new Error("No token");
-    const payload = verifyToken(token);
-    ws.user = {
-      id: payload.id,
-      username: payload.username,
-      role: payload.role,
-    };
-  } catch {
-    console.log("WS auth failed");
-    ws.close(4401, "Unauthorized");
-    return;
-  }
-
-  console.log(`WebSocket connected to meeting: ${meetingId}`);
-
-  // Store meeting ID in the WebSocket object
-  ws.meetingId = meetingId;
-  ws.isAlive = true;
-  ws.userId = ws.user?.id != null ? String(ws.user.id) : null;
-
-  // Handle incoming messages
-  ws.on("message", (message) => {
-    try {
-      const data = JSON.parse(message);
-      console.log(`WebSocket message from meeting ${meetingId}:`, data);
-
-      // Set userId if this is the first message
-      if (data.participantId) {
-        ws.userId = String(data.participantId);
-        console.log(
-          `User ${data.participantId} identified in meeting ${meetingId}`
-        );
-      }
-
-      // Validate meeting status before processing messages
-      validateMeetingStatus(meetingId).then((isValid) => {
-        if (!isValid) {
-          console.log(`Meeting ${meetingId} is not valid, closing connection`);
-          ws.close();
-          return;
-        }
-
-        // Broadcast message to all other clients in the same meeting
-        let clientCount = 0;
-        console.log(`Broadcasting message to meeting ${meetingId}:`, data);
-        console.log(`Total clients in WebSocket server: ${wss.clients.size}`);
-
-        wss.clients.forEach((client) => {
-          console.log(
-            `Client meetingId: ${client.meetingId}, readyState: ${
-              client.readyState
-            }, is same: ${client === ws}`
-          );
-          if (
-            client !== ws &&
-            client.readyState === WebSocket.OPEN &&
-            client.meetingId === meetingId
-          ) {
-            console.log(`Sending message to client in meeting ${meetingId}`);
-            client.send(JSON.stringify(data));
-            clientCount++;
-          }
-        });
-        console.log(
-          `Message broadcasted to ${clientCount} clients in meeting ${meetingId}`
-        );
-
-        // Special handling for participant_ready_to_receive message
-        if (data.type === "participant_ready_to_receive") {
-          console.log(
-            `Participant ${data.from} is ready to receive video in meeting ${meetingId}`
-          );
-
-          // Notify host that participant is ready
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              // Send notification to host
-              console.log(
-                `Forwarding participant_ready_to_receive to client ${
-                  client.userId || "unknown"
-                }`
-              );
-              client.send(
-                JSON.stringify({
-                  type: "participant_ready_to_receive",
-                  from: data.from,
-                  meetingId: meetingId,
-                })
-              );
-            }
-          });
-        }
-
-        // Handle participant_joined message
-        if (data.type === "participant_joined") {
-          console.log(
-            `Participant ${data.participantId} joined meeting ${meetingId}`
-          );
-
-          // Notify all other clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "participant_joined",
-                  participantId: data.participantId,
-                  meetingId: meetingId,
-                })
-              );
-            }
-          });
-        }
-
-        // Handle chat messages
-        if (data.type === "chat_message") {
-          console.log(
-            `Chat message from ${data.userId} in meeting ${meetingId}:`,
-            data.message
-          );
-
-          // Broadcast chat message to all OTHER clients in the same meeting (not to sender)
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "chat_message",
-                  messageId: data.messageId,
-                  userId: data.userId,
-                  username: data.username,
-                  message: data.message,
-                  messageType: data.messageType,
-                  timestamp: data.timestamp,
-                  meetingId: meetingId,
-                })
-              );
-            }
-          });
-        }
-
-        // Handle typing indicators
-        if (data.type === "typing_start" || data.type === "typing_stop") {
-          console.log(
-            `Typing ${data.type} from ${data.userId} in meeting ${meetingId}`
-          );
-
-          // Broadcast typing indicator to all other clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: data.type,
-                  userId: data.userId,
-                  username: data.username,
-                  meetingId: meetingId,
-                })
-              );
-            }
-          });
-        }
-
-        // Handle screen sharing events
-        if (data.type === "screen-share-start") {
-          console.log(
-            `Screen share started by ${data.userId} in meeting ${meetingId}`
-          );
-
-          // Broadcast screen share start to all other clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "screen-share-start",
-                  userId: data.userId,
-                  username: data.username,
-                  meetingId: meetingId,
-                  timestamp: data.timestamp,
-                })
-              );
-            }
-          });
-        }
-
-        // Handle screen share stream data
-        if (data.type === "screen-share-stream") {
-          console.log(
-            `Screen share stream from ${data.userId} in meeting ${meetingId}`
-          );
-
-          // Broadcast screen share stream to all other clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "screen-share-stream",
-                  userId: data.userId,
-                  meetingId: meetingId,
-                  imageData: data.imageData,
-                  timestamp: data.timestamp,
-                })
-              );
-            }
-          });
-        }
-
-        if (data.type === "screen-share-stop") {
-          console.log(
-            `Screen share stopped by ${data.userId} in meeting ${meetingId}`
-          );
-
-          // Broadcast screen share stop to all other clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "screen-share-stopped",
-                  userId: data.userId,
-                  username: data.username,
-                  meetingId: meetingId,
-                  timestamp: data.timestamp,
-                })
-              );
-            }
-          });
-        }
-
-        if (data.type === "screen-share-producer-created") {
-          console.log(
-            `Screen share producer created by ${data.userId} in meeting ${meetingId}`
-          );
-
-          // Broadcast producer creation to all other clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "screen-share-producer-created",
-                  userId: data.userId,
-                  producerId: data.producerId,
-                  kind: data.kind,
-                  meetingId: meetingId,
-                })
-              );
-            }
-          });
-        }
-
-        if (data.type === "screen-share-producer-closed") {
-          console.log(
-            `Screen share producer closed by ${data.userId} in meeting ${meetingId}`
-          );
-
-          // Broadcast producer closure to all other clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client !== ws &&
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "screen-share-producer-closed",
-                  userId: data.userId,
-                  producerId: data.producerId,
-                  meetingId: meetingId,
-                })
-              );
-            }
-          });
-        }
-
-        if (data.type === "annotate") {
-          console.log(`Annotate from ${data.userId} in meeting ${meetingId}`);
-
-          const meeting = getMeeting(meetingId);
-
-          wss.clients.forEach((client) => {
-            const isSharer =
-              meeting.sharerId &&
-              String(client.userId) === String(meeting.sharerId);
-
-            // kirim ke semua viewer lain (bukan sender), atau ke sharer
-            if (
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId &&
-              (client !== ws || isSharer)
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "anno:commit",
-                  userId: data.userId,
-                  meetingId,
-                  shape: data.shape,
-                })
-              );
-            }
-          });
-        }
-
-        // Handle meeting end
-        if (data.type === "meeting-end") {
-          console.log(
-            `Meeting ended by ${data.userId} in meeting ${meetingId}`
-          );
-
-          // Broadcast meeting end to all clients in the same meeting
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              client.meetingId === meetingId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "meeting-ended",
-                  userId: data.userId,
-                  username: data.username,
-                  meetingId: meetingId,
-                  timestamp: new Date().toISOString(),
-                })
-              );
-            }
-          });
-        }
-      });
-
-      const m = getMeeting(meetingId);
-
-      switch (data.type) {
-        case "screen_share_start":
-          m.sharerId = data.from || ws.userId;
-          break;
-
-        case "screen_share_stop":
-          if (!m.sharerId || m.sharerId === (data.from || ws.userId)) {
-            m.sharerId = null;
-          }
-          break;
-
-        case "anno:preview":
-        case "anno:commit":
-        case "anno:clear":
-        case "anno:undo":
-        case "anno:redo":
-          // forward saja ke peserta lain di meeting yang sama
-          broadcastToMeeting(
-            meetingId,
-            {
-              ...data,
-              from: data.from || ws.userId,
-            },
-            ws
-          );
-          return; // sudah dibroadcast, tidak perlu lanjut ke broadcast generic
-      }
-
-      // ====== Broadcast generic (kamu sudah punya) ======
-      // (boleh tetap dipakai untuk tipe lain yang sudah ada)
-      let clientCount = 0;
-      wss.clients.forEach((client) => {
-        if (
-          client !== ws &&
-          client.readyState === WebSocket.OPEN &&
-          client.meetingId === meetingId
-        ) {
-          client.send(JSON.stringify(data));
-          clientCount++;
-        }
-      });
-
-      // Handler khusus participant_ready_to_receive kamu tetap seperti semula...
-      if (data.type === "participant_ready_to_receive") {
-        wss.clients.forEach((client) => {
-          if (
-            client !== ws &&
-            client.readyState === WebSocket.OPEN &&
-            client.meetingId === meetingId
-          ) {
-            client.send(
-              JSON.stringify({
-                type: "participant_ready_to_receive",
-                from: data.from,
-                meetingId,
-              })
-            );
-          }
-        });
-      }
-
-      ws.on("close", () => {
-        const meetingId = ws.meetingId;
-        const userId = ws.userId || ws.user?.id;
-        const m = getMeeting(meetingId);
-
-        // Jika yang disconnect adalah current sharer → paksa semua viewer berhenti
-        if (m.sharerId && String(m.sharerId) === String(userId)) {
-          m.sharerId = null;
-          broadcastToMeeting(meetingId, {
-            type: "screen_share_force_stop",
-            meetingId,
-            byDisconnect: true,
-            from: userId,
-          });
-        }
-      });
-    } catch (error) {
-      console.error("Error parsing WebSocket message:", error);
-    }
-  });
-
-  // Handle client disconnect
-  ws.on("close", (event) => {
-    console.log(
-      `WebSocket disconnected from meeting: ${meetingId}, user: ${ws.userId}, code: ${event.code}, reason: ${event.reason}`
-    );
-
-    // Notify other clients that this user left
-    if (ws.userId) {
-      wss.clients.forEach((client) => {
-        if (
-          client !== ws &&
-          client.readyState === WebSocket.OPEN &&
-          client.meetingId === meetingId
-        ) {
-          client.send(
-            JSON.stringify({
-              type: "participant_left",
-              participantId: ws.userId,
-              meetingId: meetingId,
-            })
-          );
-        }
-      });
-    }
-  });
-
-  // Handle errors
-  ws.on("error", (error) => {
-    console.error(`WebSocket error in meeting ${meetingId}:`, error);
-  });
-
-  // Ping-pong to keep connections alive
-  ws.on("pong", () => {
-    ws.isAlive = true;
-  });
-});
-
-// Keep WebSocket connections alive
-const interval = setInterval(() => {
-  wss.clients.forEach((ws) => {
-    if (ws.isAlive === false) {
-      return ws.terminate();
-    }
-    ws.isAlive = false;
-    ws.ping();
-  });
-}, 30000);
-
-wss.on("close", () => {
-  clearInterval(interval);
-});
-
-// Load database and models
+// ====== DB & Models ======
 const sequelize = require("./db/db");
 const models = require("./models");
 
+// ====== Allowed Origins (dipakai CORS Express & Socket.IO) ======
 function buildAllowedOrigins() {
   const base = new Set([
     "http://localhost:5173",
@@ -605,7 +50,32 @@ function buildAllowedOrigins() {
   }
   return base;
 }
+const ALLOWED_ORIGINS = buildAllowedOrigins();
 
+// ====== Socket.IO Server ======
+const { Server } = require("socket.io");
+
+// Kita set path khusus "/meeting" supaya URL Socket.IO lebih dekat dengan skema lama.
+// Client disarankan connect ke: io("http://host:port", { path: "/meeting", query: { token, meetingId } })
+const io = new Server(server, {
+  path: "/meeting",
+  cors: {
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+      return cb(new Error("CORS not allowed: " + origin), false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  },
+});
+
+// Kompatibilitas untuk kode lain yang mungkin masih mengakses global.wss
+global.wss = io;
+module.exports.getWebSocketServer = () => io;
+
+// ====== Meeting State (sharer tracking) ======
 const meetingState = new Map();
 function getMeeting(meetingId) {
   if (!meetingState.has(meetingId)) {
@@ -614,24 +84,275 @@ function getMeeting(meetingId) {
   return meetingState.get(meetingId);
 }
 
-// Helper broadcast ke semua client di meeting sama (kecuali pengirim)
-function broadcastToMeeting(meetingId, payload, exceptWs = null) {
-  let count = 0;
-  wss.clients.forEach((client) => {
-    if (
-      client !== exceptWs &&
-      client.readyState === WebSocket.OPEN &&
-      client.meetingId === meetingId
-    ) {
-      client.send(JSON.stringify(payload));
-      count++;
-    }
-  });
-  return count;
+// Helper broadcast ke room meeting dengan pengecualian pengirim (jika ada)
+function broadcastToMeeting(meetingId, payload, exceptSocket = null) {
+  const room = roomName(meetingId);
+  if (exceptSocket) {
+    exceptSocket.to(room).emit("message", payload);
+  } else {
+    io.to(room).emit("message", payload);
+  }
 }
 
-const ALLOWED_ORIGINS = buildAllowedOrigins();
+// Penamaan room konsisten
+function roomName(meetingId) {
+  return `meeting:${meetingId}`;
+}
 
+// ====== Validasi status meeting (tetap seperti sebelumnya) ======
+const validateMeetingStatus = async (meetingId) => {
+  try {
+    // Check if meeting exists
+    const meeting = await models.Meeting.findByPk(meetingId);
+    if (!meeting) {
+      console.log(`Meeting ${meetingId} not found`);
+      return false;
+    }
+
+    // status harus active/started
+    if (meeting.status !== "active" && meeting.status !== "started") {
+      console.log(
+        `Meeting ${meetingId} is not active/started (status: ${meeting.status})`
+      );
+      return false;
+    }
+
+    // cek host
+    const hostParticipant = await models.MeetingParticipant.findOne({
+      where: { meetingId, role: "host", flag: "Y" },
+    });
+    if (!hostParticipant) {
+      console.log(`Meeting ${meetingId} has no host`);
+      return false;
+    }
+
+    console.log(`Meeting ${meetingId} is valid for Socket.IO connection`);
+    return true;
+  } catch (error) {
+    console.error(`Error validating meeting ${meetingId}:`, error);
+    return false;
+  }
+};
+
+// ====== Socket.IO connection handling ======
+io.on("connection", async (socket) => {
+  try {
+    // Ambil token & meetingId dari query
+    const q = socket.handshake.query || {};
+    let token = q.token;
+    let meetingId = q.meetingId;
+
+    // Fallback: coba ekstrak meetingId dari URL/referrer jika format lama dipakai (/meeting/<id>?token=...)
+    const tryExtract = (str) => {
+      if (!str || typeof str !== "string") return null;
+      const m = str.match(/\/meeting\/([^/?#]+)/i);
+      return m ? m[1] : null;
+    };
+    if (!meetingId) {
+      meetingId =
+        tryExtract(socket.handshake.url) ||
+        tryExtract(socket.handshake.headers?.referer);
+    }
+
+    if (!token || !meetingId) {
+      console.log("❌ Missing token or meetingId, closing connection");
+      socket.emit("error", { code: 4001, message: "Missing token or meetingId" });
+      socket.disconnect(true);
+      return;
+    }
+
+    // ===== AUTH =====
+    let payload;
+    try {
+      payload = verifyToken(token);
+    } catch {
+      socket.emit("error", { code: 4401, message: "Unauthorized" });
+      socket.disconnect(true);
+      return;
+    }
+
+    // ❗ Pastikan tidak ada koneksi lama untuk user yang sama
+    for (const [sid, s] of io.sockets.sockets) {
+      if (s.data?.userId === String(payload.id) && sid !== socket.id) {
+        console.log(`⚠️ Duplicate connection found for user ${payload.username}, closing old one...`);
+        s.disconnect(true); // tutup socket lama
+      }
+    }
+
+
+    socket.data = {
+      userId: String(payload.id),
+      displayName: payload.username,
+      meetingId: String(meetingId),
+    };
+
+    // ===== VALIDASI MEETING =====
+    const isValid = await validateMeetingStatus(meetingId);
+    if (!isValid) {
+      socket.emit("error", { code: 4403, message: "Meeting invalid" });
+      socket.disconnect(true);
+      return;
+    }
+
+    // ===== SETUP DATA DASAR =====
+    socket.data.meetingId = String(meetingId);
+    socket.data.userId = String(payload.id);
+    socket.data.displayName = payload.username;
+
+    await socket.join(roomName(meetingId));
+    console.log(`✅ User ${payload.username} joined meeting ${meetingId}`);
+
+    // ===== KIRIM DAFTAR PESERTA AKTIF KE USER BARU =====
+    const others = [];
+        for (const [sid, s] of io.sockets.sockets) {
+          if (s.data.meetingId === meetingId && sid !== socket.id) {
+            others.push({
+              participantId: s.data.userId,
+              displayName: s.data.displayName,
+            });
+          }
+        }
+        socket.emit("message", { type: "participants_list", data: others });
+
+
+    // ===== HANDLER JOIN-ROOM DARI CLIENT =====
+socket.on("join-room", ({ meetingId, userId, displayName }) => {
+  if (!meetingId || !userId) return;
+
+  socket.data.meetingId = String(meetingId);
+  socket.data.userId = String(userId);
+  socket.data.displayName = displayName || payload.username;
+
+  console.log(`✅ join-room: ${socket.data.displayName} joined meeting ${meetingId}`);
+
+  // Kirim daftar peserta ke user baru
+  const others = [];
+  for (const [sid, s] of io.sockets.sockets) {
+    if (s.data.meetingId === String(meetingId) && sid !== socket.id) {
+      others.push({
+        participantId: s.data.userId,
+        displayName: s.data.displayName,
+      });
+    }
+  }
+  socket.emit("message", { type: "participants_list", data: others });
+
+  // 💥 Broadcast ke peserta lain
+  socket.to(roomName(meetingId)).emit("message", {
+    type: "participant_joined",
+    participantId: socket.data.userId,
+    displayName: socket.data.displayName,
+    joinedAt: Date.now(),
+  });
+});
+
+
+    // ===== HANDLER PESAN =====
+    socket.on("message", async (message) => {
+      try {
+        const data = typeof message === "string" ? JSON.parse(message) : message;
+        const meetingId = socket.data.meetingId;
+
+        // update ID jika belum ada
+        if (data.participantId && !socket.data.userId) {
+          socket.data.userId = String(data.participantId);
+        }
+
+        const stillValid = await validateMeetingStatus(meetingId);
+        if (!stillValid) {
+          socket.emit("error", { code: 4403, message: "Meeting invalid" });
+          socket.disconnect(true);
+          return;
+        }
+
+        // === Routing berdasarkan type ===
+        const broadcastGeneric = () => broadcastToMeeting(meetingId, data, socket);
+
+        // Chat
+        if (data.type === "chat_message") {
+          console.log(`💬 Chat from ${data.userId}: ${data.message}`);
+          broadcastToMeeting(meetingId, data, socket);
+          return;
+        }
+
+        // Typing indicators
+        if (["typing_start", "typing_stop"].includes(data.type)) {
+          broadcastToMeeting(meetingId, data, socket);
+          return;
+        }
+
+        // Screen share
+        if (
+          ["screen-share-start", "screen-share-stream", "screen-share-stop"].includes(data.type)
+        ) {
+          broadcastToMeeting(meetingId, data, socket);
+          return;
+        }
+
+        // Annotation
+        if (["anno:preview", "anno:commit", "anno:clear", "anno:undo", "anno:redo"].includes(data.type)) {
+          broadcastToMeeting(meetingId, { ...data, from: socket.data.userId }, socket);
+          return;
+        }
+
+        if (data.type === "annotate") {
+          broadcastToMeeting(
+            meetingId,
+            { type: "anno:commit", userId: data.userId, meetingId, shape: data.shape },
+            socket
+          );
+          return;
+        }
+
+        // Meeting end
+        if (data.type === "meeting-end") {
+          broadcastToMeeting(meetingId, {
+            type: "meeting-ended",
+            userId: data.userId,
+            username: data.username,
+            meetingId,
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        // Default: broadcast generic
+        broadcastGeneric();
+      } catch (err) {
+        console.error("❌ Error handling Socket.IO message:", err);
+      }
+    });
+
+    // ===== DISCONNECT HANDLER =====
+socket.on("disconnect", reason => {
+  const { meetingId, userId, displayName } = socket.data || {};
+  console.log(`🔴 ${displayName} disconnected (${reason})`);
+
+  // 🚪 Langsung broadcast ke peserta lain
+  socket.to(roomName(meetingId)).emit("message", {
+    type: "participant_left",
+    participantId: userId,
+    displayName,
+  });
+});
+
+
+
+
+    // ===== ERROR HANDLER =====
+    socket.on("error", (err) => {
+      console.error(`⚠️ Socket.IO error in meeting ${socket.data.meetingId}:`, err);
+    });
+  } catch (err) {
+    console.error("❌ Socket.IO connection error:", err);
+    try {
+      socket.disconnect(true);
+    } catch (_) {}
+  }
+});
+
+
+// ====== Express Middlewares ======
 app.use(
   cors({
     origin: (origin, cb) => {
@@ -640,8 +361,7 @@ app.use(
       return cb(new Error("CORS not allowed: " + origin), false);
     },
     credentials: true,
-    origin: (origin, cb) => cb(null, true),
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "PATCH"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -649,15 +369,17 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Use routes
+// Routes
+const routes = require("./routes");
 app.use("/api", routes);
 
+// Static uploads
 app.use(
   "/uploads",
   express.static(UPLOAD_DIR, {
     index: false,
     setHeaders: (res) => {
-      // biar PDF/gambar bisa dibuka lintas origin
+      // agar PDF/gambar bisa dibuka lintas origin
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     },
   })
@@ -680,14 +402,12 @@ app.use((req, res) => {
   });
 });
 
-// Start server after database sync
+// ====== Start server setelah sync DB ======
 const startServer = async () => {
   try {
-    // Sync database
     await sequelize.sync({ force: false, alter: true });
     console.log("Database synced successfully - tables created/updated");
 
-    // Start server
     server.listen(PORT, HOST, () => {
       const lans = getLanIPs();
       console.log(`Backend listening on ${HOST}:${PORT}`);
@@ -695,7 +415,11 @@ const startServer = async () => {
       lans.forEach((ip) => {
         console.log(`- LAN:    http://${ip}:${PORT}`);
         console.log(`  API:    http://${ip}:${PORT}/api`);
-        console.log(`  WS:     ws://${ip}:${PORT}/meeting/{meetingId}`);
+        // Untuk Socket.IO, gunakan path "/meeting"
+        console.log(`  IO:     ws://${ip}:${PORT}/meeting  (Socket.IO path)`);
+        console.log(
+          `         query: ?token=<JWT>&meetingId={meetingId} (disarankan)`
+        );
       });
     });
   } catch (error) {

@@ -434,7 +434,7 @@ export default function MeetingFooter({
             title="Master Controller"
             onClick={() => navigate("/master-controller")}
           >
-            <Icon slug="master-controller" />
+            <Icon slug="master" />
           </button>
         )}
 

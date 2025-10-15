@@ -14,6 +14,7 @@ import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../contexts/ModalProvider.jsx";
+import meetingSocketService from "../../../services/meetingSocketService.js";
 import { cleanupAllMediaAndRealtime } from "../../../utils/mediaCleanup.js";
 
 export default function ParticipantDashboard() {
@@ -138,6 +139,77 @@ export default function ParticipantDashboard() {
     }
   };
 
+// ===============================
+// 🔌 Connect to Meeting Socket.IO
+// ===============================
+useEffect(() => {
+  const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
+  if (!meetingId || !user) return;
+
+  // ✅ Jangan connect kalau displayName belum terbaca
+  const nameFromLocal = localStorage.getItem("pconf.displayName");
+  if (!nameFromLocal && !displayName) {
+    console.log("⏳ Menunggu displayName tersedia sebelum connect...");
+    return;
+  }
+
+  // Pastikan displayName benar
+  const latestDisplayName =
+    nameFromLocal || displayName || user?.username || "User";
+
+  // Jika sudah connect, jangan reconnect
+  if (meetingSocketService.isConnected()) {
+    console.log("Socket already connected, skip connect()");
+    return;
+  }
+
+  console.log("🔌 Connecting to socket with name:", latestDisplayName);
+  meetingSocketService.connect(meetingId, user.id, API_URL);
+
+  const onConnected = () => {
+    const joinPayload = {
+      type: "join-room",
+      meetingId,
+      userId: user.id,
+      displayName: latestDisplayName,
+    };
+    meetingSocketService.send(joinPayload);
+    console.log("✅ Joined meeting via socket:", joinPayload);
+  };
+
+  meetingSocketService.socket?.on("connect", onConnected);
+
+  const handleJoin = (data) => {
+    console.log("👥 Participant joined:", data.displayName);
+    notify({
+      variant: "info",
+      title: "Participant Joined",
+      message: `${data.displayName} just joined.`,
+      autoCloseMs: 1500,
+    });
+  };
+
+  const handleLeft = (data) => {
+    console.log("🚪 Participant left:", data.displayName);
+    notify({
+      variant: "warning",
+      title: "Participant Left",
+      message: `${data.displayName} left the meeting.`,
+      autoCloseMs: 1500,
+    });
+  };
+
+  meetingSocketService.on("participant_joined", handleJoin);
+  meetingSocketService.on("participant_left", handleLeft);
+
+  return () => {
+    meetingSocketService.socket?.off("connect", onConnected);
+    meetingSocketService.off("participant_joined", handleJoin);
+    meetingSocketService.off("participant_left", handleLeft);
+  };
+}, [currentMeeting, user, displayName]);
+
+
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -219,6 +291,16 @@ export default function ParticipantDashboard() {
       const meetingId =
         currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
 
+        
+      try {
+        await meetingSocketService.disconnect(true); // 💥 pakai force true
+        console.log("🔌 Fully cleaned socket before logout");
+        await new Promise((r) => setTimeout(r, 500)); // beri 0.5s agar server proses disconnect
+      } catch (err) {
+        console.warn("⚠️ Error disconnecting meeting socket:", err);
+      }
+
+
       // --- 1) MATIKAN DULU DARI CONTEXT (sangat penting) ---
       try {
         if (micOn) await stopMic();
@@ -254,6 +336,7 @@ export default function ParticipantDashboard() {
         }
       } catch {}
 
+      
       // --- 6) Bersihkan session/local storage ---
       localStorage.removeItem("currentMeeting");
       localStorage.removeItem("user");
