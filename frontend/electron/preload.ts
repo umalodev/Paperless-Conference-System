@@ -1,5 +1,6 @@
 // preload.ts
-import { contextBridge, desktopCapturer, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
+
 import os from "os";
 import { exec } from "child_process";
 import { io, Socket } from "socket.io-client";
@@ -296,12 +297,8 @@ function stopMirror() {
 // =====================================================
 // 🧰 SCREEN CAPTURE HELPERS
 // =====================================================
-async function getScreenSources() {
-  const sources = await desktopCapturer.getSources({
-    types: ["screen", "window"],
-  });
-  return sources.map((s) => ({ id: s.id, name: s.name }));
-}
+// (Removed unused getScreenSources function)
+
 
 // =====================================================
 // 🌍 EXPOSE TO RENDERER
@@ -312,12 +309,32 @@ contextBridge.exposeInMainWorld("electronAPI", {
   disconnectFromControlServer,
 });
 
+/// =====================================================
+// 🌍 EXPOSE TO RENDERER (screenAPI via IPC)
+// =====================================================
+// Removed duplicate import of contextBridge and ipcRenderer
+
 contextBridge.exposeInMainWorld("screenAPI", {
   isElectron: true,
-  getScreenSources,
-  startMirror,
-  stopMirror,
+
+  async getScreenSources() {
+    try {
+      const sources = await ipcRenderer.invoke("get-screen-sources");
+      console.log("[screenAPI] got sources:", sources.length);
+      return sources;
+    } catch (err) {
+      console.error("[screenAPI] getScreenSources failed:", err);
+      return [];
+    }
+  },
+
+async createScreenStream(sourceId: string) {
+  console.log("[screenAPI] returning sourceId only (renderer will create stream)");
+  return sourceId; // ⚠️ Jangan return MediaStream dari preload
+},
+
 });
+
 
 contextBridge.exposeInMainWorld("ipc", {
   on: (...args: Parameters<typeof ipcRenderer.on>) => ipcRenderer.on(...args),
@@ -330,20 +347,5 @@ contextBridge.exposeInMainWorld("ipc", {
 });
 
 (globalThis as any).__PRELOAD_OK__ = true;
-
-contextBridge.exposeInMainWorld("controlSocketAPI", {
-  on: (event: string, callback: (...args: any[]) => void) => {
-    if (socket) socket.on(event, callback);
-  },
-  off: (event: string, callback: (...args: any[]) => void) => {
-    if (socket) socket.off(event, callback);
-  },
-  emit: (event: string, data?: any) => {
-    if (socket) socket.emit(event, data);
-  },
-  isConnected: () => !!socket && socket.connected,
-});
-
-
 
 console.log("[preload] electronAPI & screenAPI exposed successfully");

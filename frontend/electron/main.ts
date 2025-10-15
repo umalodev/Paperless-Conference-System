@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, globalShortcut, Menu } from "electron";
+import { app, BrowserWindow, session } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -186,6 +186,25 @@ ipcMain.handle("capture-screen", async () => {
   const base64 = image.toJPEG(adaptiveQuality).toString("base64");
   return base64;
 });
+
+ipcMain.handle("get-screen-sources", async () => {
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ["screen", "window"],
+      thumbnailSize: { width: 300, height: 200 },
+    });
+
+    return sources.map((s) => ({
+      id: s.id,
+      name: s.name,
+      thumbnail: s.thumbnail.toDataURL(),
+    }));
+  } catch (err) {
+    console.error("[main] get-screen-sources failed:", err);
+    return [];
+  }
+});
+
 
 // =========================================================
 // 🧊 Lock Overlay Handler

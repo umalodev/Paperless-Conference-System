@@ -149,6 +149,22 @@ ipcMain.handle("capture-screen", async () => {
   const base64 = image.toJPEG(adaptiveQuality).toString("base64");
   return base64;
 });
+ipcMain.handle("get-screen-sources", async () => {
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ["screen", "window"],
+      thumbnailSize: { width: 300, height: 200 }
+    });
+    return sources.map((s) => ({
+      id: s.id,
+      name: s.name,
+      thumbnail: s.thumbnail.toDataURL()
+    }));
+  } catch (err) {
+    console.error("[main] get-screen-sources failed:", err);
+    return [];
+  }
+});
 ipcMain.on("show-lock-overlay", () => {
   if (lockWindows.length > 0) return;
   const displays = screen.getAllDisplays();

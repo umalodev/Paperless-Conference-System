@@ -1,22 +1,23 @@
 /**
- * Simple Screen Share Service
+ * Simple Screen Share Service (Socket.IO version)
  * Implementasi screen sharing yang sederhana dan langsung
  */
+import { io } from "socket.io-client";
 import { API_URL } from "../config";
 
 class SimpleScreenShare {
   constructor() {
     this.isSharing = false;
     this.currentStream = null;
-    this.ws = null;
+    this.ws = null; // Socket.IO instance
     this.meetingId = null;
     this.userId = null;
     this.onScreenShareReceived = null;
     this.onScreenShareStart = null;
     this.onScreenShareStop = null;
+    this.onAnnotationEvent = null;
 
     this.messageQueue = [];
-
   }
 
   /**
@@ -25,263 +26,221 @@ class SimpleScreenShare {
   async initialize(meetingId, userId) {
     this.meetingId = meetingId;
     this.userId = userId;
-
-    // Connect to WebSocket
     this.connectWebSocket();
-
-    console.log("SimpleScreenShare initialized");
+    console.log("✅ SimpleScreenShare initialized (Socket.IO mode)");
     return true;
   }
 
   /**
-   * Connect to WebSocket
+   * Connect to Socket.IO server
    */
   connectWebSocket() {
-    // Use environment-based WebSocket URL
-
     const rawBase = (API_URL || "").replace(/\/+$/, "");
-    const wsBase = rawBase.replace(
+    const httpBase = rawBase.replace(
       /^http/i,
-      window.location.protocol === "https:" ? "wss" : "ws"
+      window.location.protocol === "https:" ? "https" : "http"
     );
+
     const token =
       localStorage.getItem("token") ||
       localStorage.getItem("accessToken") ||
       "";
-    const qs = token ? `?token=${encodeURIComponent(token)}` : "";
-    const wsUrl = `${wsBase}/meeting/${this.meetingId}${qs}`;
 
-    console.log("Connecting to WebSocket:", wsUrl);
-    console.log("Environment:", process.env.NODE_ENV);
-    this.ws = new WebSocket(wsUrl);
+    const meetingId = this.meetingId;
+    const socketUrl = httpBase;
 
-    this.ws.onopen = () => {
-      console.log("✅ SimpleScreenShare WebSocket connected successfully");
+    console.log("🔌 Connecting to Socket.IO:", socketUrl, "meetingId:", meetingId);
 
-      window.ws = this.ws;  
+    // Inisialisasi koneksi Socket.IO
+    this.ws = io(socketUrl, {
+      path: "/meeting",
+      query: { token, meetingId },
+      transports: ["websocket"], // paksa websocket agar low-latency
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+    });
 
-      // flush queue
+    // ==== EVENT HANDLER ====
+
+    this.ws.on("connect", () => {
+      console.log("✅ Connected to Socket.IO server:", this.ws.id);
+      window.ws = this.ws;
+
+      // Flush pesan yang tertunda
       while (this.messageQueue.length > 0) {
         const msg = this.messageQueue.shift();
         this.sendMessage(msg);
       }
 
+      // Kirim event join
       if (this.userId) {
         this.sendMessage({
           type: "participant_joined",
           participantId: this.userId,
           username:
-            JSON.parse(localStorage.getItem("user") || "{}").username || "unknown",
+            JSON.parse(localStorage.getItem("user") || "{}").username ||
+            "unknown",
         });
       }
-    };
+    });
 
-
-    this.ws.onmessage = (event) => {
+    // Saat menerima pesan broadcast dari server
+    this.ws.on("message", (data) => {
       try {
-        const data = JSON.parse(event.data);
-        console.log("SimpleScreenShare received message:", data.type);
+        console.log("📩 SimpleScreenShare received:", data.type);
         this.handleMessage(data);
       } catch (error) {
-        console.error("Error parsing message:", error);
+        console.error("❌ Error parsing Socket.IO message:", error);
       }
-    };
+    });
 
-    this.ws.onclose = (evt) => {
-      console.warn("WS closed", evt.code, evt.reason);
-      if (evt.code === 4401) return; // unauthorized
-      setTimeout(() => this.connectWebSocket(), 3000);
-    };
+    // Jika koneksi terputus
+    this.ws.on("disconnect", (reason) => {
+      console.warn("⚠️ Socket.IO disconnected:", reason);
+      // Otomatis reconnect ditangani oleh Socket.IO
+    });
 
+    // Error saat koneksi
+    this.ws.on("connect_error", (err) => {
+      console.error("❌ Socket.IO connection error:", err.message);
+    });
 
-    this.ws.onerror = (err) => {
-      console.error("WS error", err);
-    };
+    this.ws.on("reconnect_attempt", (attempt) => {
+      console.log("🔁 Reconnecting attempt:", attempt);
+    });
   }
 
   /**
-   * Handle WebSocket messages
+   * Handle incoming messages
    */
   handleMessage(data) {
-  switch (data.type) {
-    case "screen-share-start":
-      if (this.onScreenShareStart) this.onScreenShareStart(data);
-      break;
+    switch (data.type) {
+      case "screen-share-start":
+        if (this.onScreenShareStart) this.onScreenShareStart(data);
+        break;
 
-    case "screen-share-stop":
-    case "screen-share-stopped":
-      if (this.onScreenShareStop) this.onScreenShareStop(data);
-      break;
+      case "screen-share-stop":
+      case "screen-share-stopped":
+        if (this.onScreenShareStop) this.onScreenShareStop(data);
+        break;
 
-    case "screen-share-stream":
-      if (this.onScreenShareReceived) this.onScreenShareReceived(data);
-      break;
+      case "screen-share-stream":
+        if (this.onScreenShareReceived) this.onScreenShareReceived(data);
+        break;
 
-    // 🔹 annotation event harus ditambah tapi tidak ganggu stream
-    case "anno:commit":
-    case "anno:clear":
-    case "anno:undo":
-    case "anno:redo":
-    case "anno:preview":
-      if (this.onAnnotationEvent) {
-        this.onAnnotationEvent(data);
-      }
-      break;
+      // 🔹 Annotation events
+      case "anno:commit":
+      case "anno:clear":
+      case "anno:undo":
+      case "anno:redo":
+      case "anno:preview":
+        if (this.onAnnotationEvent) this.onAnnotationEvent(data);
+        break;
 
-    default:
-      console.log("Unhandled message type:", data.type);
-      break;
+      default:
+        console.log("Unhandled message type:", data.type);
+        break;
+    }
   }
-}
-
 
   /**
    * Start screen sharing
    */
   async startScreenShare() {
     try {
-      console.log("Starting simple screen share...");
+      console.log("🚀 Starting simple screen share...");
       console.log("window.screenAPI available:", !!window.screenAPI);
-      console.log("window.screenAPI.isElectron:", window.screenAPI?.isElectron);
-      console.log(
-        "navigator.mediaDevices available:",
-        !!navigator.mediaDevices
-      );
-      console.log(
-        "navigator.mediaDevices.getDisplayMedia available:",
-        !!navigator.mediaDevices?.getDisplayMedia
-      );
+      console.log("navigator.mediaDevices available:", !!navigator.mediaDevices);
 
-      // Test preload if available
-      if (window.screenAPI && window.screenAPI.testPreload) {
-        try {
-          const testResult = window.screenAPI.testPreload();
-          console.log("Preload test result:", testResult);
-        } catch (error) {
-          console.error("Preload test failed:", error);
-        }
-      }
-
-      // Check if we're in Electron and have the screenAPI
       if (window.screenAPI && window.screenAPI.isElectron) {
-        console.log("Using Electron screen capture API");
+        console.log("🖥 Using Electron screen capture API");
         return await this.startElectronScreenShare();
       } else {
-        console.log("Using web screen capture API");
+        console.log("🌐 Using Web getDisplayMedia");
         return await this.startWebScreenShare();
       }
     } catch (error) {
-      console.error("Failed to start screen share:", error);
+      console.error("❌ Failed to start screen share:", error);
       return false;
     }
   }
+  
 
   /**
-   * Start screen sharing using Electron's desktopCapturer
+   * Electron screen share
    */
   async startElectronScreenShare() {
-    try {
-      console.log("Starting Electron screen share...");
-
-      // Check if screenAPI is available
-      if (!window.screenAPI || !window.screenAPI.getScreenSources) {
-        throw new Error(
-          "screenAPI not available or getScreenSources method missing"
-        );
-      }
-
-      // Get available screen sources
-      const sources = await window.screenAPI.getScreenSources();
-      console.log("Available screen sources:", sources);
-
-      if (sources.length === 0) {
-        throw new Error("No screen sources available");
-      }
-
-      // Use the first screen source
-      const source = sources[0];
-      console.log("Using screen source:", source);
-
-      // Create screen stream using Electron's desktopCapturer
-      this.currentStream = await window.screenAPI.createScreenStream(source.id);
-
-      this.isSharing = true;
-
-      // Send start event
-      this.sendMessage({
-        type: "screen-share-start",
-        userId: this.userId,
-        meetingId: this.meetingId,
-        timestamp: Date.now(),
-      });
-
-      // Start sending video frames
-      this.startSendingFrames();
-
-      console.log("Electron screen share started");
-      return true;
-    } catch (error) {
-      console.error("Failed to start Electron screen share:", error);
-      // Fallback to web API if Electron method fails
-      console.log("Falling back to web screen capture API");
-      return await this.startWebScreenShare();
+  try {
+    if (!window.screenAPI || !window.screenAPI.getScreenSources) {
+      throw new Error("screenAPI not available");
     }
+
+    const sources = await window.screenAPI.getScreenSources();
+    if (sources.length === 0) throw new Error("No screen sources found");
+
+    const source = sources[0];
+    const sourceId = await window.screenAPI.createScreenStream(source.id);
+
+// 🔹 Buat stream langsung di renderer (bukan preload)
+const stream = await navigator.mediaDevices.getUserMedia({
+  audio: false,
+  video: {
+    mandatory: {
+      chromeMediaSource: "desktop",
+      chromeMediaSourceId: sourceId,
+      minWidth: 640,
+      maxWidth: 1920,
+      minHeight: 480,
+      maxHeight: 1080,
+    },
+  },
+});
+
+this.currentStream = stream;
+
+
+    this.currentStream = stream;
+    this.isSharing = true;
+
+    this.sendMessage({
+      type: "screen-share-start",
+      userId: this.userId,
+      meetingId: this.meetingId,
+      timestamp: Date.now(),
+    });
+
+    this.startSendingFrames();
+    console.log("✅ Electron screen share started");
+    return true;
+  } catch (error) {
+    console.error("❌ Electron screen share failed:", error);
+    return await this.startWebScreenShare();
   }
+}
+
 
   /**
-   * Start screen sharing using web getDisplayMedia API
+   * Web screen share
    */
   async startWebScreenShare() {
     try {
-      console.log("Starting web screen share...");
+      if (!navigator.mediaDevices?.getDisplayMedia)
+        throw new Error("getDisplayMedia not supported");
 
-      // Check if getDisplayMedia is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        throw new Error(
-          "getDisplayMedia API not supported in this environment"
-        );
-      }
-
-      // Try different approaches for Electron
       let stream;
-
-      // First try: Standard getDisplayMedia
       try {
-        console.log("Trying standard getDisplayMedia...");
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
           audio: false,
         });
-      } catch (firstError) {
-        console.log("Standard getDisplayMedia failed:", firstError.message);
-
-        // Second try: getUserMedia with Electron-specific constraints
-        try {
-          console.log("Trying getUserMedia with Electron constraints...");
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-              // @ts-ignore - Electron specific constraint
-              mandatory: {
-                chromeMediaSource: "desktop",
-                chromeMediaSourceId: "screen:0:0", // Default screen
-                minWidth: 1280,
-                maxWidth: 1920,
-                minHeight: 720,
-                maxHeight: 1080,
-              },
-            },
-          });
-        } catch (secondError) {
-          console.log("Electron getUserMedia failed:", secondError.message);
-          throw firstError; // Throw the original error
-        }
+      } catch (err) {
+        console.error("getDisplayMedia failed:", err.message);
+        throw err;
       }
 
       this.currentStream = stream;
       this.isSharing = true;
 
-      // Send start event
       this.sendMessage({
         type: "screen-share-start",
         userId: this.userId,
@@ -289,27 +248,11 @@ class SimpleScreenShare {
         timestamp: Date.now(),
       });
 
-      // Start sending video frames
       this.startSendingFrames();
-
-      console.log("Web screen share started");
+      console.log("✅ Web screen share started");
       return true;
     } catch (error) {
-      console.error("Failed to start web screen share:", error);
-
-      // Provide more specific error messages
-      if (
-        error.name === "NotSupportedError" ||
-        error.message.includes("Not supported")
-      ) {
-        console.error(
-          "Screen sharing is not supported in this environment. This might be due to:"
-        );
-        console.error("1. Running in Electron without proper permissions");
-        console.error("2. Browser security restrictions");
-        console.error("3. Missing HTTPS in production");
-      }
-
+      console.error("❌ Failed to start web screen share:", error);
       return false;
     }
   }
@@ -329,17 +272,12 @@ class SimpleScreenShare {
 
     const sendFrame = () => {
       if (!this.isSharing || !this.currentStream) return;
-      // Choose dynamic max resolution based on viewport (cap to 1920x1080)
-      const viewportW =
-        (typeof window !== "undefined" ? window.innerWidth : 1280) || 1280;
-      const viewportH =
-        (typeof window !== "undefined" ? window.innerHeight : 720) || 720;
-      const maxWidth = Math.min(1920, Math.max(960, viewportW));
-      const maxHeight = Math.min(1080, Math.max(540, viewportH));
+
       let width = video.videoWidth;
       let height = video.videoHeight;
+      const maxWidth = 1920;
+      const maxHeight = 1080;
 
-      // Scale down if too large
       if (width > maxWidth || height > maxHeight) {
         const ratio = Math.min(maxWidth / width, maxHeight / height);
         width = Math.floor(width * ratio);
@@ -350,20 +288,17 @@ class SimpleScreenShare {
       canvas.height = height;
       ctx.drawImage(video, 0, 0, width, height);
 
-      // Convert to base64 with moderate quality to keep clarity
       const imageData = canvas.toDataURL("image/jpeg", 0.7);
 
-      // Send frame
       this.sendMessage({
         type: "screen-share-stream",
         userId: this.userId,
         meetingId: this.meetingId,
-        imageData: imageData,
+        imageData,
         timestamp: Date.now(),
       });
 
-      // Continue sending frames
-      setTimeout(sendFrame, 200); // ~5 FPS for better smoothness
+      setTimeout(sendFrame, 200); // ~5 FPS
     };
 
     video.onloadedmetadata = () => {
@@ -375,16 +310,14 @@ class SimpleScreenShare {
    * Stop screen sharing
    */
   stopScreenShare() {
-    console.log("Stopping simple screen share...");
-
+    console.log("🛑 Stopping screen share...");
     this.isSharing = false;
 
     if (this.currentStream) {
-      this.currentStream.getTracks().forEach((track) => track.stop());
+      this.currentStream.getTracks().forEach((t) => t.stop());
       this.currentStream = null;
     }
 
-    // Send stop event
     this.sendMessage({
       type: "screen-share-stop",
       userId: this.userId,
@@ -392,30 +325,25 @@ class SimpleScreenShare {
       timestamp: Date.now(),
     });
 
-    console.log("Simple screen share stopped");
+    console.log("✅ Screen share stopped");
     return true;
   }
 
   /**
-   * Send WebSocket message
+   * Send message via Socket.IO
    */
   sendMessage(message) {
     if (!this.ws) {
-      console.error("❌ No WebSocket instance");
+      console.error("❌ No Socket.IO instance");
       return;
     }
-    if (this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
-    } else if (this.ws.readyState === WebSocket.CONNECTING) {
-      console.warn("⏳ WS connecting, queue message", message.type);
-      this.messageQueue.push(message);
+    if (this.ws.connected) {
+      this.ws.emit("message", message);
     } else {
-      console.error("❌ WS closed, cannot send", message.type);
+      console.warn("⏳ Socket.IO not connected, queue message:", message.type);
+      this.messageQueue.push(message);
     }
   }
-
-
- 
 
   /**
    * Cleanup
@@ -423,15 +351,16 @@ class SimpleScreenShare {
   cleanup() {
     this.stopScreenShare();
     if (this.ws) {
-      this.ws.close();
+      this.ws.disconnect();
+      this.ws = null;
     }
   }
 }
 
- export function sendWS(msg) {
+// Helper
+export function sendWS(msg) {
   simpleScreenShare.sendMessage(msg);
 }
-
 
 // Export singleton
 const simpleScreenShare = new SimpleScreenShare();

@@ -9060,12 +9060,6 @@ function stopMirror() {
   }
   console.log("[mirror] Stopped");
 }
-async function getScreenSources() {
-  const sources = await electron.desktopCapturer.getSources({
-    types: ["screen", "window"]
-  });
-  return sources.map((s) => ({ id: s.id, name: s.name }));
-}
 electron.contextBridge.exposeInMainWorld("electronAPI", {
   getPCInfo: () => ({ hostname: os.hostname(), os: os.platform() }),
   connectToControlServer,
@@ -9074,9 +9068,20 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
 });
 electron.contextBridge.exposeInMainWorld("screenAPI", {
   isElectron: true,
-  getScreenSources,
-  startMirror,
-  stopMirror
+  async getScreenSources() {
+    try {
+      const sources = await electron.ipcRenderer.invoke("get-screen-sources");
+      console.log("[screenAPI] got sources:", sources.length);
+      return sources;
+    } catch (err) {
+      console.error("[screenAPI] getScreenSources failed:", err);
+      return [];
+    }
+  },
+  async createScreenStream(sourceId) {
+    console.log("[screenAPI] returning sourceId only (renderer will create stream)");
+    return sourceId;
+  }
 });
 electron.contextBridge.exposeInMainWorld("ipc", {
   on: (...args) => electron.ipcRenderer.on(...args),
@@ -9085,16 +9090,4 @@ electron.contextBridge.exposeInMainWorld("ipc", {
   invoke: (...args) => electron.ipcRenderer.invoke(...args)
 });
 globalThis.__PRELOAD_OK__ = true;
-electron.contextBridge.exposeInMainWorld("controlSocketAPI", {
-  on: (event, callback) => {
-    if (socket) socket.on(event, callback);
-  },
-  off: (event, callback) => {
-    if (socket) socket.off(event, callback);
-  },
-  emit: (event, data) => {
-    if (socket) socket.emit(event, data);
-  },
-  isConnected: () => !!socket && socket.connected
-});
 console.log("[preload] electronAPI & screenAPI exposed successfully");
