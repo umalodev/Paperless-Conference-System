@@ -160,17 +160,20 @@ const handleLeave = (data) => {
   console.log("[Socket] participant_left:", data);
 
   setParticipants((prev) => {
-    // kalau user langsung join ulang, jangan hapus
-    const alreadyThere = prev.some(
-      (p) => String(p.id) === id && p.displayName === data.displayName
-    );
-    if (alreadyThere) {
-      console.log(`⏩ Skip removing ${id}, still present`);
-      return prev;
-    }
-    return prev.filter((p) => String(p.id) !== id);
-  });
+  const leftId = String(data.userId ?? data.participantId);
+  const exists = prev.some((p) => String(p.id) === leftId);
+
+  if (!exists) {
+    console.log(`ℹ️ Skip removing ${leftId}, not in list`);
+    return prev;
+  }
+
+  console.log(`🗑 Removing participant ${leftId}`);
+  return prev.filter((p) => String(p.id) !== leftId);
+});
+
 };
+
 
   // ✅ Listener update
   const handleUpdate = (data) => {

@@ -22,6 +22,8 @@ class MeetingSocketService {
    * Connect to meeting via Socket.IO
    */
   async connect(meetingId, userId, apiUrl) {
+      console.log("🧠 connect() called with:", { meetingId, userId, apiUrl });
+
     if (this.socket && this.socket.connected) {
       console.log("Socket.IO already connected");
       return;
@@ -37,6 +39,7 @@ class MeetingSocketService {
     this.isConnecting = true;
     this.meetingId = meetingId;
     this.userId = userId;
+
 
     try {
       const token = localStorage.getItem("token");
@@ -80,15 +83,23 @@ class MeetingSocketService {
         localStorage.getItem("username") ||
         "User";
 
-      setTimeout(() => {
-        this.send({
-          type: "join-room",
-          meetingId: this.meetingId,
-          userId: this.userId,
-          displayName,
-          force: true, // ✅ selalu izinkan rejoin setelah reconnect
-        });
-      }, 100);
+        if (!this._lastJoinSent) { // ✅ tambah guard
+          const displayName =
+            localStorage.getItem("pconf.displayName") ||
+            localStorage.getItem("username") ||
+            "User";
+
+          setTimeout(() => {
+            this.send({
+              type: "join-room",
+              meetingId: this.meetingId,
+              userId: this.userId,
+              displayName,
+              force: true,
+            });
+          }, 100);
+          this._lastJoinSent = true; // ✅ set flag
+        }
 
       this._wasConnectedBefore = true;
       this._lastJoinSent = true;

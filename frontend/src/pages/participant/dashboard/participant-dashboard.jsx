@@ -146,25 +146,28 @@ useEffect(() => {
   const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
   if (!meetingId || !user) return;
 
-  // ✅ Jangan connect kalau displayName belum terbaca
+  // ✅ pastikan nama sudah siap
   const nameFromLocal = localStorage.getItem("pconf.displayName");
   if (!nameFromLocal && !displayName) {
     console.log("⏳ Menunggu displayName tersedia sebelum connect...");
     return;
   }
 
-  // Pastikan displayName benar
   const latestDisplayName =
     nameFromLocal || displayName || user?.username || "User";
 
-  // Jika sudah connect, jangan reconnect
+  // ✅ sebelum connect, bersihkan listener lama
+  meetingSocketService.off("participant_joined");
+  meetingSocketService.off("participant_left");
+  meetingSocketService.socket?.off("connect");
+
+  // ⛔ jika sudah connect, skip connect ulang
   if (meetingSocketService.isConnected()) {
     console.log("Socket already connected, skip connect()");
-    return;
+  } else {
+    console.log("🔌 Connecting to socket with name:", latestDisplayName);
+    meetingSocketService.connect(meetingId, user.id, API_URL);
   }
-
-  console.log("🔌 Connecting to socket with name:", latestDisplayName);
-  meetingSocketService.connect(meetingId, user.id, API_URL);
 
   const onConnected = () => {
     const joinPayload = {
@@ -176,8 +179,6 @@ useEffect(() => {
     meetingSocketService.send(joinPayload);
     console.log("✅ Joined meeting via socket:", joinPayload);
   };
-
-  meetingSocketService.socket?.on("connect", onConnected);
 
   const handleJoin = (data) => {
     console.log("👥 Participant joined:", data.displayName);
@@ -199,15 +200,19 @@ useEffect(() => {
     });
   };
 
+  // ✅ attach baru
+  meetingSocketService.socket?.on("connect", onConnected);
   meetingSocketService.on("participant_joined", handleJoin);
   meetingSocketService.on("participant_left", handleLeft);
 
+  // ✅ bersihkan saat unmount
   return () => {
     meetingSocketService.socket?.off("connect", onConnected);
     meetingSocketService.off("participant_joined", handleJoin);
     meetingSocketService.off("participant_left", handleLeft);
   };
-}, [currentMeeting, user, displayName]);
+}, [currentMeeting?.id, user?.id, displayName]);
+
 
 
   useEffect(() => {
