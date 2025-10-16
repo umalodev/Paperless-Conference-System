@@ -78,6 +78,17 @@ export default function Services() {
     };
   }, []);
 
+  const setBadgeLocal = React.useCallback((slug, value) => {
+    try {
+      const key = "badge.map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[slug] = value;
+      localStorage.setItem(key, JSON.stringify(map));
+      window.dispatchEvent(new Event("badge:changed"));
+    } catch {}
+  }, []);
+
   const {
     ready: mediaReady,
     micOn,
@@ -229,6 +240,32 @@ export default function Services() {
       setLoadingReq(false);
     }
   }, [user, isAssist]);
+
+  useEffect(() => {
+    const mid = resolveMeetingId();
+    if (!mid) return;
+
+    // Hanya assist yang butuh mark-seen
+    if (isAssist) {
+      (async () => {
+        try {
+          await fetch(`${API_URL}/api/services/mark-seen`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...meetingService.getAuthHeaders(),
+            },
+            body: JSON.stringify({ meetingId: mid }),
+          });
+        } catch {}
+        // reset badge lokal
+        setBadgeLocal("services", 0);
+      })();
+    } else {
+      // untuk non-assist pastikan badge 0
+      setBadgeLocal("services", 0);
+    }
+  }, [isAssist, setBadgeLocal]);
 
   useEffect(() => {
     loadRequests();

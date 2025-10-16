@@ -16,7 +16,7 @@ const MeetingLayout = ({
   mediasoupDevice,
   className = "",
   meetingTitle = "",
-  disableMeetingSocket = false, // <=== tetap bisa dinonaktifkan
+  disableMeetingSocket = false,
 }) => {
   const [screenShareError, setScreenShareError] = useState("");
   const [title, setTitle] = useState(meetingTitle || "");
@@ -83,6 +83,7 @@ const MeetingLayout = ({
           ["materials", `${API_URL}/api/materials/unread-count${qs}`],
           ["files", `${API_URL}/api/files/unread-count${qs}`],
           ["survey", `${API_URL}/api/surveys/unread-count${qs}`],
+          ["services", `${API_URL}/api/services/unread-count${qs}`],
         ];
 
         const reqs = endpoints.map(([slug, url]) =>
