@@ -1,38 +1,62 @@
-const { Materials, Meeting } = require("../models");
 const {
   getFilePath,
   getFullFilePath,
   deleteFile,
 } = require("../middleware/upload");
 const path = require("path");
+const { Materials, Meeting, MaterialRead } = require("../models");
 const fs = require("fs");
-const { Op } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 const { get } = require("http");
 
 // Get materials by meeting ID
 const getMaterialsByMeeting = async (req, res) => {
   try {
-    const { meetingId } = req.params;
+    const meetingId = parseInt(req.params.meetingId, 10) || 0;
+    const viewerId = req.user?.id || 0;
 
-    const materials = await Materials.findAll({
-      where: {
-        meetingId: meetingId,
-        flag: "Y",
-      },
-      order: [["created_at", "ASC"]],
+    // Alias yang dipakai Sequelize di FROM
+    const alias = Materials.name; // biasanya 'Materials'
+
+    const attributes = viewerId
+      ? {
+          include: [
+            [
+              Sequelize.literal(`
+              EXISTS(
+                SELECT 1
+                FROM m_meeting_material_reads r
+                WHERE r.material_id = \`${alias}\`.\`id\`
+                  AND r.user_id = ${viewerId}
+              )
+            `),
+              "isRead",
+            ],
+          ],
+        }
+      : undefined;
+
+    const rows = await Materials.findAll({
+      where: { meetingId, flag: "Y" },
+      attributes,
+      // hindari ambiguitas kolom dengan alias juga di ORDER BY
+      order: [[Sequelize.col(`\`${alias}\`.\`created_at\``), "ASC"]],
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: "Materials retrieved successfully",
-      data: materials,
+      data: rows,
     });
   } catch (error) {
-    console.error("Error getting materials by meeting:", error);
-    res.status(500).json({
+    // log biar kelihatan error SQL aslinya kalau masih gagal
+    console.error("Error getting materials by meeting:", error?.message);
+    if (error?.parent?.sqlMessage)
+      console.error("SQL:", error.parent.sqlMessage);
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error.message,
+      error: error?.message,
     });
   }
 };
@@ -669,6 +693,122 @@ const synchronizeFilePaths = async (req, res) => {
   }
 };
 
+const markRead = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { materialId } = req.params;
+    if (!userId)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const mat = await Materials.findByPk(materialId);
+    if (!mat)
+      return res
+        .status(404)
+        .json({ success: false, message: "Material not found" });
+
+    await MaterialRead.upsert({
+      materialId: mat.id,
+      userId,
+      readAt: new Date(),
+    });
+
+    return res.json({ success: true, message: "Material marked as read" });
+  } catch (err) {
+    console.error("material markRead error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+// === [BARU] tandai unread satu material
+const markUnread = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { materialId } = req.params;
+    if (!userId)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    await MaterialRead.destroy({ where: { materialId, userId } });
+    return res.json({ success: true, message: "Material marked as unread" });
+  } catch (err) {
+    console.error("material markUnread error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+// === [BARU] tandai semua read (opsional by meeting)
+const markAllRead = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { meetingId } = req.body; // opsional
+    if (!userId)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const whereMat = { flag: "Y" };
+    if (meetingId) whereMat.meetingId = Number(meetingId) || 0;
+
+    const mats = await Materials.findAll({
+      where: whereMat,
+      attributes: ["id"],
+    });
+    if (mats.length === 0)
+      return res.json({ success: true, message: "No materials to mark" });
+
+    const now = new Date();
+    for (const m of mats) {
+      await MaterialRead.upsert({ materialId: m.id, userId, readAt: now });
+    }
+
+    return res.json({ success: true, message: "All materials marked as read" });
+  } catch (err) {
+    console.error("material markAllRead error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+// === [BARU] unread-count
+const unreadCount = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { meetingId } = req.query;
+    if (!userId)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const whereMat = { flag: "Y" };
+    if (meetingId) whereMat.meetingId = Number(meetingId) || 0;
+
+    const total = await Materials.count({ where: whereMat });
+
+    const q = `
+      SELECT COUNT(*) AS cnt
+      FROM m_meeting_materials m
+      JOIN m_meeting_material_reads r
+        ON r.material_id = m.id
+       AND r.user_id = :uid
+      WHERE m.flag = 'Y' ${meetingId ? "AND m.meeting_id = :mid" : ""}
+    `;
+    const [[{ cnt: readCount }]] = await Materials.sequelize.query(q, {
+      replacements: { uid: userId, mid: Number(meetingId) || 0 },
+    });
+
+    const unread = Math.max(0, total - Number(readCount || 0));
+    return res.json({
+      success: true,
+      data: { total, read: Number(readCount || 0), unread },
+    });
+  } catch (err) {
+    console.error("materials unreadCount error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
 const getMaterialsHistory = async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 20, 100);
@@ -744,4 +884,8 @@ module.exports = {
   deleteUndefinedMaterials,
   synchronizeFilePaths,
   getMaterialsHistory,
+  markAllRead,
+  markRead,
+  markUnread,
+  unreadCount,
 };

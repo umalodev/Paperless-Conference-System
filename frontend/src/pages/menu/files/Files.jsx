@@ -23,7 +23,6 @@ import {
   deleteFile,
 } from "../../../services/filesService.js";
 import meetingService from "../../../services/meetingService.js";
-import { use } from "react";
 
 const absolutize = (u) => {
   if (!u) return "";
@@ -103,6 +102,17 @@ export default function Files() {
     setDisplayName(dn);
   }, []);
 
+  const setBadgeLocal = useCallback((slug, value) => {
+    try {
+      const key = "badge.map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[slug] = value;
+      localStorage.setItem(key, JSON.stringify(map));
+      window.dispatchEvent(new Event("badge:changed"));
+    } catch {}
+  }, []);
+
   // menus
   useEffect(() => {
     let cancel = false;
@@ -137,7 +147,7 @@ export default function Files() {
     };
   }, []);
 
-  // load files current meeting
+  // load files current meeting + mark-all-read
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -156,11 +166,29 @@ export default function Files() {
       } finally {
         if (!cancel) setLoadingFiles(false);
       }
+
+      // Tandai semua read pada saat masuk halaman Files
+      try {
+        if (meetingId) {
+          await fetch(`${API_URL}/api/files/mark-all-read`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...meetingService.getAuthHeaders(),
+            },
+            body: JSON.stringify({ meetingId }),
+          });
+          // hilangkan badge instan
+          setBadgeLocal("files", 0);
+        }
+      } catch {
+        /* noop */
+      }
     })();
     return () => {
       cancel = true;
     };
-  }, [meetingId]);
+  }, [meetingId, setBadgeLocal]);
 
   // load history
   const fetchHistory = async () => {
@@ -239,7 +267,33 @@ export default function Files() {
         meetingId,
         file: pick,
       });
+
+      // Tampilkan langsung di list
       setFiles((prev) => [created, ...prev]);
+
+      // === Tandai read untuk uploader agar badge tidak delay ===
+      try {
+        // 1) coba mark read spesifik file
+        await fetch(`${API_URL}/api/files/${created.fileId}/read`, {
+          method: "PATCH",
+          headers: meetingService.getAuthHeaders(),
+        });
+      } catch {
+        // 2) fallback: mark all read per meeting
+        try {
+          await fetch(`${API_URL}/api/files/mark-all-read`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...meetingService.getAuthHeaders(),
+            },
+            body: JSON.stringify({ meetingId }),
+          });
+        } catch {}
+      }
+      // 3) update badge lokal instan
+      setBadgeLocal("files", 0);
+
       setPick(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       notify({
@@ -263,14 +317,15 @@ export default function Files() {
   const handleDelete = async (fileId) => {
     const confirmed = await confirm({
       title: "Delete File?",
-      message: "This file will be deleted from the meeting. This action cannot be undone.",
+      message:
+        "This file will be deleted from the meeting. This action cannot be undone.",
       destructive: true,
       okText: "Delete",
-      cancelText: "Cancel"
+      cancelText: "Cancel",
     });
-    
+
     if (!confirmed) return;
-    
+
     try {
       await deleteFile(fileId);
       // hapus dari current list
@@ -304,7 +359,6 @@ export default function Files() {
   const openFile = (f) => {
     const abs = absolutize(f.url || f.path || f.urlAbs);
     if (!abs) return;
-    // open in new tab (browser will handle pdf/image/video preview if supported)
     window.open(abs, "_blank", "noopener,noreferrer");
   };
   const downloadFile = (f) => {
@@ -315,11 +369,13 @@ export default function Files() {
     a.download = f.name || guessName(f.url || f.path);
     a.rel = "noopener";
     a.click();
-    
+
     notify({
       variant: "success",
       title: "Success",
-      message: `File "${f.name || guessName(f.url || f.path)}" has been successfully downloaded`,
+      message: `File "${
+        f.name || guessName(f.url || f.path)
+      }" has been successfully downloaded`,
       autoCloseMs: 3000,
     });
   };
@@ -477,7 +533,8 @@ export default function Files() {
                 <section className="files-history">
                   <div className="files-history-head">
                     <h3 className="files-history-title">
-                      <Icon iconUrl="/img/history.png" size={18} /> History Files
+                      <Icon iconUrl="/img/history.png" size={18} /> History
+                      Files
                     </h3>
                     <div className="files-history-actions">
                       <input
@@ -617,13 +674,10 @@ function FileCard({ file, me, onOpen, onDownload, onDelete }) {
     (Number(me.id) === Number(uploaderId) ||
       ["admin", "host"].includes(me?.role));
 
-  const absUrl = absolutize(url);
-
   return (
     <div className="mtl-card">
       <div className={`mtl-fileicon ${kind}`} title={ext.toUpperCase()}>
         <div className="mtl-fileext">{extLabel(kind)}</div>
-        {/* optionally show icon from Icon component */}
         <Icon slug="file" />
       </div>
 

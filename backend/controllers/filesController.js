@@ -4,7 +4,7 @@ const fs = require("fs/promises");
 const { Op } = require("sequelize");
 
 module.exports = (models, opts = {}) => {
-  const { File, User, Meeting } = models;
+  const { File, User, Meeting, FileRead } = models;
   const uploadBaseUrl = opts.uploadBaseUrl || "/uploads/files";
 
   const sanitize = (row) => ({
@@ -203,6 +203,119 @@ module.exports = (models, opts = {}) => {
         // fs.unlink(fullpath).catch(() => {});
 
         return res.json({ success: true, message: "File deleted" });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    markRead: async (req, res) => {
+      try {
+        const userId = req.user?.id;
+        const { fileId } = req.params;
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+
+        const row = await File.findByPk(fileId);
+        if (!row)
+          return res
+            .status(404)
+            .json({ success: false, message: "File not found" });
+
+        await FileRead.upsert({
+          fileId: row.fileId,
+          userId,
+          readAt: new Date(),
+        });
+        return res.json({ success: true, message: "File marked as read" });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    // PATCH /api/files/:fileId/unread
+    markUnread: async (req, res) => {
+      try {
+        const userId = req.user?.id;
+        const { fileId } = req.params;
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+
+        await FileRead.destroy({ where: { fileId, userId } });
+        return res.json({ success: true, message: "File marked as unread" });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    // POST /api/files/mark-all-read   (body: { meetingId? })
+    markAllRead: async (req, res) => {
+      try {
+        const userId = req.user?.id;
+        const { meetingId } = req.body || {};
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+
+        const where = { flag: "Y" };
+        if (meetingId) where.meetingId = String(meetingId);
+
+        const files = await File.findAll({ where, attributes: ["fileId"] });
+        if (!files.length)
+          return res.json({ success: true, message: "No files to mark" });
+
+        const now = new Date();
+        for (const f of files) {
+          await FileRead.upsert({ fileId: f.fileId, userId, readAt: now });
+        }
+        return res.json({ success: true, message: "All files marked as read" });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    // GET /api/files/unread-count?meetingId=...
+    unreadCount: async (req, res) => {
+      try {
+        const userId = req.user?.id;
+        const { meetingId } = req.query;
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+
+        const where = { flag: "Y" };
+        if (meetingId) where.meetingId = String(meetingId);
+
+        const total = await File.count({ where });
+
+        const q = `
+          SELECT COUNT(*) AS cnt
+          FROM m_files m
+          JOIN m_file_reads r
+            ON r.file_id = m.file_id
+           AND r.user_id = :uid
+          WHERE m.flag = 'Y' ${meetingId ? "AND m.meeting_id = :mid" : ""}
+        `;
+        const [[{ cnt }]] = await File.sequelize.query(q, {
+          replacements: { uid: userId, mid: String(meetingId || "") },
+        });
+
+        const read = Number(cnt || 0);
+        const unread = Math.max(0, total - read);
+        return res.json({ success: true, data: { total, read, unread } });
       } catch (e) {
         return res
           .status(500)
