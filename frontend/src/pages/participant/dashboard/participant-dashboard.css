@@ -223,3 +223,37 @@
   font-size: 12px;
   color: var(--color-subtext);
 }
+
+.pd-tile .pd-tile-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pd-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: #e02424; /* merah */
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fff; /* biar kontras di atas icon */
+}
+
+.pd-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  background: #e02424;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px #fff;
+}

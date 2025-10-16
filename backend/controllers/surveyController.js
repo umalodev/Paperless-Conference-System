@@ -1,5 +1,5 @@
 // controllers/surveyController.js
-const { Sequelize } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 
 const ensureDefaultTypes = async (models, t) => {
   const defaults = [
@@ -19,8 +19,14 @@ const ensureDefaultTypes = async (models, t) => {
 };
 
 module.exports = (models, sequelize) => {
-  const { Survey, SurveyQuestion, SurveyOption, SurveyQuestionType, Meeting } =
-    models;
+  const {
+    Survey,
+    SurveyQuestion,
+    SurveyOption,
+    SurveyQuestionType,
+    Meeting,
+    SurveyRead,
+  } = models;
 
   const sanitizeSurvey = (s) => ({
     surveyId: s.surveyId,
@@ -378,6 +384,11 @@ module.exports = (models, sequelize) => {
             .json({ success: false, message: "Survey not found" });
         s.isShow = isShow;
         await s.save();
+
+        if (isShow === "Y") {
+          await models.SurveyRead.destroy({ where: { surveyId } });
+        }
+
         return res.json({ success: true, message: "Visibility updated" });
       } catch (e) {
         return res
@@ -968,6 +979,143 @@ module.exports = (models, sequelize) => {
         };
 
         return res.json({ success: true, data: shaped });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    unreadCount: async (req, res) => {
+      try {
+        const { Survey, SurveyRead } = models;
+        const userId = req.user?.id;
+        const meetingId = Number(req.query.meetingId || 0);
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+        if (!meetingId) {
+          return res.json({
+            success: true,
+            data: { total: 0, read: 0, unread: 0 },
+          });
+        }
+
+        // semua survey aktif (tampil) pada meeting ini
+        const total = await Survey.count({
+          where: { flag: "Y", isShow: "Y", meetingId },
+        });
+
+        // hitung berapa survey aktif yg SUDAH dibaca user ini
+        // perlu asosiasi SurveyRead.belongsTo(Survey, { foreignKey: 'survey_id', targetKey: 'surveyId', as: 'Survey' })
+        const readCount = await SurveyRead.count({
+          where: { userId },
+          include: [
+            {
+              model: Survey,
+              as: "Survey",
+              required: true,
+              where: { flag: "Y", isShow: "Y", meetingId },
+              attributes: [], // no extra columns
+            },
+          ],
+          distinct: true,
+          col: "survey_id",
+        });
+
+        const unread = Math.max(0, Number(total) - Number(readCount || 0));
+        return res.json({
+          success: true,
+          data: { total, read: Number(readCount || 0), unread },
+        });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    markAllRead: async (req, res) => {
+      try {
+        const { Survey, SurveyRead } = models;
+        const userId = req.user?.id;
+        const meetingId = Number(req.body?.meetingId || 0);
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+        if (!meetingId)
+          return res.json({ success: true, message: "No meetingId" });
+
+        // Ambil SEMUA survey aktif meeting ini
+        const active = await Survey.findAll({
+          where: { flag: "Y", isShow: "Y", meetingId },
+          attributes: ["surveyId"],
+        });
+
+        const now = new Date();
+        for (const s of active) {
+          await models.SurveyRead.upsert({
+            surveyId: s.surveyId,
+            userId,
+            readAt: now,
+            flag: "Y",
+          });
+        }
+        return res.json({
+          success: true,
+          message: "All active surveys marked as read",
+        });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    markRead: async (req, res) => {
+      try {
+        const { Survey, SurveyRead } = models;
+        const userId = req.user?.id;
+        const { surveyId } = req.params;
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+
+        const exist = await Survey.findOne({ where: { surveyId, flag: "Y" } });
+        if (!exist)
+          return res
+            .status(404)
+            .json({ success: false, message: "Survey not found" });
+
+        await SurveyRead.upsert({
+          surveyId,
+          userId,
+          readAt: new Date(),
+          flag: "Y",
+        });
+        return res.json({ success: true, message: "Survey marked as read" });
+      } catch (e) {
+        return res
+          .status(500)
+          .json({ success: false, message: e.message || e });
+      }
+    },
+
+    markUnread: async (req, res) => {
+      try {
+        const { SurveyRead } = models;
+        const userId = req.user?.id;
+        const { surveyId } = req.params;
+        if (!userId)
+          return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized" });
+
+        await SurveyRead.destroy({ where: { surveyId, userId } });
+        return res.json({ success: true, message: "Survey marked as unread" });
       } catch (e) {
         return res
           .status(500)

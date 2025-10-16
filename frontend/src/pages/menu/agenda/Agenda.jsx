@@ -33,6 +33,9 @@ export default function Agenda() {
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [agendaErr, setAgendaErr] = useState("");
 
+  // bottom nav items dengan badge
+  const [navItems, setNavItems] = useState([]);
+
   const addJudulRef = useRef(null);
   const addDateRef = useRef(null);
   const addStartRef = useRef(null);
@@ -143,13 +146,48 @@ export default function Agenda() {
     };
   }, []);
 
+  // FILTER menu tampil
   const visibleMenus = useMemo(
     () => (menus || []).filter((m) => (m?.flag ?? "Y") === "Y"),
     [menus]
   );
   const handleSelect = (item) => navigate(`/menu/${item.slug}`);
 
-  
+  // Ambil unread count agenda dan suntik ke navItems
+  const refreshAgendaUnread = useCallback(async () => {
+    try {
+      const url = new URL(`${API_URL}/api/agendas/unread-count`);
+      if (meetingId) url.searchParams.set("meetingId", String(meetingId));
+
+      const res = await fetch(url.toString(), {
+        headers: meetingService.getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const json = await res.json();
+      const unread = json?.data?.unread ?? 0;
+
+      setNavItems((prev) => {
+        const base = prev && prev.length ? prev : visibleMenus;
+        return (base || []).map((m) =>
+          (m.slug || "").toLowerCase() === "agenda"
+            ? { ...m, badge: unread }
+            : m
+        );
+      });
+    } catch {
+      // fallback tanpa badge
+      setNavItems((prev) => (prev && prev.length ? prev : visibleMenus));
+    }
+  }, [meetingId, visibleMenus]);
+
+  // Init navItems dari visibleMenus lalu patch badge dari unread
+  useEffect(() => {
+    setNavItems(visibleMenus);
+    if (visibleMenus && visibleMenus.length) {
+      refreshAgendaUnread();
+    }
+  }, [visibleMenus, refreshAgendaUnread]);
 
   // helpers tanggal / jam
   const pad = (n) => String(n).padStart(2, "0");
@@ -182,12 +220,15 @@ export default function Agenda() {
           }))
         : [];
       setAgendas(items);
+
+      // refresh badge setelah data agenda terkini
+      await refreshAgendaUnread();
     } catch (e) {
       setAgendaErr(String(e.message || e));
     } finally {
       setAgendaLoading(false);
     }
-  }, [meetingId]);
+  }, [meetingId, refreshAgendaUnread]);
 
   useEffect(() => {
     loadAgendas();
@@ -310,7 +351,7 @@ export default function Agenda() {
           }
           await loadAgendas();
           closeAdd();
-          
+
           // Display success notification
           await notify({
             variant: "success",
@@ -325,7 +366,7 @@ export default function Agenda() {
         }
       },
     });
-    
+
     if (!ok) {
       setSaving(false);
     }
@@ -395,7 +436,7 @@ export default function Agenda() {
           }
           await loadAgendas();
           closeEdit();
-          
+
           // Display success notification
           await notify({
             variant: "success",
@@ -410,19 +451,56 @@ export default function Agenda() {
         }
       },
     });
-    
+
     if (!ok) {
       setSaving(false);
     }
   };
 
+  const setBadgeLocal = useCallback((slug, value) => {
+    try {
+      const key = "badge.map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[slug] = value;
+      localStorage.setItem(key, JSON.stringify(map));
+      window.dispatchEvent(new Event("badge:changed"));
+    } catch {}
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    try {
+      const body = {};
+      if (meetingId) body.meetingId = meetingId;
+      await fetch(`${API_URL}/api/agendas/mark-all-read`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {}
+  }, [meetingId]);
+
+  // ketika halaman Agenda tampil: load list -> tandai read -> set badge 0
+  useEffect(() => {
+    (async () => {
+      await loadAgendas();
+      await markAllRead();
+      setBadgeLocal("agenda", 0);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleDeleteAgenda = async (id) => {
     if (!id) return;
-    
+
     // Display confirmation modal before deleting
     const ok = await confirm({
       title: "Delete Agenda?",
-      message: "This agenda will be deleted from the meeting. This action cannot be undone.",
+      message:
+        "This agenda will be deleted from the meeting. This action cannot be undone.",
       destructive: true,
       okText: "Delete",
       cancelText: "Cancel",
@@ -440,7 +518,7 @@ export default function Agenda() {
             throw new Error(t?.message || `HTTP ${res.status}`);
           }
           await loadAgendas();
-          
+
           // Display success notification
           await notify({
             variant: "success",
@@ -639,7 +717,6 @@ export default function Agenda() {
                       className="af-input"
                       value={form.end}
                       onChange={(e) => {
-                        // bersihkan pesan custom saat user edit
                         if (addEndRef.current)
                           addEndRef.current.setCustomValidity("");
                         handleFormChange(e);
@@ -761,7 +838,6 @@ export default function Agenda() {
                 <div className="ag-empty-copy">
                   <div className="ag-empty-title">No agenda yet</div>
                 </div>
-                {/* ag-empty-actions dihapus agar tombol merah tidak muncul */}
               </div>
             )}
 
@@ -810,7 +886,9 @@ export default function Agenda() {
                   {!historyLoading &&
                     !historyErr &&
                     historyGroups.length === 0 && (
-                      <div className="pd-empty">There is no agenda history yet.</div>
+                      <div className="pd-empty">
+                        There is no agenda history yet.
+                      </div>
                     )}
 
                   {!historyLoading &&
@@ -836,11 +914,7 @@ export default function Agenda() {
 
         {/* Bottom nav */}
         {!loadingMenus && !errMenus && (
-          <BottomNav
-            items={visibleMenus}
-            active="agenda"
-            onSelect={handleSelect}
-          />
+          <BottomNav items={navItems} active="agenda" onSelect={handleSelect} />
         )}
 
         <MeetingFooter
@@ -968,12 +1042,8 @@ function AgendaItem({ id, title, time, desc, canEdit, onEdit, onDelete }) {
             <button
               type="button"
               className={`agenda-caret-btn ${open ? "is-open" : ""}`}
-              aria-label={
-                open ? "Hide description" : "Show description"
-              }
-              title={
-                open ? "Hide description" : "Show description"
-              }
+              aria-label={open ? "Hide description" : "Show description"}
+              title={open ? "Hide description" : "Show description"}
               onClick={toggle}
             >
               ▾

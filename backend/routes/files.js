@@ -193,6 +193,11 @@ function handleUpload(req, res, next) {
   });
 }
 
+router.get("/unread-count", auth.isAuthenticated, controller.unreadCount);
+router.post("/mark-all-read", auth.isAuthenticated, controller.markAllRead);
+router.patch("/:fileId/read", auth.isAuthenticated, controller.markRead);
+router.patch("/:fileId/unread", auth.isAuthenticated, controller.markUnread);
+
 router.get("/history", auth.isAuthenticated, controller.history);
 router.get("/", auth.isAuthenticated, controller.list);
 

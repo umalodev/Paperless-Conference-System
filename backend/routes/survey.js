@@ -8,6 +8,10 @@ const db = require("../models"); // pastikan index.js export { sequelize, ...mod
 const surveyControllerFactory = require("../controllers/surveyController");
 const controller = surveyControllerFactory(db, db.sequelize);
 
+router.get("/unread-count", auth.isAuthenticated, controller.unreadCount);
+router.post("/mark-all-read", auth.isAuthenticated, controller.markAllRead);
+router.patch("/:surveyId/read", auth.isAuthenticated, controller.markRead);
+router.patch("/:surveyId/unread", auth.isAuthenticated, controller.markUnread);
 // types (kamus)
 router.get("/types", auth.isAuthenticated, controller.listTypes);
 

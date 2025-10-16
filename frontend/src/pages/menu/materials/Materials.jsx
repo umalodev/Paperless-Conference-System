@@ -171,6 +171,7 @@ export default function Materials() {
         createdAt: x.createdAt || x.created_at,
       }));
       setItems(list);
+      setBadgeLocal("materials", 0);
     } catch (e) {
       setErrItems(String(e.message || e));
     } finally {
@@ -232,6 +233,44 @@ export default function Materials() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHistory]);
 
+  // di dalam component Materials()
+  const setBadgeLocal = useCallback((slug, value) => {
+    try {
+      const key = "badge.map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[slug] = value;
+      localStorage.setItem(key, JSON.stringify(map));
+      window.dispatchEvent(new Event("badge:changed"));
+    } catch {}
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    try {
+      const body = {};
+      if (meetingId) body.meetingId = meetingId;
+      await fetch(`${API_URL}/api/materials/mark-all-read`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...meetingService.getAuthHeaders(),
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {}
+  }, [meetingId]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    (async () => {
+      // Update server: tandai semua materials meeting ini menjadi read
+      await markAllRead();
+
+      // Update UI instan: nolkan badge "materials" di BottomNav
+      setBadgeLocal("materials", 0);
+    })();
+  }, [meetingId, markAllRead, setBadgeLocal]);
+
   // ====== upload ======
   const onClickUpload = () => fileRef.current?.click();
 
@@ -262,7 +301,9 @@ export default function Materials() {
       notify({
         variant: "success",
         title: "Success",
-message: `${files.length > 1 ? `${files.length} file` : "File"} successfully uploaded`,
+        message: `${
+          files.length > 1 ? `${files.length} file` : "File"
+        } successfully uploaded`,
         autoCloseMs: 3000,
       });
     } catch (err) {
@@ -302,11 +343,11 @@ message: `${files.length > 1 ? `${files.length} file` : "File"} successfully upl
       message: `This material will be deleted from the meeting. This action cannot be undone.`,
       destructive: true,
       okText: "Delete",
-      cancelText: "Cancel"
+      cancelText: "Cancel",
     });
-    
+
     if (!confirmed) return;
-    
+
     try {
       const res = await fetch(`${API_URL}/api/materials/${it.id}`, {
         method: "DELETE",
@@ -321,7 +362,7 @@ message: `${files.length > 1 ? `${files.length} file` : "File"} successfully upl
       notify({
         variant: "success",
         title: "Success",
-message: `Material "${it.name}" has been successfully deleted`,
+        message: `Material "${it.name}" has been successfully deleted`,
         autoCloseMs: 3000,
       });
     } catch (e) {
@@ -448,7 +489,9 @@ message: `Material "${it.name}" has been successfully deleted`,
             {/* Current materials */}
             {loadingItems && <SkeletonGrid />}
             {errItems && !loadingItems && (
-              <div className="pd-error">Failed to load materials: {errItems}</div>
+              <div className="pd-error">
+                Failed to load materials: {errItems}
+              </div>
             )}
             {!loadingItems && !errItems && items.length === 0 && (
               <div className="pd-empty">No materials yet</div>

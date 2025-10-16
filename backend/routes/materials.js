@@ -36,6 +36,30 @@ function handleUpload(req, res, next) {
 }
 
 router.get(
+  "/unread-count",
+  auth.isAuthenticated,
+  MaterialsController.unreadCount
+);
+
+router.post(
+  "/mark-all-read",
+  auth.isAuthenticated,
+  MaterialsController.markAllRead
+);
+
+router.patch(
+  "/:materialId/read",
+  auth.isAuthenticated,
+  MaterialsController.markRead
+);
+
+router.patch(
+  "/:materialId/unread",
+  auth.isAuthenticated,
+  MaterialsController.markUnread
+);
+
+router.get(
   "/history",
   auth.isAuthenticated,
   MaterialsController.getMaterialsHistory
