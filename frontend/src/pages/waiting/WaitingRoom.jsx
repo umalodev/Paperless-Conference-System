@@ -72,30 +72,38 @@ export default function WaitingRoom() {
 useEffect(() => {
   if (!meetingId || !user) return;
 
-  const token = localStorage.getItem("token");
   const displayName = localStorage.getItem("pconf.displayName") || user?.username || "User";
 
-  // 1️⃣ Connect ke Socket.IO
-  meetingSocketService.connect(meetingId, user.id, API_URL);
-
-  // 2️⃣ Kirim join-room HANYA setelah koneksi berhasil
-  const onConnected = () => {
-    const joinPayload = {
-      type: "join-room",
-      meetingId,
-      userId: user.id,
-      displayName,
-    };
-    meetingSocketService.send(joinPayload);
-    console.log("✅ Joined meeting via socket:", joinPayload);
+  // 1️⃣ DAFTARKAN LISTENER lebih dulu
+  const handleSocketMessage = (msg) => {
+    if (!msg?.type) return;
+    if (msg.type === "participant_joined") {
+      console.log("👥 New participant joined:", msg.displayName);
+      setParticipants((prev) =>
+        prev.some((p) => p.participantId === msg.participantId)
+          ? prev
+          : [...prev, { participantId: msg.participantId, displayName: msg.displayName }]
+      );
+    }
+    if (msg.type === "participant_left") {
+      console.log("🚪 Participant left:", msg.displayName);
+      setParticipants((prev) =>
+        prev.filter((p) => p.participantId !== msg.participantId)
+      );
+    }
+    if (msg.type === "participants_list") setParticipants(msg.data || []);
   };
 
-  // Listen sekali saja untuk event connect
-  meetingSocketService.socket?.on("connect", onConnected);
+  meetingSocketService.on("message", handleSocketMessage);
+
+  // 2️⃣ BARU CONNECT ke server
+  meetingSocketService.connect(meetingId, user.id, API_URL);
+
+  // 3️⃣ join-room dikirim otomatis oleh connect()
+  //    tidak perlu dikirim ulang manual di sini
 
   return () => {
-    // cleanup
-    meetingSocketService.socket?.off("connect", onConnected);
+    meetingSocketService.off("message", handleSocketMessage);
     meetingSocketService.disconnect();
   };
 }, [meetingId, user]);

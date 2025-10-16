@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config.js";
-import "./Login.css"; // pastikan file bernama Login.css (huruf besar L)
+import "./Login.css";
 import meetingService from "../../services/meetingService.js";
 
 export default function Login() {
@@ -16,14 +16,24 @@ export default function Login() {
     setLoading(true);
     setError("");
 
+    // 🔹 Hapus semua data lama dulu agar tidak tertimpa antar user
     try {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log("🧹 Storage cleared before new login");
+    } catch (err) {
+      console.warn("⚠️ Failed to clear storage before login:", err);
+    }
+
+    try {
+      // 🔹 Kirim permintaan login
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
-      // coba parse body apapun bentuknya
+      // 🔹 Parsing payload apapun bentuknya
       let payload = null;
       try {
         const ct = response.headers.get("content-type") || "";
@@ -34,7 +44,7 @@ export default function Login() {
         payload = null;
       }
 
-      // TANGANI STATUS HTTP TIDAK OK
+      // 🔹 Tangani HTTP error
       if (!response.ok) {
         let msg = payload?.message;
         switch (response.status) {
@@ -64,18 +74,22 @@ export default function Login() {
         return;
       }
 
+      // 🔹 Ambil token dan user
       const { token, user } = payload?.data || {};
-      if (!token) {
-        setError("Token tidak ditemukan pada respons login.");
+      if (!token || !user?.id) {
+        setError("Login response tidak valid (missing token atau user.id)");
         return;
       }
 
+      // 🔹 Simpan ke localStorage
       localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
       meetingService.updateToken(token);
 
-      const role = user?.userRole || user?.role;
-      localStorage.setItem("user", JSON.stringify({ ...user, role }));
+      console.log("✅ Login success:", user);
 
+      // 🔹 Arahkan sesuai role
+      const role = user.userRole || user.role;
       if (role === "admin") navigate("/admin/dashboard");
       else navigate("/start");
     } catch (err) {

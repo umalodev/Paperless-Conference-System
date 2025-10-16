@@ -276,87 +276,94 @@ useEffect(() => {
   );
 
   const handleLogout = async () => {
-    const ok = await confirm({
-      title: "Logout dari sesi ini?",
-      message: "Anda akan keluar dan kembali ke halaman awal.",
-      destructive: true,
-      okText: "Logout",
-      cancelText: "Batal",
+  const ok = await confirm({
+    title: "Logout dari sesi ini?",
+    message: "Anda akan keluar dan kembali ke halaman awal.",
+    destructive: true,
+    okText: "Logout",
+    cancelText: "Batal",
+  });
+
+  if (!ok) return;
+
+  try {
+    // --- 0️⃣ Ambil meetingId aktif dari state / context ---
+    const meetingId =
+      currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
+
+    // --- 1️⃣ Kirim leave-room & matikan socket meeting ---
+    try {
+      await meetingSocketService.disconnect(true); // pakai force agar kirim leave-room dulu
+      console.log("🔌 Fully cleaned socket before logout");
+      await new Promise((r) => setTimeout(r, 400)); // beri waktu agar server sempat broadcast
+    } catch (err) {
+      console.warn("⚠️ Error disconnecting meeting socket:", err);
+    }
+
+    // --- 2️⃣ Matikan device media (mic / cam) ---
+    try {
+      if (micOn) await stopMic();
+    } catch (e) {
+      console.warn("⚠️ stopMic error:", e);
+    }
+    try {
+      if (camOn) await stopCam();
+    } catch (e) {
+      console.warn("⚠️ stopCam error:", e);
+    }
+
+    // --- 3️⃣ Cleanup total realtime & screen-share ---
+    try {
+      await cleanupAllMediaAndRealtime({
+        mediaRoom,
+      });
+    } catch (e) {
+      console.warn("⚠️ cleanupAllMediaAndRealtime error:", e);
+    }
+
+    // --- 4️⃣ Putuskan koneksi ke Control Server (opsional Electron) ---
+    try {
+      if (window.electronAPI?.disconnectFromControlServer) {
+        window.electronAPI.disconnectFromControlServer();
+        console.log("🛑 Disconnected from Control Server via logout");
+      }
+    } catch (e) {
+      console.warn("⚠️ Control server disconnect error:", e);
+    }
+
+    // --- 5️⃣ Beri tahu backend kalau masih terdaftar di meeting ---
+    try {
+      if (meetingId) await meetingService.leaveMeeting(meetingId);
+    } catch (e) {
+      console.warn("⚠️ leaveMeeting failed:", e);
+    }
+
+    // --- 6️⃣ Logout backend jika tersedia ---
+    try {
+      if (typeof meetingService.logout === "function") {
+        await meetingService.logout();
+      }
+    } catch (e) {
+      console.warn("⚠️ meetingService.logout error:", e);
+    }
+
+    // --- 8️⃣ Redirect ke halaman awal ---
+    await notify({
+      variant: "success",
+      title: "Signed out",
+      message: "See you soon 👋",
+      autoCloseMs: 900,
     });
 
-    if (!ok) return;
+    navigate("/", { replace: true });
+  } catch (e) {
+    console.error("Logout error:", e);
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate("/", { replace: true });
+  }
+};
 
-    try {
-      // --- 0) Ambil meetingId TERKINI dari state ---
-      const meetingId =
-        currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
-
-        
-      try {
-        await meetingSocketService.disconnect(true); // 💥 pakai force true
-        console.log("🔌 Fully cleaned socket before logout");
-        await new Promise((r) => setTimeout(r, 500)); // beri 0.5s agar server proses disconnect
-      } catch (err) {
-        console.warn("⚠️ Error disconnecting meeting socket:", err);
-      }
-
-
-      // --- 1) MATIKAN DULU DARI CONTEXT (sangat penting) ---
-      try {
-        if (micOn) await stopMic();
-      } catch {}
-      try {
-        if (camOn) await stopCam();
-      } catch {}
-
-      // --- 2) Cleanup total (screen-share, PC/mediasoup, video tag, ws) ---
-      await cleanupAllMediaAndRealtime({
-        mediaRoom, // supaya room.leave()/stopAll() kepanggil jika ada
-        // Jika kamu punya setter global untuk ikon, bisa kirim di sini:
-        // setMic: (v) => setMicState(v), setCam: (v) => setCamState(v)
-      });
-
-      // --- 3) Putus Control Server (Electron) ---
-      try {
-        if (window.electronAPI?.disconnectFromControlServer) {
-          window.electronAPI.disconnectFromControlServer();
-          console.log("🛑 Disconnected from Control Server via logout");
-        }
-      } catch {}
-
-      // --- 4) Beri tahu backend kalau masih tercatat di meeting ---
-      try {
-        if (meetingId) await meetingService.leaveMeeting(meetingId);
-      } catch {}
-
-      // --- 5) Panggil logout backend (jika ada) ---
-      try {
-        if (typeof meetingService.logout === "function") {
-          await meetingService.logout();
-        }
-      } catch {}
-
-      
-      // --- 6) Bersihkan session/local storage ---
-      localStorage.removeItem("currentMeeting");
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-      localStorage.removeItem("pconf.displayName");
-      localStorage.removeItem("pconf.useAccountName");
-
-      // --- 7) Redirect ---
-      await notify({
-        variant: "success",
-        title: "Signed out",
-        message: "See you soon.",
-        autoCloseMs: 900,
-      });
-      navigate("/", { replace: true });
-    } catch (e) {
-      console.error("Logout error:", e);
-      navigate("/", { replace: true });
-    }
-  };
 
   const handleLeaveMeeting = async () => {
     if (window.confirm("Are you sure you want to leave this meeting?")) {
