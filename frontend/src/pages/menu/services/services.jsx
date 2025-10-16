@@ -563,8 +563,8 @@ export default function Services() {
                               Done
                             </button>
                           )}
-                          {/* Staff can always mark done */}
-                          {isStaff && r.status !== "done" && (
+
+                          {isAssist && r.status !== "done" && (
                             <button
                               className="svc-btn"
                               disabled={busyId === r.serviceRequestId}
@@ -619,9 +619,8 @@ export default function Services() {
                           </span>
                         </div>
 
-                        {/* If current user is staff, allow marking done from left column too */}
                         <div className="svc-actions">
-                          {isStaff && r.status !== "done" && (
+                          {isAssist && r.status !== "done" && (
                             <button
                               className="svc-btn"
                               disabled={busyId === r.serviceRequestId}
