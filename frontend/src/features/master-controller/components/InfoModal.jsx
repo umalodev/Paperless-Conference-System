@@ -1,17 +1,20 @@
 import React from "react";
 
 /**
- * Modal sederhana untuk menampilkan detail device participant.
- * @param {object} info - Objek participant (id, hostname, account, dll)
- * @param {function} onClose - Fungsi untuk menutup modal
+ * Modal to display detailed participant device information.
+ * @param {object} info - Participant object (id, hostname, os, account, etc.)
+ * @param {function} onClose - Function to close the modal
  */
 export default function InfoModal({ info, onClose }) {
   if (!info) return null;
+
+  const account = info.account || {};
 
   return (
     <div className="info-overlay" onClick={onClose}>
       <div className="info-modal" onClick={(e) => e.stopPropagation()}>
         <h3>Participant Device Info</h3>
+
         <table className="info-table">
           <tbody>
             <tr>
@@ -27,24 +30,42 @@ export default function InfoModal({ info, onClose }) {
               <td>{info.user || "-"}</td>
             </tr>
             <tr>
-              <th>OS</th>
+              <th>Operating System</th>
               <td>{info.os || "N/A"}</td>
             </tr>
             <tr>
+              <th>Locked Status</th>
+              <td>
+                {info.isLocked ? (
+                  <span style={{ color: "red", fontWeight: 600 }}>Locked</span>
+                ) : (
+                  <span style={{ color: "green", fontWeight: 600 }}>Unlocked</span>
+                )}
+              </td>
+            </tr>
+            <tr>
               <th>Account ID</th>
-              <td>{info.account?.id || "-"}</td>
+              <td>{account.id || "-"}</td>
             </tr>
             <tr>
               <th>Username</th>
-              <td>{info.account?.username || "-"}</td>
+              <td>{account.username || "-"}</td>
             </tr>
             <tr>
               <th>Display Name</th>
-              <td>{info.account?.displayName || "-"}</td>
+              <td>{account.displayName || "-"}</td>
             </tr>
             <tr>
               <th>Role</th>
-              <td>{info.account?.role || "-"}</td>
+              <td>{account.role || "-"}</td>
+            </tr>
+            <tr>
+              <th>Created At</th>
+              <td>
+                {account.created_at
+                  ? new Date(account.created_at).toLocaleString()
+                  : "-"}
+              </td>
             </tr>
           </tbody>
         </table>

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, desktopCapturer, session } from "electron";
+import { app, BrowserWindow, ipcMain, screen, desktopCapturer, Menu, globalShortcut, session } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -267,6 +267,49 @@ ipcMain.on("hide-lock-overlay", () => {
   lockWindows = [];
 });
 app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  const template = [
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Developer Tools",
+          accelerator: "CommandOrControl+Shift+I",
+          click: () => {
+            const focused = BrowserWindow.getFocusedWindow();
+            if (focused) focused.webContents.toggleDevTools();
+          }
+        }
+      ]
+    }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  const shortcutsToBlock = [
+    "CommandOrControl+R",
+    // Refresh
+    "F5",
+    // Refresh key
+    "CommandOrControl+Shift+R"
+    // Hard reload
+  ];
+  shortcutsToBlock.forEach((sc) => {
+    const success = globalShortcut.register(sc, () => {
+      console.log(`🚫 Blocked shortcut: ${sc}`);
+    });
+    if (!success) console.warn(`⚠️ Failed to block ${sc}`);
+  });
+  app.on("browser-window-focus", () => {
+    shortcutsToBlock.forEach((sc) => {
+      if (!globalShortcut.isRegistered(sc)) {
+        globalShortcut.register(sc, () => console.log(`🚫 Blocked shortcut: ${sc}`));
+      }
+    });
+  });
+});
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
 export {
   MAIN_DIST,
   RENDERER_DIST,
