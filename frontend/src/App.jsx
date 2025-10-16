@@ -1,11 +1,7 @@
 import "./utils/installFetch401Guard.js";
 import ProtectedMediaLayout from "./layouts/ProtectedMediaLayout.jsx";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/login/login.jsx";
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import { MeetingSocketProvider } from "./contexts/MeetingSocketProvider";
-
-import LockOverlay from "./components/LockOverlay.jsx";
+import Login from "./features/auth/pages/Login.jsx";
 import "./components/LockOverlay.css";
 
 // Import role-specific dashboards
@@ -24,11 +20,9 @@ import WaitingRoom from "./pages/waiting/WaitingRoom.jsx";
 import SetUp from "./pages/start/SetUp.jsx";
 import Services from "./pages/menu/services/services.jsx";
 import ScreenSharePage from "./pages/menu/screenshare/ScreenShare.jsx";
-import { MediaRoomProvider } from "./contexts/MediaRoomContext.jsx";
-import { ScreenShareProvider } from "./contexts/ScreenShareContext";
 import Whiteboard from "./pages/menu/whiteboard/whiteboards.jsx";
 import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
-import MasterController from "./pages/master-controller/MasterController.jsx";
+import MasterController from "./features/master-controller/pages/MasterController.jsx";
 import { ModalProvider } from "./contexts/ModalProvider.jsx";
 import GlobalAuthEvents from "./components/GlobalAuthEvents.jsx";
 

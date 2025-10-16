@@ -142,18 +142,56 @@ export default function ParticipantDashboard() {
     }
   };
 
-  // ===============================
-  // 🔌 Connect to Meeting Socket.IO (tetap pakai yang di dashboard)
-  // ===============================
-  useEffect(() => {
-    const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
-    if (!meetingId || !user) return;
+// ===============================
+// 🔌 Connect to Meeting Socket.IO
+// ===============================
+useEffect(() => {
+  const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
+  if (!meetingId || !user) return;
 
-    const nameFromLocal = localStorage.getItem("pconf.displayName");
-    if (!nameFromLocal && !displayName) return;
+  // ✅ pastikan nama sudah siap
+  const nameFromLocal = localStorage.getItem("pconf.displayName");
+  if (!nameFromLocal && !displayName) {
+    console.log("⏳ Menunggu displayName tersedia sebelum connect...");
+    return;
+  }
 
-    const latestDisplayName =
-      nameFromLocal || displayName || user?.username || "User";
+  const latestDisplayName =
+    nameFromLocal || displayName || user?.username || "User";
+
+  // ✅ sebelum connect, bersihkan listener lama
+  meetingSocketService.off("participant_joined");
+  meetingSocketService.off("participant_left");
+  meetingSocketService.socket?.off("connect");
+
+  // ⛔ jika sudah connect, skip connect ulang
+  if (meetingSocketService.isConnected()) {
+    console.log("Socket already connected, skip connect()");
+  } else {
+    console.log("🔌 Connecting to socket with name:", latestDisplayName);
+    meetingSocketService.connect(meetingId, user.id, API_URL);
+  }
+
+  const onConnected = () => {
+    const joinPayload = {
+      type: "join-room",
+      meetingId,
+      userId: user.id,
+      displayName: latestDisplayName,
+    };
+    meetingSocketService.send(joinPayload);
+    console.log("✅ Joined meeting via socket:", joinPayload);
+  };
+
+  const handleJoin = (data) => {
+    console.log("👥 Participant joined:", data.displayName);
+    notify({
+      variant: "info",
+      title: "Participant Joined",
+      message: `${data.displayName} just joined.`,
+      autoCloseMs: 1500,
+    });
+  };
 
     if (meetingSocketService.isConnected()) return;
 
@@ -264,16 +302,22 @@ export default function ParticipantDashboard() {
   );
 
   const handleLogout = async () => {
-    const ok = await confirm({
-      title: "Logout dari sesi ini?",
-      message: "Anda akan keluar dan kembali ke halaman awal.",
-      destructive: true,
-      okText: "Logout",
-      cancelText: "Batal",
-    });
+  const ok = await confirm({
+    title: "Logout dari sesi ini?",
+    message: "Anda akan keluar dan kembali ke halaman awal.",
+    destructive: true,
+    okText: "Logout",
+    cancelText: "Batal",
+  });
 
-    if (!ok) return;
+  if (!ok) return;
 
+  try {
+    // --- 0️⃣ Ambil meetingId aktif dari state / context ---
+    const meetingId =
+      currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
+
+    // --- 1️⃣ Kirim leave-room & matikan socket meeting ---
     try {
       const meetingId =
         currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
@@ -324,7 +368,24 @@ export default function ParticipantDashboard() {
     } catch (e) {
       navigate("/", { replace: true });
     }
-  };
+
+    // --- 8️⃣ Redirect ke halaman awal ---
+    await notify({
+      variant: "success",
+      title: "Signed out",
+      message: "See you soon 👋",
+      autoCloseMs: 900,
+    });
+
+    navigate("/", { replace: true });
+  } catch (e) {
+    console.error("Logout error:", e);
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate("/", { replace: true });
+  }
+};
+
 
   const handleLeaveMeeting = async () => {
     if (window.confirm("Are you sure you want to leave this meeting?")) {

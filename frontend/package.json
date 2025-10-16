@@ -21,6 +21,7 @@
     "react-window": "^2.2.1",
     "screenshot-desktop": "^1.15.2",
     "socket.io-client": "^4.8.1",
+    "use-debounce": "^10.0.6",
     "utf-8-validate": "^6.0.5"
   },
   "devDependencies": {

@@ -8,7 +8,7 @@ const dbConfig = {
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'paperless_conference',
   dialect: 'mysql',
-  logging: console.log,
+  logging: false,
   pool: {
     max: 5,
     min: 0,

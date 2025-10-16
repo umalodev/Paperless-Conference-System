@@ -1,0 +1,807 @@
+/* ===========================
+   Master Controller Styles
+   =========================== */
+
+/* ===== Top Bar ===== */
+.pd-topbar {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.pd-topbar .pd-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pd-topbar .pd-live {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.pd-topbar .pd-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pd-topbar .pd-sub {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.note-btn.ghost {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 12px;
+  transition: 0.2s;
+}
+
+.note-btn.ghost:hover {
+  background: #f3f4f6;
+}
+
+.note-btn img.action-icon {
+  width: 18px;
+  height: 18px;
+}
+
+
+/* ===== Main Content ===== */
+.pd-main {
+  flex: 1;
+  padding: 20px;
+}
+
+/* ===== Empty States ===== */
+.pd-empty {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 15px;
+  padding: 40px 0;
+}
+
+/* ===== Monitor Grid (4 per row) ===== */
+.mc-monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px; /* 🔹 jarak antar monitor lebih lega */
+  padding: 24px; /* 🔹 jarak antara grid dan tepi halaman */
+  justify-items: center;
+  align-items: start;
+
+    --r: 14px; /* radius seragam */
+  --pad: 16px; /* padding seragam */
+  --max: 940px; /* lebar maksimum card container */
+  --btn-h: 34px; /* tinggi tombol kecil */
+  --btn-r: 10px;
+  --btn-x: 12px;
+  --chip: 34px; /* tinggi pill/aksi kecil */
+  --chip-r: 10px;
+
+  background: var(--color-white);
+  border: 1px solid #36d399;
+  border-radius: var(--r);
+  padding: var(--pad);
+  width: 100%;
+  max-width: var(--max);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
+}
+
+.mc-monitor-item {
+  margin-bottom: 8px; /* 🔹 beri jarak antar baris monitor */
+}
+
+/* Responsif: ubah jumlah kolom sesuai ukuran layar */
+@media (max-width: 1200px) {
+  .mc-monitor-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .mc-monitor-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .mc-monitor-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+/* ===== Header dalam Grid ===== */
+.mc-monitor-header {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+/* ===== Search bar mirip prt-search ===== */
+.prt-search {
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
+  padding: 10px 12px;
+  max-width: 360px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.prt-search:focus-within {
+  border-color: var(--color-primary, #10b981);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.prt-search .pd-svg {
+  width: 18px;
+  height: 18px;
+  color: #6b7280;
+  opacity: 0.7;
+}
+
+.prt-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text, #1f2937);
+}
+
+.prt-search input::placeholder {
+  color: #9ca3af;
+}
+
+/* ===== Count text di kanan ===== */
+.mc-count {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+
+
+/* ===== Monitor Item ===== */
+.mc-monitor-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  max-width: 300px;
+}
+
+.mc-monitor-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+}
+
+.mc-monitor-item.locked {
+  opacity: 0.6;
+  background: #f3f4f6;
+}
+
+/* === Fix ukuran layar mirror agar tidak berubah === */
+.mc-monitor-screen {
+  width: 100%;
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Gunakan rasio tetap 16:9 tanpa terpengaruh konten */
+.mc-monitor-screen::before {
+  content: "";
+  display: block;
+  padding-top: 56.25%; /* 9 / 16 = 0.5625 → 56.25% */
+}
+
+.mc-monitor-screen > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Mirror image & placeholder sama-sama pakai absolute */
+.mc-monitor-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: -webkit-optimize-contrast;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.mc-monitor-placeholder {
+  background: #111827;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #9ca3af;
+  text-align: center;
+  font-size: 14px;
+}
+
+.mc-monitor-placeholder img {
+  width: 40px;
+  opacity: 0.8;
+  margin-bottom: 6px;
+  filter: brightness(0) invert(1); /* 🔹 ubah warna jadi putih */
+}
+
+/* ===== Info Section ===== */
+.mc-monitor-info {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 15px;
+}
+
+.mc-monitor-info strong {
+  display: block;
+  font-weight: 600;
+}
+
+.mc-role {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* ===== Action Buttons ===== */
+.mc-monitor-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mc-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: white;
+  transition: 0.2s;
+  min-width: 80px;
+  text-align: center;
+}
+
+.mc-btn.blue {
+  background: #3b82f6;
+}
+
+.mc-btn.red {
+  background: #ef4444;
+}
+
+.mc-btn.gray {
+  background: #6b7280;
+}
+
+.mc-btn.yellow {
+  background: #f59e0b;
+  color: black;
+}
+
+.mc-btn.dark {
+  background: #111827;
+}
+
+.mc-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.03);
+}
+
+/* ===== Fullscreen Overlay ===== */
+.mc-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.mc-fullscreen-container {
+  position: relative;
+  max-width: 95%;
+  max-height: 90%;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mc-fullscreen-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  transition: 0.2s;
+}
+
+.mc-fullscreen-close:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.mc-fullscreen-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mc-fullscreen-info {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(17, 24, 39, 0.9); /* hitam pekat transparan */
+  color: #fff;
+  padding: 16px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  max-width: 320px;
+  animation: fadeInUp 0.3s ease forwards;
+}
+
+.mc-fullscreen-info h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.mc-fullscreen-info p {
+  font-size: 14px;
+  margin: 0 0 6px;
+  color: #e5e7eb;
+}
+
+.mc-fullscreen-info small {
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+/* Animasi lembut saat muncul */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ===== Button tambahan ===== */
+.mc-btn.green {
+  background: #22c55e;
+}
+
+.mc-btn.green:hover {
+  background: #16a34a;
+}
+
+/* ===== Info Modal (table style) ===== */
+.info-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  animation: fadeIn 0.3s ease;
+}
+
+.info-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 460px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+  color: #111827;
+  animation: slideUp 0.3s ease;
+}
+
+.info-modal h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #1f2937;
+  text-align: center;
+}
+
+/* ===== Table Detail ===== */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.info-table th,
+.info-table td {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.info-table th {
+  background: #f3f4f6;
+  color: #111827;
+  width: 40%;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.info-table td {
+  background: #ffffff;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  word-break: break-all;
+}
+
+/* ===== Modal Footer ===== */
+.info-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mc-btn.gray {
+  background: #6b7280;
+  color: #fff;
+}
+
+.mc-btn.gray:hover {
+  opacity: 0.9;
+}
+
+/* ===== Animations ===== */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Icon-Only Action Buttons ===== */
+.mc-monitor-actions.icons-only {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.25s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.icon-btn img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: brightness(0) invert(1); /* ikon putih */
+  pointer-events: none;
+}
+
+.icon-btn:hover {
+  transform: scale(1.1);
+  filter: brightness(1.1);
+}
+
+/* ===== Warna Tombol Berdasarkan Fungsi ===== */
+
+/* ▶️ Start Mirror (Biru Cerah) */
+.icon-btn.blue {
+  background: #2563eb; /* blue-600 */
+}
+.icon-btn.blue:hover {
+  background: #1d4ed8;
+}
+
+/* 🛑 Stop Mirror / Shutdown (Merah) */
+.icon-btn.red,
+.icon-btn.dark {
+  background: #dc2626; /* red-600 */
+}
+.icon-btn.red:hover,
+.icon-btn.dark:hover {
+  background: #b91c1c;
+}
+
+/* 🔐 Lock / Unlock (Abu) */
+.icon-btn.gray {
+  background: #6b7280; /* gray-500 */
+}
+.icon-btn.gray:hover {
+  background: #4b5563;
+}
+
+/* 🔁 Restart (Oranye) */
+.icon-btn.yellow {
+  background: #f59e0b; /* amber-500 */
+}
+.icon-btn.yellow:hover {
+  background: #d97706;
+}
+
+/* ℹ️ Info (Hijau) */
+.icon-btn.green {
+  background: #22c55e; /* green-500 */
+}
+.icon-btn.green:hover {
+  background: #16a34a;
+}
+
+/* 🔒 Locked State Styling */
+.mc-monitor-item.locked {
+  opacity: 0.7;
+  background: #f3f4f6;
+  border: 1px dashed #9ca3af;
+}
+
+/* Tooltip bawaan title tetap aktif */
+.icon-btn[title] {
+  position: relative;
+}
+
+.mc-searchbar {
+  padding: 10px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+}
+
+.mc-search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.mc-search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.global-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: 10px;
+}
+
+.note-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s ease;
+}
+
+.note-btn.blue {
+  background: #2563eb;
+  color: #fff;
+}
+.note-btn.red {
+  background: #ef4444;
+  color: #fff;
+}
+.note-btn.gray {
+  background: #64748b;
+  color: #fff;
+}
+.note-btn.yellow {
+  background: #eab308;
+  color: #000;
+}
+.note-btn.dark {
+  background: #111;
+  color: #fff;
+}
+.note-btn:hover {
+  opacity: 0.85;
+}
+
+/* End of file */
+
+.network-status {
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.net-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: background 0.3s ease;
+}
+
+.net-badge.green {
+  background: #16a34a; /* good */
+}
+
+.net-badge.yellow {
+  background: #eab308; /* fair */
+}
+
+.net-badge.red {
+  background: #dc2626; /* poor */
+}
+
+.net-badge.gray {
+  background: #9ca3af; /* unknown */
+}
+
+.mc-monitor-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* FPS Overlay di pojok kanan atas layar mirror */
+.mc-fps-overlay {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #00ff99;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  font-family: monospace;
+  z-index: 10;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.mc-monitor-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #000;
+  object-fit: cover;
+}
+
+.mc-fullscreen-canvas {
+  width: 90%;
+  max-width: 1280px;
+  height: auto;
+  border-radius: 10px;
+  background: #000;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+.mc-monitor-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: -webkit-optimize-contrast;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+
+.mc-click-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 10px 16px;
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.mc-click-hint img {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9));
+}
+
+.mc-click-hint span {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mc-monitor-screen:hover .mc-click-hint {
+  opacity: 1;
+}
+
+
