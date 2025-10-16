@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { ServiceRequest } = require("../models");
+const { ServiceRequest, ServiceInboxSeen } = require("../models");
 const toInt = (v, d = 0) => {
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? n : d;
@@ -90,6 +90,87 @@ class ServiceController {
       });
     } catch (error) {
       console.error("Service list error:", error);
+      return res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  static async unreadCount(req, res) {
+    try {
+      const role = String(req.user?.role || "").toLowerCase();
+      const userId = req.user?.id || req.user?.userId;
+      const meetingId = Number(req.query.meetingId || 0);
+
+      if (role !== "assist" || !meetingId || !userId) {
+        return res.json({ success: true, data: { total: 0, unread: 0 } });
+      }
+
+      // total pending yg BUKAN dibuat oleh assist yg sedang login
+      const total = await ServiceRequest.count({
+        where: {
+          flag: "Y",
+          meetingId,
+          status: "pending",
+          requesterUserId: { [Op.ne]: userId },
+        },
+      });
+
+      // ambil lastSeen si assist utk meeting tsb
+      const seen = await ServiceInboxSeen.findOne({
+        where: { userId, meetingId, flag: "Y" },
+        attributes: ["lastSeen"],
+      });
+      const since = seen?.lastSeen ?? new Date(0);
+
+      // unread = pending yg dibuat SETELAH lastSeen
+      const unread = await ServiceRequest.count({
+        where: {
+          flag: "Y",
+          meetingId,
+          status: "pending",
+          requesterUserId: { [Op.ne]: userId },
+          created_at: { [Op.gt]: since }, // kolom fisik oke krn model pakai createdAt:"created_at"
+        },
+      });
+
+      return res.json({ success: true, data: { total, unread } });
+    } catch (e) {
+      console.error("services unreadCount error:", e);
+      return res.status(500).json({
+        success: false,
+        message: e.message || "Internal server error",
+      });
+    }
+  }
+
+  static async markSeen(req, res) {
+    try {
+      const role = String(req.user?.role || "").toLowerCase();
+      const userId = req.user?.id || req.user?.userId;
+      const meetingId = Number(req.body?.meetingId || 0);
+      if (!userId)
+        return res
+          .status(401)
+          .json({ success: false, message: "Unauthorized" });
+      if (!meetingId)
+        return res.json({ success: true, message: "No meetingId" });
+
+      // hanya assist yang kita tracking
+      if (role !== "assist") {
+        return res.json({ success: true, message: "Ignored (not assist)" });
+      }
+
+      await ServiceInboxSeen.upsert({
+        userId,
+        meetingId,
+        lastSeen: new Date(),
+        flag: "Y",
+      });
+
+      return res.json({ success: true, message: "Seen updated" });
+    } catch (e) {
+      console.error("services markSeen error:", e);
       return res
         .status(500)
         .json({ success: false, message: "Internal server error" });
@@ -380,12 +461,10 @@ class ServiceController {
         (req.user?.id || req.user?.userId) === row.requesterUserId;
 
       if (!isStaff && !(isOwner && row.status === "pending")) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            message: "Not allowed to cancel this request",
-          });
+        return res.status(403).json({
+          success: false,
+          message: "Not allowed to cancel this request",
+        });
       }
 
       row.status = "cancelled";

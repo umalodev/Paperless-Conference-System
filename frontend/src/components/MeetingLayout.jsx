@@ -1,9 +1,9 @@
 // src/components/MeetingLayout.jsx
 import React, { useEffect, useState, useRef } from "react";
-import meetingSocketService from "../services/meetingSocketService.js"; // ✅ Ganti dari meetingWebSocketService
+import meetingSocketService from "../services/meetingSocketService.js";
 import { API_URL } from "../config.js";
 import "./MeetingLayout.css";
-
+import meetingService from "../services/meetingService.js";
 import { useScreenShare } from "../contexts/ScreenShareContext";
 import AnnotateZoomCanvas from "./AnnotateZoomCanvas";
 
@@ -16,7 +16,7 @@ const MeetingLayout = ({
   mediasoupDevice,
   className = "",
   meetingTitle = "",
-  disableMeetingSocket = false, // <=== tetap bisa dinonaktifkan
+  disableMeetingSocket = false,
 }) => {
   const [screenShareError, setScreenShareError] = useState("");
   const [title, setTitle] = useState(meetingTitle || "");
@@ -37,23 +37,84 @@ const MeetingLayout = ({
   const annotateHostRef = useRef(null);
 
   // 🔌 Koneksi ke meetingSocketService
-useEffect(() => {
-  if (disableMeetingSocket) return;
-  if (meetingId && userId) {
-    if (typeof window !== "undefined") {
-      window.meetingSocketService = meetingSocketService;
+  useEffect(() => {
+    if (disableMeetingSocket) return;
+    if (meetingId && userId) {
+      if (typeof window !== "undefined") {
+        window.meetingSocketService = meetingSocketService;
+      }
+
+      // Hanya connect kalau belum terkoneksi
+      if (!meetingSocketService.isConnected()) {
+        console.log("🧩 [MeetingLayout] Connecting meeting socket (once)...");
+        meetingSocketService.connect(meetingId, userId, API_URL);
+      }
+
+      // ❌ Jangan disconnect saat unmount, biar socket tetap hidup antar halaman
     }
+  }, [meetingId, userId, disableMeetingSocket]);
 
-    // Hanya connect kalau belum terkoneksi
-    if (!meetingSocketService.isConnected()) {
-      console.log("🧩 [MeetingLayout] Connecting meeting socket (once)...");
-      meetingSocketService.connect(meetingId, userId, API_URL);
-    }
+  useEffect(() => {
+    let timer;
 
-    // ❌ Jangan disconnect saat unmount, biar socket tetap hidup antar halaman
-  }
-}, [meetingId, userId, disableMeetingSocket]);
+    const saveBadge = (slug, value) => {
+      try {
+        const key = "badge.map";
+        const raw = localStorage.getItem(key);
+        const map = raw ? JSON.parse(raw) : {};
+        if (map[slug] === value) return;
+        map[slug] = value;
+        localStorage.setItem(key, JSON.stringify(map));
+        window.dispatchEvent(new Event("badge:changed"));
+      } catch {}
+    };
 
+    const tick = async () => {
+      try {
+        if (document.visibilityState !== "visible") return;
+
+        const raw = localStorage.getItem("currentMeeting");
+        const cm = raw ? JSON.parse(raw) : null;
+        const mid = cm?.id || cm?.meetingId || cm?.code || null;
+        const qs = mid ? `?meetingId=${encodeURIComponent(mid)}` : "";
+
+        const endpoints = [
+          ["agenda", `${API_URL}/api/agendas/unread-count${qs}`],
+          ["materials", `${API_URL}/api/materials/unread-count${qs}`],
+          ["files", `${API_URL}/api/files/unread-count${qs}`],
+          ["survey", `${API_URL}/api/surveys/unread-count${qs}`],
+          ["services", `${API_URL}/api/services/unread-count${qs}`],
+        ];
+
+        const reqs = endpoints.map(([slug, url]) =>
+          fetch(url, { headers: meetingService.getAuthHeaders() })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => [slug, Number(j?.data?.unread || 0)])
+            .catch(() => [slug, undefined])
+        );
+
+        const results = await Promise.all(reqs);
+        for (const [slug, unread] of results) {
+          if (typeof unread === "number") saveBadge(slug, unread);
+        }
+      } catch {
+        /* noop */
+      }
+    };
+
+    tick();
+    timer = setInterval(tick, 15000);
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
 
   return (
     <div className={`meeting-layout ${className}`}>

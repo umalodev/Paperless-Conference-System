@@ -3,6 +3,26 @@ const router = express.Router();
 const AgendaController = require("../controllers/agendaController");
 const auth = require("../middleware/auth");
 
+router.get("/unread-count", auth.isAuthenticated, AgendaController.unreadCount);
+
+router.patch(
+  "/:agendaId/read",
+  auth.isAuthenticated,
+  AgendaController.markRead
+);
+
+router.patch(
+  "/:agendaId/unread",
+  auth.isAuthenticated,
+  AgendaController.markUnread
+);
+
+router.post(
+  "/mark-all-read",
+  auth.isAuthenticated,
+  AgendaController.markAllRead
+);
+
 router.get("/history", AgendaController.getAgendaHistory);
 
 // GET all agendas (dengan filter/pagination opsional via query)

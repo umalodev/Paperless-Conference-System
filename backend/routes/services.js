@@ -10,6 +10,12 @@ const isStaff = (req, res, next) => {
   return res.status(403).json({ success: false, message: "Forbidden" });
 };
 
+router.get(
+  "/unread-count",
+  auth.isAuthenticated,
+  ServiceController.unreadCount
+);
+router.post("/mark-seen", auth.isAuthenticated, ServiceController.markSeen);
 // Public listing (opsional bisa tanpa auth)
 router.get("/", ServiceController.list);
 router.get("/meeting/:meetingId", ServiceController.listByMeeting);

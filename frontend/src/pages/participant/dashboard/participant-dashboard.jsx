@@ -1,10 +1,4 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import "./participant-dashboard.css";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +10,7 @@ import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../contexts/ModalProvider.jsx";
 import meetingSocketService from "../../../services/meetingSocketService.js";
 import { cleanupAllMediaAndRealtime } from "../../../utils/mediaCleanup.js";
+import MeetingLayout from "../../../components/MeetingLayout.jsx"; // ⬅️ tambahkan
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
@@ -27,6 +22,26 @@ export default function ParticipantDashboard() {
   const navigate = useNavigate();
   const { confirm, notify } = useModal();
 
+  const [badgeMap, setBadgeMap] = useState(() => {
+    try {
+      const x = localStorage.getItem("badge.map");
+      return x ? JSON.parse(x) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const setBadgeLocal = useCallback((slug, value) => {
+    try {
+      const key = "badge.map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[slug] = value;
+      localStorage.setItem(key, JSON.stringify(map));
+      window.dispatchEvent(new Event("badge:changed"));
+    } catch {}
+  }, []);
+
   const mediaRoom = useMediaRoom?.() || null;
 
   useEffect(() => {
@@ -37,14 +52,11 @@ export default function ParticipantDashboard() {
       setDisplayName(savedName);
     }
 
-    // Get current meeting info
     const meetingRaw = localStorage.getItem("currentMeeting");
     if (meetingRaw) {
       try {
         const meeting = JSON.parse(meetingRaw);
         setCurrentMeeting(meeting);
-
-        // Immediately check meeting status when component mounts
         if (meeting?.meetingId || meeting?.id) {
           const meetingId = meeting?.meetingId || meeting?.id;
           checkMeetingStatusImmediately(meetingId);
@@ -53,6 +65,26 @@ export default function ParticipantDashboard() {
         console.error("Failed to parse meeting info:", e);
       }
     }
+  }, []);
+
+  // dengarkan perubahan badge global (seperti BottomNav)
+  useEffect(() => {
+    const apply = () => {
+      try {
+        const x = localStorage.getItem("badge.map");
+        setBadgeMap(x ? JSON.parse(x) : {});
+      } catch {}
+    };
+    const onStorage = (e) => {
+      if (e.key === "badge.map") apply();
+    };
+    const onCustom = () => apply();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("badge:changed", onCustom);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("badge:changed", onCustom);
+    };
   }, []);
 
   const cleanupRealtime = () => {
@@ -65,45 +97,27 @@ export default function ParticipantDashboard() {
     } catch {}
   };
 
-  // Immediate check meeting status when component mounts
-  // ============================================================
-  // 🔍 Check Meeting Status + Auto Disconnect jika meeting berakhir
-  // ============================================================
   const checkMeetingStatusImmediately = async (meetingId) => {
     try {
-      console.log(`Immediate check meeting status for meeting ${meetingId}...`);
       const result = await meetingService.checkMeetingStatus(meetingId);
-      console.log("Immediate meeting status check result:", result);
 
-      // ✅ Helper untuk disconnect socket & cleanup
       const disconnectAndExit = (reasonMsg) => {
-        console.log(`🛑 ${reasonMsg}`);
-
-        // 🔌 Putuskan socket Control Server (jika terhubung)
         try {
           if (window.electronAPI?.disconnectFromControlServer) {
             window.electronAPI.disconnectFromControlServer();
-            console.log("🔌 Disconnected from Control Server (meeting ended)");
           }
-        } catch (err) {
-          console.warn("⚠️ Failed to disconnect socket:", err);
-        }
-
-        // 🧹 Bersihkan storage & arahkan ke start
+        } catch {}
         localStorage.removeItem("currentMeeting");
         alert(reasonMsg);
         navigate("/start");
       };
 
-      // 💀 Meeting sudah berakhir
       if (result?.data?.status === "ended") {
         disconnectAndExit(
           "Meeting telah berakhir. Anda akan dikeluarkan dari meeting."
         );
         return;
       }
-
-      // 🚫 Meeting tidak aktif
       if (!result?.data?.isActive) {
         disconnectAndExit(
           "Meeting tidak aktif. Anda akan dikeluarkan dari meeting."
@@ -111,26 +125,15 @@ export default function ParticipantDashboard() {
         return;
       }
     } catch (error) {
-      console.error("Error in immediate meeting status check:", error);
-
-      // ❌ Meeting mungkin sudah dihapus (404)
       if (
         error.message.includes("404") ||
         error.message.includes("not found")
       ) {
-        console.log("Meeting not found, immediate exit...");
-
         try {
           if (window.electronAPI?.disconnectFromControlServer) {
             window.electronAPI.disconnectFromControlServer();
-            console.log(
-              "🔌 Disconnected from Control Server (meeting not found)"
-            );
           }
-        } catch (err) {
-          console.warn("⚠️ Failed to disconnect socket:", err);
-        }
-
+        } catch {}
         localStorage.removeItem("currentMeeting");
         alert("Meeting tidak ditemukan. Anda akan dikeluarkan dari meeting.");
         navigate("/start");
@@ -190,31 +193,51 @@ useEffect(() => {
     });
   };
 
-  const handleLeft = (data) => {
-    console.log("🚪 Participant left:", data.displayName);
-    notify({
-      variant: "warning",
-      title: "Participant Left",
-      message: `${data.displayName} left the meeting.`,
-      autoCloseMs: 1500,
-    });
-  };
+    if (meetingSocketService.isConnected()) return;
 
-  // ✅ attach baru
-  meetingSocketService.socket?.on("connect", onConnected);
-  meetingSocketService.on("participant_joined", handleJoin);
-  meetingSocketService.on("participant_left", handleLeft);
+    meetingSocketService.connect(meetingId, user.id, API_URL);
 
-  // ✅ bersihkan saat unmount
-  return () => {
-    meetingSocketService.socket?.off("connect", onConnected);
-    meetingSocketService.off("participant_joined", handleJoin);
-    meetingSocketService.off("participant_left", handleLeft);
-  };
-}, [currentMeeting?.id, user?.id, displayName]);
+    const onConnected = () => {
+      const joinPayload = {
+        type: "join-room",
+        meetingId,
+        userId: user.id,
+        displayName: latestDisplayName,
+      };
+      meetingSocketService.send(joinPayload);
+    };
 
+    meetingSocketService.socket?.on("connect", onConnected);
 
+    const handleJoin = (data) => {
+      notify({
+        variant: "info",
+        title: "Participant Joined",
+        message: `${data.displayName} just joined.`,
+        autoCloseMs: 1500,
+      });
+    };
 
+    const handleLeft = (data) => {
+      notify({
+        variant: "warning",
+        title: "Participant Left",
+        message: `${data.displayName} left the meeting.`,
+        autoCloseMs: 1500,
+      });
+    };
+
+    meetingSocketService.on("participant_joined", handleJoin);
+    meetingSocketService.on("participant_left", handleLeft);
+
+    return () => {
+      meetingSocketService.socket?.off("connect", onConnected);
+      meetingSocketService.off("participant_joined", handleJoin);
+      meetingSocketService.off("participant_left", handleLeft);
+    };
+  }, [currentMeeting, user, displayName, notify]);
+
+  // Load menus
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -252,14 +275,12 @@ useEffect(() => {
 
   const {
     ready: mediaReady,
-    error: mediaError,
     micOn,
     camOn,
     startMic,
     stopMic,
     startCam,
     stopCam,
-    muteAllOthers,
   } = useMediaRoom();
 
   const onToggleMic = useCallback(() => {
@@ -276,7 +297,7 @@ useEffect(() => {
     () =>
       (menus || [])
         .filter((m) => (m?.flag ?? "Y") === "Y")
-        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)), // Tambahkan sorting
+        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
     [menus]
   );
 
@@ -298,58 +319,54 @@ useEffect(() => {
 
     // --- 1️⃣ Kirim leave-room & matikan socket meeting ---
     try {
-      await meetingSocketService.disconnect(true); // pakai force agar kirim leave-room dulu
-      console.log("🔌 Fully cleaned socket before logout");
-      await new Promise((r) => setTimeout(r, 400)); // beri waktu agar server sempat broadcast
-    } catch (err) {
-      console.warn("⚠️ Error disconnecting meeting socket:", err);
-    }
+      const meetingId =
+        currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
 
-    // --- 2️⃣ Matikan device media (mic / cam) ---
-    try {
-      if (micOn) await stopMic();
-    } catch (e) {
-      console.warn("⚠️ stopMic error:", e);
-    }
-    try {
-      if (camOn) await stopCam();
-    } catch (e) {
-      console.warn("⚠️ stopCam error:", e);
-    }
+      try {
+        await meetingSocketService.disconnect(true);
+        await new Promise((r) => setTimeout(r, 500));
+      } catch {}
 
-    // --- 3️⃣ Cleanup total realtime & screen-share ---
-    try {
-      await cleanupAllMediaAndRealtime({
-        mediaRoom,
+      try {
+        if (micOn) await stopMic();
+      } catch {}
+      try {
+        if (camOn) await stopCam();
+      } catch {}
+
+      await cleanupAllMediaAndRealtime({ mediaRoom });
+
+      try {
+        if (window.electronAPI?.disconnectFromControlServer) {
+          window.electronAPI.disconnectFromControlServer();
+        }
+      } catch {}
+
+      try {
+        if (meetingId) await meetingService.leaveMeeting(meetingId);
+      } catch {}
+
+      try {
+        if (typeof meetingService.logout === "function") {
+          await meetingService.logout();
+        }
+      } catch {}
+
+      localStorage.removeItem("currentMeeting");
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("pconf.displayName");
+      localStorage.removeItem("pconf.useAccountName");
+
+      await notify({
+        variant: "success",
+        title: "Signed out",
+        message: "See you soon.",
+        autoCloseMs: 900,
       });
+      navigate("/", { replace: true });
     } catch (e) {
-      console.warn("⚠️ cleanupAllMediaAndRealtime error:", e);
-    }
-
-    // --- 4️⃣ Putuskan koneksi ke Control Server (opsional Electron) ---
-    try {
-      if (window.electronAPI?.disconnectFromControlServer) {
-        window.electronAPI.disconnectFromControlServer();
-        console.log("🛑 Disconnected from Control Server via logout");
-      }
-    } catch (e) {
-      console.warn("⚠️ Control server disconnect error:", e);
-    }
-
-    // --- 5️⃣ Beri tahu backend kalau masih terdaftar di meeting ---
-    try {
-      if (meetingId) await meetingService.leaveMeeting(meetingId);
-    } catch (e) {
-      console.warn("⚠️ leaveMeeting failed:", e);
-    }
-
-    // --- 6️⃣ Logout backend jika tersedia ---
-    try {
-      if (typeof meetingService.logout === "function") {
-        await meetingService.logout();
-      }
-    } catch (e) {
-      console.warn("⚠️ meetingService.logout error:", e);
+      navigate("/", { replace: true });
     }
 
     // --- 8️⃣ Redirect ke halaman awal ---
@@ -373,125 +390,158 @@ useEffect(() => {
   const handleLeaveMeeting = async () => {
     if (window.confirm("Are you sure you want to leave this meeting?")) {
       try {
-        // Get the actual meeting ID from currentMeeting
         const meetingId = currentMeeting?.meetingId || currentMeeting?.id;
-
         if (!meetingId) {
           alert("Meeting ID not found. Cannot leave meeting.");
           return;
         }
-
-        // Call the API to leave the meeting
         await meetingService.leaveMeeting(meetingId);
-
-        // Clear local storage and redirect
         localStorage.removeItem("currentMeeting");
         alert("Left meeting successfully!");
         navigate("/start");
       } catch (error) {
-        console.error("Failed to leave meeting:", error);
         alert(`Failed to leave meeting: ${error.message}`);
       }
     }
   };
 
   const handleTileClick = (menu) => {
-    console.log("open", menu.slug);
     navigate(`/menu/${menu.slug}`);
   };
 
-  const meetingId = currentMeeting?.id || "MTG-001";
-  useEffect(() => {
-    console.log("visibleMenus:", visibleMenus);
-  }, [visibleMenus]);
+  // Pakai ID untuk tampilan judul saja
+  const meetingIdDisplay = currentMeeting?.id || "MTG-001";
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
+  // === ⬇️⬇️ PERBAIKAN UTAMA: Bungkus dengan MeetingLayout (disable socketnya) ⬇️⬇️ ===
+  const activeMeetingId =
+    currentMeeting?.meetingId ||
+    currentMeeting?.id ||
+    currentMeeting?.code ||
+    null;
+
   return (
-    <div className="pd-app centered-page">
-      <header className="pd-topbar">
-        <div className="pd-left">
-          <span className="pd-live" aria-hidden />
-          <div>
-            <h1 className="pd-title">
-              {(() => {
-                try {
-                  const raw = localStorage.getItem("currentMeeting");
-                  const cm = raw ? JSON.parse(raw) : null;
-                  return cm?.title || `Meeting #${meetingId}`;
-                } catch {
-                  return `Meeting #${meetingId}`;
-                }
-              })()}
-            </h1>
-            <div className="pd-sub">ID: {meetingId}</div>
-          </div>
-        </div>
-        <div className="pd-right">
-          <div className="pd-clock" aria-live="polite">
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
-          <div className="pd-user">
-            <div className="pd-avatar">
-              {(displayName || user?.username || "User")
-                .slice(0, 2)
-                .toUpperCase()}
-            </div>
+    <MeetingLayout
+      meetingId={activeMeetingId}
+      userId={user?.id || user?.userId || null}
+      userRole={user?.role || "participant"}
+      disableMeetingSocket={true} // kita sudah connect socket di dashboard
+      meetingTitle={(() => {
+        try {
+          const raw = localStorage.getItem("currentMeeting");
+          const cm = raw ? JSON.parse(raw) : null;
+          return cm?.title || `Meeting #${meetingIdDisplay}`;
+        } catch {
+          return `Meeting #${meetingIdDisplay}`;
+        }
+      })()}
+    >
+      <div className="pd-app centered-page">
+        <header className="pd-topbar">
+          <div className="pd-left">
+            <span className="pd-live" aria-hidden />
             <div>
-              <div className="pd-user-name">
-                {displayName || user?.username || "Participant"}
-              </div>
-              <div className="pd-user-role">{user?.role}</div>
+              <h1 className="pd-title">
+                {(() => {
+                  try {
+                    const raw = localStorage.getItem("currentMeeting");
+                    const cm = raw ? JSON.parse(raw) : null;
+                    return cm?.title || `Meeting #${meetingIdDisplay}`;
+                  } catch {
+                    return `Meeting #${meetingIdDisplay}`;
+                  }
+                })()}
+              </h1>
+              <div className="pd-sub">ID: {meetingIdDisplay}</div>
             </div>
-            <button className="pd-ghost" onClick={handleLogout}>
-              Logout
-            </button>
           </div>
-        </div>
-      </header>
-
-      <main className="pd-main">
-        <section className="pd-panel pd-dock">
-          {loading && <div className="pd-empty">Loading menus…</div>}
-          {err && !loading && (
-            <div className="pd-error">Gagal memuat menu: {err}</div>
-          )}
-
-          {!loading && !err && (
-            <div className="pd-grid">
-              {visibleMenus.map((m) => (
-                <button
-                  key={m.menuId || m.slug}
-                  className="pd-tile"
-                  onClick={() => handleTileClick(m)}
-                  aria-label={m.label || m.slug}
-                >
-                  <span className="pd-tile-icon" aria-hidden>
-                    <Icon slug={m.slug} iconUrl={m.iconUrl} />
-                  </span>
-                  <span className="pd-tile-label">{m.label}</span>
-                </button>
-              ))}
-              {visibleMenus.length === 0 && (
-                <div className="pd-empty">Tidak ada menu untuk role ini.</div>
-              )}
+          <div className="pd-right">
+            <div className="pd-clock" aria-live="polite">
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </div>
-          )}
-        </section>
-      </main>
+            <div className="pd-user">
+              <div className="pd-avatar">
+                {(displayName || user?.username || "User")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+              <div>
+                <div className="pd-user-name">
+                  {displayName || user?.username || "Participant"}
+                </div>
+                <div className="pd-user-role">{user?.role}</div>
+              </div>
+              <button className="pd-ghost" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
 
-      <MeetingFooter
-        userRole={user?.role || "participant"}
-        onLeaveMeeting={handleLeaveMeeting}
-        micOn={micOn}
-        camOn={camOn}
-        onToggleMic={onToggleMic}
-        onToggleCam={onToggleCam}
-        onHelpClick={() => alert("Contact support")}
-      />
-    </div>
+        <main className="pd-main">
+          <section className="pd-panel pd-dock">
+            {loading && <div className="pd-empty">Loading menus…</div>}
+            {err && !loading && (
+              <div className="pd-error">Gagal memuat menu: {err}</div>
+            )}
+
+            {!loading && !err && (
+              <div className="pd-grid">
+                {visibleMenus.map((m) => (
+                  <button
+                    key={m.menuId || m.slug}
+                    className="pd-tile"
+                    onClick={() => handleTileClick(m)}
+                    aria-label={
+                      Number(badgeMap[(m.slug || "").toLowerCase()] || 0) > 0
+                        ? `${m.label}, ${
+                            badgeMap[(m.slug || "").toLowerCase()]
+                          } baru`
+                        : m.label || m.slug
+                    }
+                  >
+                    <span className="pd-tile-icon" aria-hidden>
+                      <Icon slug={m.slug} iconUrl={m.iconUrl} />
+                      {(() => {
+                        const slug = (m.slug || "").toLowerCase();
+                        const val = Number(badgeMap[slug] || 0);
+                        if (val > 0) {
+                          return (
+                            <span className="pd-badge">
+                              {val > 99 ? "99+" : val}
+                            </span>
+                          );
+                        }
+                        if (m.hasNew && !val)
+                          return <span className="pd-dot" />;
+                        return null;
+                      })()}
+                    </span>
+                    <span className="pd-tile-label">{m.label}</span>
+                  </button>
+                ))}
+                {visibleMenus.length === 0 && (
+                  <div className="pd-empty">Tidak ada menu untuk role ini.</div>
+                )}
+              </div>
+            )}
+          </section>
+        </main>
+
+        <MeetingFooter
+          userRole={user?.role || "participant"}
+          onLeaveMeeting={handleLeaveMeeting}
+          micOn={micOn}
+          camOn={camOn}
+          onToggleMic={onToggleMic}
+          onToggleCam={onToggleCam}
+          onHelpClick={() => alert("Contact support")}
+        />
+      </div>
+    </MeetingLayout>
   );
 }

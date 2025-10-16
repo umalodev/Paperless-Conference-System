@@ -93,6 +93,37 @@ export default function Survey() {
     setDisplayName(dn);
   }, []);
 
+  const setBadgeLocal = React.useCallback((slug, value) => {
+    try {
+      const key = "badge.map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[slug] = value;
+      localStorage.setItem(key, JSON.stringify(map));
+      window.dispatchEvent(new Event("badge:changed"));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!meetingId) return;
+        await fetch(`${API_URL}/api/surveys/mark-all-read`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...meetingService.getAuthHeaders(),
+          },
+          credentials: "include",
+          body: JSON.stringify({ meetingId }),
+        });
+        setBadgeLocal("survey", 0);
+      } catch {
+        /* noop */
+      }
+    })();
+  }, [meetingId, setBadgeLocal]);
+
   // load menus
   useEffect(() => {
     let cancel = false;
@@ -212,24 +243,26 @@ export default function Survey() {
 
   const removeSurvey = async (s) => {
     if (!s?.surveyId) return;
-    
+
     const confirmed = await confirm({
       title: "Delete Survey?",
-    message: `This survey will be deleted from the meeting. This action cannot be undone.`,
+      message: `This survey will be deleted from the meeting. This action cannot be undone.`,
       destructive: true,
       okText: "Delete",
-      cancelText: "Cancel"
+      cancelText: "Cancel",
     });
-    
+
     if (!confirmed) return;
-    
+
     try {
       await deleteSurvey(s.surveyId);
       await reload();
       notify({
         variant: "success",
         title: "Success",
-        message: `Survey "${s.title || s.surveyId}" has been successfully deleted`,
+        message: `Survey "${
+          s.title || s.surveyId
+        }" has been successfully deleted`,
         autoCloseMs: 3000,
       });
     } catch (e) {
@@ -249,7 +282,9 @@ export default function Survey() {
       notify({
         variant: "success",
         title: "Success",
-        message: flag ? "Survey has been successfully activated" : "Survey has been successfully deactivated",
+        message: flag
+          ? "Survey has been successfully activated"
+          : "Survey has been successfully deactivated",
         autoCloseMs: 3000,
       });
     } catch (e) {
@@ -339,7 +374,9 @@ export default function Survey() {
                       alt=""
                       className="pd-icon-img"
                     />
-                    <span>{manageMode ? "Close Manage" : "Manage surveys"}</span>
+                    <span>
+                      {manageMode ? "Close Manage" : "Manage surveys"}
+                    </span>
                   </button>
                 )}
 

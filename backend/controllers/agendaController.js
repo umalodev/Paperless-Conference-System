@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { Agenda, Meeting } = require("../models");
+const { Agenda, Meeting, AgendaRead } = require("../models");
 
 class AgendaController {
   /**
@@ -52,8 +52,31 @@ class AgendaController {
       const orderDir =
         String(sortDir).toUpperCase() === "DESC" ? "DESC" : "ASC";
 
+      const viewerId = req.user ? req.user.id : 0;
+
+      const attributes = {};
+      if (viewerId > 0) {
+        // dapatkan nama tabel model ini untuk literal yang aman
+        const t = Agenda.getTableName();
+        const tableName = typeof t === "string" ? t : t.tableName;
+
+        attributes.include = [
+          [
+            Agenda.sequelize.literal(`
+              EXISTS(
+                SELECT 1 FROM m_meeting_agenda_reads r
+                WHERE r.agenda_id = ${tableName}.meeting_agenda_id
+                  AND r.user_id = ${viewerId}
+              )
+            `),
+            "isRead",
+          ],
+        ];
+      }
+
       const { rows, count } = await Agenda.findAndCountAll({
         where,
+        attributes,
         limit: sizeN,
         offset,
         order: [
@@ -177,10 +200,25 @@ class AgendaController {
     try {
       const { meetingId } = req.params;
       const includeInactive = req.query.includeInactive === "1";
+      const viewerId = req.user?.id || 0;
       const rows = await Agenda.findAll({
         where: {
           meetingId: parseInt(meetingId, 10) || 0,
           ...(includeInactive ? {} : { flag: "Y" }),
+        },
+        attributes: {
+          include: [
+            [
+              Agenda.sequelize.literal(`
+          EXISTS(
+            SELECT 1 FROM m_meeting_agenda_reads r
+            WHERE r.agenda_id = m_meeting_agenda.meeting_agenda_id
+              AND r.user_id = ${viewerId}
+          )
+        `),
+              "isRead",
+            ],
+          ],
         },
         order: [
           ["seq", "ASC"],
@@ -411,6 +449,134 @@ class AgendaController {
     } catch (error) {
       await t.rollback();
       console.error("Bulk reorder error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  static async markRead(req, res) {
+    try {
+      const userId = req.user?.id;
+      const { agendaId } = req.params;
+      if (!userId)
+        return res
+          .status(401)
+          .json({ success: false, message: "Unauthorized" });
+
+      const agenda = await Agenda.findByPk(agendaId);
+      if (!agenda)
+        return res
+          .status(404)
+          .json({ success: false, message: "Agenda not found" });
+
+      await AgendaRead.upsert({
+        agendaId: agenda.meetingAgendaId,
+        userId,
+        readAt: new Date(),
+      });
+
+      res.json({ success: true, message: "Agenda marked as read" });
+    } catch (err) {
+      console.error("markRead error:", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  static async markUnread(req, res) {
+    try {
+      const userId = req.user?.id;
+      const { agendaId } = req.params;
+      if (!userId)
+        return res
+          .status(401)
+          .json({ success: false, message: "Unauthorized" });
+
+      await AgendaRead.destroy({ where: { agendaId, userId } });
+      res.json({ success: true, message: "Agenda marked as unread" });
+    } catch (err) {
+      console.error("markUnread error:", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  static async markAllRead(req, res) {
+    try {
+      const userId = req.user?.id;
+      const { meetingId } = req.body; // opsional: tandai semua pada 1 meeting
+      if (!userId)
+        return res
+          .status(401)
+          .json({ success: false, message: "Unauthorized" });
+
+      const whereAg = { flag: "Y" };
+      if (meetingId) whereAg.meetingId = Number(meetingId) || 0;
+
+      const agendas = await Agenda.findAll({
+        where: whereAg,
+        attributes: ["meetingAgendaId"],
+      });
+      if (!agendas.length)
+        return res.json({ success: true, message: "No agendas to mark" });
+
+      const now = new Date();
+      const payload = agendas.map((a) => ({
+        agendaId: a.meetingAgendaId,
+        userId,
+        readAt: now,
+      }));
+
+      // Upsert massal: sederhana via loop (aman, jelas)
+      for (const p of payload) {
+        await AgendaRead.upsert(p);
+      }
+
+      res.json({ success: true, message: "All agendas marked as read" });
+    } catch (err) {
+      console.error("markAllRead error:", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  static async unreadCount(req, res) {
+    try {
+      const userId = req.user?.id;
+      const { meetingId } = req.query;
+      if (!userId)
+        return res
+          .status(401)
+          .json({ success: false, message: "Unauthorized" });
+
+      const whereAg = { flag: "Y" };
+      if (meetingId) whereAg.meetingId = Number(meetingId) || 0;
+
+      // hitung total agenda aktif
+      const total = await Agenda.count({ where: whereAg });
+
+      // hitung yang sudah read oleh user
+      const q = `
+        SELECT COUNT(*) AS cnt
+        FROM m_meeting_agenda a
+        JOIN m_meeting_agenda_reads r ON r.agenda_id = a.meeting_agenda_id AND r.user_id = :uid
+        WHERE a.flag = 'Y' ${meetingId ? "AND a.meeting_id = :mid" : ""}
+      `;
+      const [[{ cnt: readCount }]] = await Agenda.sequelize.query(q, {
+        replacements: { uid: userId, mid: Number(meetingId) || 0 },
+      });
+
+      const unread = Math.max(0, total - Number(readCount || 0));
+      res.json({
+        success: true,
+        data: { total, read: Number(readCount || 0), unread },
+      });
+    } catch (err) {
+      console.error("unreadCount error:", err);
       res
         .status(500)
         .json({ success: false, message: "Internal server error" });

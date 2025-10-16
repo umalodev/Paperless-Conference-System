@@ -20,3 +20,40 @@
   text-align: center;
   white-space: nowrap;
 }
+
+.bn-item {
+  position: relative;
+}
+
+.bn-icon {
+  position: relative;
+  display: inline-block;
+}
+
+.bn-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #ef4444; /* merah */
+  box-shadow: 0 0 0 1.5px var(--bn-bg, #111); /* kontras di dark */
+}
+
+.bn-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  background: #ef4444;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 0 0 1.5px var(--bn-bg, #111);
+}

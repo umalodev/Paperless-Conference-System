@@ -3,6 +3,7 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
+import { useMediaRoom } from "../contexts/MediaRoomContext.jsx";
 import { useScreenShare } from "../contexts/ScreenShareContext";
 import "./meeting-footer.css";
 import { useModal } from "../contexts/ModalProvider.jsx";
@@ -21,6 +22,9 @@ export default function MeetingFooter({
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm, notify } = useModal();
+  const mediaRoom = useMediaRoom?.() || null;
+  const stopMicCtx = mediaRoom?.stopMic;
+  const stopCamCtx = mediaRoom?.stopCam;
 
   // 🔹 Ambil state global screen share
   const { sharingUser, screenShareOn, isAnnotating, setIsAnnotating } =
@@ -241,10 +245,10 @@ export default function MeetingFooter({
 
       // 3) Sinkronkan UI toggle agar ikon jadi OFF
       try {
-        onToggleMic?.(false);
+        await stopMicCtx?.();
       } catch {}
       try {
-        onToggleCam?.(false);
+        await stopCamCtx?.();
       } catch {}
     } catch (err) {
       console.error("⚠️ Error during back/cleanup:", err);
@@ -271,10 +275,10 @@ export default function MeetingFooter({
 
     if (ok) {
       try {
-        onToggleMic?.(false);
+        await stopMicCtx?.();
       } catch {}
       try {
-        onToggleCam?.(false);
+        await stopCamCtx?.();
       } catch {}
       localStorage.removeItem("currentMeeting");
       await notify({
