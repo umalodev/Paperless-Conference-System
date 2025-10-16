@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow, globalShortcut, Menu, session } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -321,9 +321,70 @@ ipcMain.on("hide-lock-overlay", () => {
 
 app.whenReady().then(createWindow);
 
-/* gunakan ketika production untuk menghilagngkan browser window */
 
-/* 
+
+
+
+app.whenReady().then(() => {
+  createWindow();
+
+  // 🧱 Buat custom menu sederhana agar DevTools tetap bisa diakses
+  const template = [
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Developer Tools",
+          accelerator: "CommandOrControl+Shift+I",
+          click: () => {
+            const focused = BrowserWindow.getFocusedWindow();
+            if (focused) focused.webContents.toggleDevTools();
+          },
+        },
+      ],
+    },
+  ];
+
+  // Kalau kamu ingin menu benar-benar hilang di production, bisa tambahkan:
+  // if (process.env.NODE_ENV === 'production') Menu.setApplicationMenu(null);
+  // else Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+
+  // Untuk sekarang biar DevTools tetap bisa:
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+
+  // 🛡️ Register global shortcuts yang diblokir (hanya reload)
+  const shortcutsToBlock = [
+    "CommandOrControl+R",      // Refresh
+    "F5",                      // Refresh key
+    "CommandOrControl+Shift+R" // Hard reload
+  ];
+
+  shortcutsToBlock.forEach((sc) => {
+    const success = globalShortcut.register(sc, () => {
+      console.log(`🚫 Blocked shortcut: ${sc}`);
+    });
+    if (!success) console.warn(`⚠️ Failed to block ${sc}`);
+  });
+
+  app.on("browser-window-focus", () => {
+    shortcutsToBlock.forEach((sc) => {
+      if (!globalShortcut.isRegistered(sc)) {
+        globalShortcut.register(sc, () => console.log(`🚫 Blocked shortcut: ${sc}`));
+      }
+    });
+  });
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
+
+
+
+
+
+/* gunakan ketika production untuk menghilagngkan browser window 
+
 app.whenReady().then(() => {
   createWindow();
 
@@ -358,4 +419,5 @@ app.whenReady().then(() => {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
- */
+
+*/

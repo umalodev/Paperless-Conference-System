@@ -800,8 +800,28 @@
   font-weight: 500;
 }
 
-.mc-monitor-screen:hover .mc-click-hint {
+.mc-monitor-frame:hover .mc-click-hint {
   opacity: 1;
 }
 
 
+.mc-click-hint.always-show {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0.9;
+  animation: fadeHint 2s ease-in-out infinite;
+}
+
+@keyframes fadeHint {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.4; }
+}

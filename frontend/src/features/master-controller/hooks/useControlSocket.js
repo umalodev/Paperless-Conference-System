@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import { CONTROL_URL } from "../../../config";
 
-export default function useControlSocket(notify) {
+/**
+ * useControlSocket
+ * Handles socket connection, participant updates, mirror streaming, and device commands.
+ * @param {{ notify: Function, confirm: Function }} modal - object from useModal()
+ */
+export default function useControlSocket({ notify, confirm }) {
   const [user, setUser] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [mirrorFrames, setMirrorFrames] = useState({});
@@ -36,23 +41,23 @@ export default function useControlSocket(notify) {
       console.log("🔴 Disconnected from Control Server");
     });
 
-    // 🧩 Update participants realtime
+    // 🧩 Real-time participant updates
     s.on("participants", (data) => {
       if (!cancel) setParticipants(data || []);
     });
 
-    // 🪞 Mirror frame (throttled)
+    // 🪞 Mirror frame updates (throttled)
     s.on("mirror-frame", ({ from, frame }) => {
       if (cancel) return;
       const now = Date.now();
       const last = lastMirrorUpdate.current[from] || 0;
-      if (now - last > 150) { // limit ~6fps
+      if (now - last > 150) {
         lastMirrorUpdate.current[from] = now;
         setMirrorFrames((prev) => ({ ...prev, [from]: frame }));
       }
     });
 
-    // 🛑 Mirror stop
+    // 🛑 Mirror stop event
     s.on("mirror-stop", ({ from }) => {
       if (!cancel) {
         setMirrorFrames((prev) => {
@@ -81,7 +86,7 @@ export default function useControlSocket(notify) {
   }, []);
 
   // ======================================================
-  // 🔹 FETCH PARTICIPANTS MANUAL
+  // 🔹 FETCH PARTICIPANTS MANUALLY
   // ======================================================
   const fetchParticipants = useCallback(async () => {
     try {
@@ -93,7 +98,7 @@ export default function useControlSocket(notify) {
       console.error("❌ fetchParticipants error:", err);
       notify?.({
         variant: "error",
-        title: "Gagal mengambil data peserta",
+        title: "Failed to fetch participants",
         message: err.message,
       });
     }
@@ -114,22 +119,25 @@ export default function useControlSocket(notify) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
+        // ✅ Success notification
         notify?.({
           variant: "success",
           title:
             action === "shutdown"
-              ? "Perintah Shutdown dikirim"
+              ? "Shutdown command sent"
               : action === "restart"
-              ? "Perintah Restart dikirim"
-              : "Perintah Berhasil",
-          message: data.message || `Perintah ${action} berhasil dikirim.`,
+              ? "Restart command sent"
+              : "Command executed successfully",
+          message:
+            data.message || `Command '${action}' has been sent successfully.`,
         });
       } catch (err) {
         console.error(`❌ Failed to send '${action}':`, err);
         notify?.({
           variant: "error",
-          title: "Gagal Mengirim Perintah",
-          message: err.message || "Terjadi kesalahan saat mengirim command.",
+          title: "Command failed",
+          message:
+            err.message || "An error occurred while sending the command.",
         });
       }
     },
@@ -137,10 +145,43 @@ export default function useControlSocket(notify) {
   );
 
   // ======================================================
-  // 🔹 HANDLE COMMAND BUTTON
+  // 🔹 HANDLE COMMAND BUTTON (WITH MODAL CONFIRMATION)
   // ======================================================
   const sendCommand = useCallback(
     async (targetId, action) => {
+      const confirmNeeded = ["lock", "unlock", "restart", "shutdown"].includes(
+        action
+      );
+
+      if (confirmNeeded && confirm) {
+        const confirmMessage =
+          action === "lock"
+            ? "Lock this device? The user will not be able to operate the system temporarily."
+            : action === "unlock"
+            ? "Unlock this device? The user will regain control of the system."
+            : action === "restart"
+            ? "Are you sure you want to restart this device now?"
+            : "Are you sure you want to shut down this device?";
+
+        const ok = await confirm({
+          title: "Confirm Action",
+          message: confirmMessage,
+          okText: "Confirm",
+          cancelText: "Cancel",
+          destructive: ["restart", "shutdown"].includes(action),
+        });
+
+        if (!ok) {
+          notify?.({
+            variant: "info",
+            title: "Action cancelled",
+            message: "No changes were made.",
+          });
+          return;
+        }
+      }
+
+      // local state updates
       if (action === "mirror-stop") {
         setMirrorFrames((prev) => {
           const copy = { ...prev };
@@ -163,7 +204,7 @@ export default function useControlSocket(notify) {
 
       await executeCommand(targetId, action);
     },
-    [executeCommand]
+    [executeCommand, notify, confirm]
   );
 
   // ======================================================

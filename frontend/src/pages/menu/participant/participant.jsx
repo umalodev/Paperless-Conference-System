@@ -720,79 +720,67 @@ const handleLeave = (data) => {
 
             {/* CONTENT: VIDEO GRID (mediasoup) */}
             {activeTab === "video" && (
-              <div className="prt-video-grid">
-                {mediaError && (
-                  <div className="pd-error" style={{ marginBottom: 12 }}>
-                    Media error: {mediaError}
-                  </div>
-                )}
-                {!mediaReady ? (
-                  <div className="pd-empty">Menyiapkan media…</div>
-                ) : (
-                  <div className="video-grid">
-                    {/* Local preview: tampilkan jika cam aktif */}
-                    <VideoTile
-                      key="__local__"
-                      name={displayName + (camOn ? "" : " (camera off)")}
-                      stream={localStream}
-                      placeholder={!camOn}
-                      localPreview={camOn}
-                    />
+            <div className="prt-video-grid">
+              {mediaError && (
+                <div className="pd-error" style={{ marginBottom: 12 }}>
+                  Media error: {mediaError}
+                </div>
+              )}
+              {!mediaReady ? (
+                <div className="pd-empty">Menyiapkan media…</div>
+              ) : (
+                <div className="video-grid">
+                  {/* === LOCAL USER === */}
+                  <VideoTile
+                    key="__local__"
+                    name={displayName || "You"}
+                    stream={localStream}
+                    placeholder={!camOn}
+                    localPreview={true}
+                  />
 
-                    {/* Remote peers */}
-                    {Array.from(remotePeers.entries()).map(([pid, obj]) => {
-                      const peerId = String(pid);
+                  {/* === SEMUA PESERTA LAIN (baik aktif maupun tidak) === */}
+                  {participants
+                    .filter((p) => String(p.id) !== String(myPeerId)) // kecuali diri sendiri
+                    .map((p) => {
+                      // cari apakah peer ini punya stream aktif
+                      let matchedPeer = null;
+                      for (const [pid, obj] of remotePeers.entries()) {
+                        const { participantId, userId } = extractPeerMeta(obj);
+                        if (
+                          String(pid) === String(p.id) ||
+                          String(participantId) === String(p.id) ||
+                          String(userId) === String(p.id)
+                        ) {
+                          matchedPeer = obj;
+                          break;
+                        }
+                      }
 
-                      // 1) deep-scan metadata peer
-                      const {
-                        displayName: metaName,
-                        participantId: metaPid,
-                        userId: metaUid,
-                      } = extractPeerMeta(obj);
-
-                      // 2) ambil dari peta2 yang ada
-                      const byPeerId = nameByPeerId.get(peerId);
-                      const byParticipant =
-                        (metaPid && nameByParticipantId.get(String(metaPid))) ||
-                        nameByParticipantId.get(peerId); // jaga2 pid==participantId
-
-                      const byUser =
-                        (metaUid && nameByUserId.get(String(metaUid))) ||
-                        nameByUserId.get(peerId); // jaga2 pid==userId
-
-                      // 3) fallback tambahan: peerId == userId
-                      const byPidAsUser = nameByPidAsUserId.get(peerId);
-
-                      const name =
-                        metaName ||
-                        byParticipant ||
-                        byUser ||
-                        byPeerId ||
-                        byPidAsUser ||
-                        `User ${peerId.slice(-4)}`;
+                      const hasVideo = !!matchedPeer?.videoActive;
+                      const stream = matchedPeer?.stream || null;
 
                       return (
                         <VideoTile
-                          key={pid}
-                          name={name}
-                          stream={obj.stream}
-                          placeholder={!obj.videoActive}
+                          key={p.id}
+                          name={p.displayName || "Participant"}
+                          stream={stream}
+                          placeholder={!hasVideo}
                         />
                       );
                     })}
 
-                    {remotePeers.size === 0 && (
-                      <div
-                        className="pd-empty"
-                        style={{ gridColumn: "1 / -1" }}
-                      >
-                        There are no videos from other participants yet.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+                  {/* fallback jika tidak ada peserta sama sekali */}
+                  {participants.length === 0 && (
+                    <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
+                      Tidak ada peserta lain saat ini.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           </section>
         </main>
         {/* Bottom nav dari DB */}

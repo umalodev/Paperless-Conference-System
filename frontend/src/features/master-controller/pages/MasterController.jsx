@@ -19,9 +19,9 @@ import "../styles/master-controller.css";
 
 export default function MasterController() {
   const navigate = useNavigate();
-  const { notify } = useModal();
+  const { notify, confirm } = useModal();
 
-  // === Hooks utama (socket & data) ===
+  // ✅ Single instance of socket hook
   const {
     user,
     participants,
@@ -29,17 +29,40 @@ export default function MasterController() {
     sendCommand,
     fetchParticipants,
     latency,
-  } = useControlSocket(notify);
+  } = useControlSocket({ notify, confirm });
 
-  // === Pencarian peserta ===
-  const { query, setQuery, filteredParticipants } = useParticipants(participants);
+  // === Participant searching ===
+  const { query, setQuery, filteredParticipants } =
+    useParticipants(participants);
 
-  // === Ambil menu dari API ===
+  // === Menus ===
   const { visibleMenus, loadingMenus, errMenus } = useUserMenus();
 
-  // === State tambahan UI ===
+  const [activeMirrorId, setActiveMirrorId] = useState(null);
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [fullscreenId, setFullscreenId] = useState(null);
+
+  // ✅ Ensure only one mirror is active
+  const handleSendCommand = (targetId, action) => {
+    if (action === "mirror-start") {
+      if (activeMirrorId && activeMirrorId !== targetId) {
+        notify({
+          variant: "warning",
+          title: "Mirror Already Active",
+          message:
+            "Only one participant can be mirrored at a time. Stop the current mirror first.",
+        });
+        return;
+      }
+      setActiveMirrorId(targetId);
+    }
+
+    if (action === "mirror-stop" && activeMirrorId === targetId) {
+      setActiveMirrorId(null);
+    }
+
+    sendCommand(targetId, action);
+  };
 
   return (
     <MeetingLayout
@@ -56,17 +79,18 @@ export default function MasterController() {
           {participants.length === 0 ? (
             <div className="pd-empty">
               {latency === null
-                ? "Menghubungkan ke server kontrol..."
-                : "Belum ada peserta yang terhubung."}
+                ? "Connecting to control server..."
+                : "No participants connected yet."}
             </div>
           ) : (
             <ParticipantGrid
               participants={filteredParticipants}
               totalCount={participants.length}
               mirrorFrames={mirrorFrames}
-              sendCommand={sendCommand}
+              sendCommand={handleSendCommand}
               setFullscreenId={setFullscreenId}
               setSelectedInfo={setSelectedInfo}
+              activeMirrorId={activeMirrorId}
               query={query}
               setQuery={setQuery}
             />
