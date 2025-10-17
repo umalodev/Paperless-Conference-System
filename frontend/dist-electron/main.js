@@ -302,10 +302,7 @@ app.whenReady().then(() => {
   app.on("browser-window-focus", () => {
     shortcutsToBlock.forEach((sc) => {
       if (!globalShortcut.isRegistered(sc)) {
-        globalShortcut.register(
-          sc,
-          () => console.log(`🚫 Blocked shortcut: ${sc}`)
-        );
+        globalShortcut.register(sc, () => console.log(`🚫 Blocked shortcut: ${sc}`));
       }
     });
   });
