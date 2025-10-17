@@ -546,3 +546,47 @@ body {
   width: 100% !important; /* tetap 100% dari parent .form-group */
   min-width: 0 !important;
 }
+
+
+/* Input default */
+.login-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+.login-input:focus {
+  border-color: #007bff;
+  outline: none;
+  background-color: #fff;
+}
+
+/* Error state */
+.input-error {
+  border-color: #dc3545 !important;
+  background-color: #fff5f5;
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  margin-left: 2px;
+}
+
+/* General error message (from backend) */
+.error-message {
+  background-color: #ffe5e5;
+  border: 1px solid #ffb3b3;
+  color: #c00;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-weight: 500;
+}
