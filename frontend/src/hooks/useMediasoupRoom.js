@@ -29,10 +29,14 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         consumers: new Set(),
         name: "",
         consumersInfo: new Map(),
+        consumerTracks: new Map(),
         audioActive: false,
         videoActive: false,
+        _rev: 0,
       };
-      const updated = updater(cur);
+      // penting: updater boleh memodifikasi copy, lalu kita set _rev agar re-render
+      const updated = { ...cur, ...(updater({ ...cur }) || {}) };
+      updated._rev = (updated._rev || 0) + 1;
       next.set(pid, updated);
       return next;
     });
@@ -43,29 +47,41 @@ export default function useMediasoupRoom({ roomId, peerId }) {
       const next = new Map(prev);
       const cur = next.get(peerId);
       if (!cur) return prev;
-      cur.consumers.delete(consumerId);
-      const track = cur.consumerTracks?.get(consumerId);
+
+      // clone shallow
+      const copy = { ...cur };
+      const tracks = new Map(copy.consumerTracks || []);
+      const infos = new Map(copy.consumersInfo || []);
+      const consumers = new Set(copy.consumers || []);
+
+      consumers.delete(consumerId);
+
+      const track = tracks.get(consumerId);
       if (track) {
         try {
-          cur.stream?.removeTrack(track);
+          copy.stream?.removeTrack(track);
         } catch {}
-        cur.consumerTracks.delete(consumerId);
+        tracks.delete(consumerId);
       }
 
-      if (cur.consumersInfo) {
-        cur.consumersInfo.delete(consumerId);
-        cur.audioActive = [...cur.consumersInfo.values()].some(
-          (i) => i.kind === "audio" && i.active
-        );
-        cur.videoActive = [...cur.consumersInfo.values()].some(
-          (i) => i.kind === "video" && i.active
-        );
+      infos.delete(consumerId);
+      copy.audioActive = [...infos.values()].some(
+        (i) => i.kind === "audio" && i.active
+      );
+      copy.videoActive = [...infos.values()].some(
+        (i) => i.kind === "video" && i.active
+      );
+
+      if (!copy.stream || copy.stream.getTracks().length === 0) {
+        copy.stream = new MediaStream();
       }
 
-      if (!cur.stream || cur.stream.getTracks().length === 0) {
-        cur.stream = new MediaStream();
-      }
-      next.set(peerId, cur);
+      copy.consumerTracks = tracks;
+      copy.consumersInfo = infos;
+      copy.consumers = consumers;
+      copy._rev = (copy._rev || 0) + 1;
+
+      next.set(peerId, copy);
       return next;
     });
   }, []);
@@ -255,6 +271,29 @@ export default function useMediasoupRoom({ roomId, peerId }) {
           }
         });
 
+        socket.on("producer-paused", ({ peerId: ownerPeerId, kind }) => {
+          if (kind !== "video") return;
+          updateRemotePeer(ownerPeerId, (cur) => {
+            const copy = { ...cur };
+
+            copy.videoActive = false;
+            return copy;
+          });
+        });
+
+        // 🟩 Server broadcast: producer video diresume → re-attach & minta keyframe
+        socket.on("producer-resumed", ({ peerId: ownerPeerId, kind }) => {
+          if (kind !== "video") return;
+          updateRemotePeer(ownerPeerId, (cur) => {
+            const copy = { ...cur };
+            // track consumer sudah ada di consumer object, tapi untuk amannya,
+            // kita tidak hard-attach di sini. Flagkan aktif, nanti
+            // event 'producerresume' dari consumer akan melakukan re-attach + keyframe.
+            copy.videoActive = true;
+            return copy;
+          });
+        });
+
         setReady(true);
       } catch (e) {
         console.error(e);
@@ -327,25 +366,35 @@ export default function useMediasoupRoom({ roomId, peerId }) {
           });
 
           // ✅ Helper untuk update active flags
+          // helper: set aktif/tidak + hitung ulang aggregate flags (aman jika entry belum ada)
           const updateActiveFlags = (isActive) => {
             updateRemotePeer(ownerPeerId, (cur) => {
-              const info = cur.consumersInfo.get(consumer.id);
-              if (info) info.active = isActive;
-              cur.audioActive = [...cur.consumersInfo.values()].some(
+              const infos = new Map(cur.consumersInfo || []);
+              let info = infos.get(consumer.id);
+              if (!info) info = { kind: consumer.kind, active: isActive };
+              else info.active = isActive;
+
+              const copy = { ...cur };
+              copy.consumersInfo = infos.set(consumer.id, info);
+              copy.audioActive = [...copy.consumersInfo.values()].some(
                 (i) => i.kind === "audio" && i.active
               );
-              cur.videoActive = [...cur.consumersInfo.values()].some(
+              copy.videoActive = [...copy.consumersInfo.values()].some(
                 (i) => i.kind === "video" && i.active
               );
-              return { ...cur };
+              return copy; // _rev dibump oleh updateRemotePeer
             });
           };
 
-          // ✅ Event listeners untuk sinkronisasi pause/resume
+          // EVENTS
           consumer.on("producerpause", () => {
             console.log(
               `🔇 Producer paused for consumer ${consumer.id} (${consumer.kind})`
             );
+            try {
+              consumer.pause();
+            } catch {}
+
             updateActiveFlags(false);
           });
 
@@ -355,7 +404,29 @@ export default function useMediasoupRoom({ roomId, peerId }) {
             );
             try {
               if (consumer.paused) await consumer.resume();
+              try {
+                consumer.requestKeyFrame();
+              } catch {}
             } catch {}
+
+            // KUNCI: re-attach track ke stream kalau belum ada
+            if (consumer.kind === "video") {
+              updateRemotePeer(ownerPeerId, (cur) => {
+                const copy = { ...cur };
+                const s = copy.stream || new MediaStream();
+                const hasThisTrack = s
+                  .getVideoTracks?.()
+                  .some((t) => t === consumer.track);
+                if (!hasThisTrack && consumer.track) {
+                  s.addTrack(consumer.track);
+                }
+                copy.stream = s;
+                const tracks = new Map(copy.consumerTracks || []);
+                tracks.set(consumer.id, consumer.track);
+                copy.consumerTracks = tracks;
+                return copy;
+              });
+            }
             updateActiveFlags(true);
           });
 
@@ -371,6 +442,7 @@ export default function useMediasoupRoom({ roomId, peerId }) {
             updateActiveFlags(true);
           });
 
+          // start awal
           if (consumer.kind === "video") {
             try {
               await consumer.resume();
@@ -386,27 +458,33 @@ export default function useMediasoupRoom({ roomId, peerId }) {
             } catch {}
           }
 
+          // masukkan track awal
           const activeNow = !payload.producerPaused && !consumer.paused;
-
           updateRemotePeer(ownerPeerId, (cur) => {
-            const stream = cur.stream || new MediaStream();
-            stream.addTrack(consumer.track);
-            cur.stream = stream;
-            cur.consumers.add(consumer.id);
+            const copy = { ...cur };
+            const s = copy.stream || new MediaStream();
+            if (consumer.track) s.addTrack(consumer.track);
+            copy.stream = s;
 
-            if (!cur.consumerTracks) cur.consumerTracks = new Map();
-            cur.consumerTracks.set(consumer.id, consumer.track);
+            const consumers = new Set(copy.consumers || []);
+            consumers.add(consumer.id);
+            copy.consumers = consumers;
 
-            cur.consumersInfo.set(consumer.id, {
-              kind: consumer.kind,
-              active: activeNow,
-            });
-            if (consumer.kind === "audio")
-              cur.audioActive = activeNow || cur.audioActive;
-            if (consumer.kind === "video")
-              cur.videoActive = activeNow || cur.videoActive;
+            const tracks = new Map(copy.consumerTracks || []);
+            tracks.set(consumer.id, consumer.track);
+            copy.consumerTracks = tracks;
 
-            return { ...cur };
+            const infos = new Map(copy.consumersInfo || []);
+            infos.set(consumer.id, { kind: consumer.kind, active: activeNow });
+            copy.consumersInfo = infos;
+
+            copy.audioActive = [...infos.values()].some(
+              (i) => i.kind === "audio" && i.active
+            );
+            copy.videoActive = [...infos.values()].some(
+              (i) => i.kind === "video" && i.active
+            );
+            return copy;
           });
 
           consumer.on("transportclose", () =>
@@ -623,55 +701,31 @@ export default function useMediasoupRoom({ roomId, peerId }) {
   }, [peerId, localStream]);
 
   const stopCam = useCallback(async () => {
-    console.log("🛑 Stopping camera");
     const p = videoProducerRef.current;
-
-    if (!p) {
-      console.log("⚠️ No producer to stop");
-      return;
-    }
+    if (!p) return;
 
     try {
-      if (!p.closed) {
-        await p.pause();
-        console.log("⏸️ Producer paused");
-      }
-    } catch (e) {
-      console.warn("Failed to pause producer:", e);
-    }
-
-    // ✅ PENTING: Notify server bahwa producer di-pause
-    try {
+      // 1) notify server dulu (broadcast placeholder ke semua)
       const socket = socketRef.current;
       if (socket && p.id) {
         await new Promise((resolve) => {
-          socket.emit("pause-producer", { producerId: p.id }, (ack) => {
-            console.log("📡 pause-producer response:", ack);
-            resolve(ack);
-          });
+          socket.emit("pause-producer", { producerId: p.id }, () => resolve());
         });
       }
+      // 2) pause lokal producer
+      if (!p.closed) await p.pause();
     } catch (e) {
-      console.warn("Failed to notify server pause:", e);
+      console.warn("stopCam pause error:", e);
     }
 
     try {
-      if (p.track) {
-        p.track.stop();
-        console.log("🎥 Track stopped");
-      }
-    } catch (e) {
-      console.warn("Failed to stop track:", e);
-    }
-
+      p.track?.stop();
+    } catch {}
     try {
       localStream?.getTracks()?.forEach((t) => t.stop());
     } catch {}
-
     setLocalStream(null);
     setCamOn(false);
-
-    console.log("✅ Camera stopped");
   }, [localStream]);
 
   const muteAllOthers = useCallback(async () => {

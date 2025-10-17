@@ -84,145 +84,142 @@ export default function ParticipantsPage() {
     };
   }, []);
 
-useEffect(() => {
-  if (!meetingId) return;
-  const userData = localStorage.getItem("user");
-  const user = userData ? JSON.parse(userData) : null;
-  const userId = user?.id;
+  useEffect(() => {
+    if (!meetingId) return;
+    const userData = localStorage.getItem("user");
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
 
-  // ✅ Hubungkan Socket.IO (service akan handle reconnect, dll)
-  meetingSocketService.connect(meetingId, userId, API_URL);
+    // ✅ Hubungkan Socket.IO (service akan handle reconnect, dll)
+    meetingSocketService.connect(meetingId, userId, API_URL);
 
-  // Ambil daftar awal via REST API
-  const loadInitialParticipants = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/participants/list?meetingId=${meetingId}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(meetingService.getAuthHeaders?.() || {}),
-        },
-      });
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        const formatted = json.data.map((p) => ({
-          id: String(p.participantId ?? p.userId ?? p.id),
-          displayName: p.displayName || p.name || "Participant",
-          mic: !!p.isAudioEnabled,
-          cam: !!p.isVideoEnabled,
-          role: p.role || "participant",
-        }));
-        setParticipants(formatted);
+    // Ambil daftar awal via REST API
+    const loadInitialParticipants = async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/participants/list?meetingId=${meetingId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...(meetingService.getAuthHeaders?.() || {}),
+            },
+          }
+        );
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const formatted = json.data.map((p) => ({
+            id: String(p.participantId ?? p.userId ?? p.id),
+            displayName: p.displayName || p.name || "Participant",
+            mic: !!p.isAudioEnabled,
+            cam: !!p.isVideoEnabled,
+            role: p.role || "participant",
+          }));
+          setParticipants(formatted);
+        }
+      } catch (err) {
+        console.error("❌ Failed to load participants:", err);
       }
-    } catch (err) {
-      console.error("❌ Failed to load participants:", err);
-    }
-  };
+    };
 
-  loadInitialParticipants();
+    loadInitialParticipants();
 
-  // ✅ Listener join
-  const handleJoin = (data) => {
-  console.log("[Socket] participant_joined:", data);
-  const id = String(data.participantId ?? data.userId);
-  const name = data.displayName || "Participant";
+    // ✅ Listener join
+    const handleJoin = (data) => {
+      console.log("[Socket] participant_joined:", data);
+      const id = String(data.participantId ?? data.userId);
+      const name = data.displayName || "Participant";
 
-  setParticipants((prev) => {
-    const idx = prev.findIndex((p) => String(p.id) === id);
-    if (idx !== -1) {
-      // kalau sudah ada, update displayName jika berbeda
-      const updated = [...prev];
-      if (updated[idx].displayName !== name) {
-        updated[idx] = { ...updated[idx], displayName: name };
-        console.log("✏️ Updated displayName for", id, "→", name);
-      }
-      return updated;
-    }
-
-    // kalau benar-benar baru
-    return [
-      ...prev,
-      {
-        id,
-        displayName: name,
-        mic: data.mic ?? false,
-        cam: data.cam ?? false,
-        role: data.role || "participant",
-      },
-    ];
-  });
-};
-
-
-
-  // ✅ Listener leave
-const handleLeave = (data) => {
-  const id = String(data.participantId ?? data.userId);
-  console.log("[Socket] participant_left:", data);
-
-  setParticipants((prev) => {
-  const leftId = String(data.userId ?? data.participantId);
-  const exists = prev.some((p) => String(p.id) === leftId);
-
-  if (!exists) {
-    console.log(`ℹ️ Skip removing ${leftId}, not in list`);
-    return prev;
-  }
-
-  console.log(`🗑 Removing participant ${leftId}`);
-  return prev.filter((p) => String(p.id) !== leftId);
-});
-
-};
-
-
-  // ✅ Listener update
-  const handleUpdate = (data) => {
-    console.log("[Socket] participant_updated:", data);
-    setParticipants((prev) =>
-      prev.map((p) =>
-        String(p.id) === String(data.participantId ?? data.userId)
-          ? { ...p, ...data.updates }
-          : p
-      )
-    );
-  };
-
-  // ✅ Listener daftar awal (dikirim dari server saat user join)
-  const handleInitialList = (data) => {
-    console.log("[Socket] participants_list:", data);
-    if (Array.isArray(data)) {
       setParticipants((prev) => {
-        // Gabungkan dengan existing (hindari duplikat)
-        const ids = new Set(prev.map((p) => String(p.id)));
-        const merged = [
+        const idx = prev.findIndex((p) => String(p.id) === id);
+        if (idx !== -1) {
+          // kalau sudah ada, update displayName jika berbeda
+          const updated = [...prev];
+          if (updated[idx].displayName !== name) {
+            updated[idx] = { ...updated[idx], displayName: name };
+            console.log("✏️ Updated displayName for", id, "→", name);
+          }
+          return updated;
+        }
+
+        // kalau benar-benar baru
+        return [
           ...prev,
-          ...data
-            .filter((p) => !ids.has(String(p.participantId)))
-            .map((p) => ({
-              id: String(p.participantId ?? p.userId ?? p.id),
-              displayName: p.displayName || "Participant",
-              mic: false,
-              cam: false,
-              role: "participant",
-            })),
+          {
+            id,
+            displayName: name,
+            mic: data.mic ?? false,
+            cam: data.cam ?? false,
+            role: data.role || "participant",
+          },
         ];
-        return merged;
       });
-    }
-  };
+    };
 
+    // ✅ Listener leave
+    const handleLeave = (data) => {
+      const id = String(data.participantId ?? data.userId);
+      console.log("[Socket] participant_left:", data);
 
-  meetingSocketService.on("participant_joined", handleJoin);
-  meetingSocketService.on("participant_left", handleLeave);
-  meetingSocketService.on("participant_updated", handleUpdate);
+      setParticipants((prev) => {
+        const leftId = String(data.userId ?? data.participantId);
+        const exists = prev.some((p) => String(p.id) === leftId);
 
-  return () => {
-    meetingSocketService.off("participant_joined", handleJoin);
-    meetingSocketService.off("participant_left", handleLeave);
-    meetingSocketService.off("participant_updated", handleUpdate);
-  };
-}, [meetingId]);
+        if (!exists) {
+          console.log(`ℹ️ Skip removing ${leftId}, not in list`);
+          return prev;
+        }
 
+        console.log(`🗑 Removing participant ${leftId}`);
+        return prev.filter((p) => String(p.id) !== leftId);
+      });
+    };
+
+    // ✅ Listener update
+    const handleUpdate = (data) => {
+      console.log("[Socket] participant_updated:", data);
+      setParticipants((prev) =>
+        prev.map((p) =>
+          String(p.id) === String(data.participantId ?? data.userId)
+            ? { ...p, ...data.updates }
+            : p
+        )
+      );
+    };
+
+    // ✅ Listener daftar awal (dikirim dari server saat user join)
+    const handleInitialList = (data) => {
+      console.log("[Socket] participants_list:", data);
+      if (Array.isArray(data)) {
+        setParticipants((prev) => {
+          // Gabungkan dengan existing (hindari duplikat)
+          const ids = new Set(prev.map((p) => String(p.id)));
+          const merged = [
+            ...prev,
+            ...data
+              .filter((p) => !ids.has(String(p.participantId)))
+              .map((p) => ({
+                id: String(p.participantId ?? p.userId ?? p.id),
+                displayName: p.displayName || "Participant",
+                mic: false,
+                cam: false,
+                role: "participant",
+              })),
+          ];
+          return merged;
+        });
+      }
+    };
+
+    meetingSocketService.on("participant_joined", handleJoin);
+    meetingSocketService.on("participant_left", handleLeave);
+    meetingSocketService.on("participant_updated", handleUpdate);
+
+    return () => {
+      meetingSocketService.off("participant_joined", handleJoin);
+      meetingSocketService.off("participant_left", handleLeave);
+      meetingSocketService.off("participant_updated", handleUpdate);
+    };
+  }, [meetingId]);
 
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
 
@@ -381,22 +378,20 @@ const handleLeave = (data) => {
     return { total, micOn: liveMic, camOn: liveCam };
   }, [participants.length, remotePeers, micOn, camOn]);
 
- const filtered = useMemo(() => {
-   const q = query.trim().toLowerCase();
-   if (!q) return participants;
-   return participants.filter(
-     (p) =>
-       (p.displayName || "").toLowerCase().includes(q) ||
-       (p.role || "").toLowerCase().includes(q)
-   );
- }, [participants, query]);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return participants;
+    return participants.filter(
+      (p) =>
+        (p.displayName || "").toLowerCase().includes(q) ||
+        (p.role || "").toLowerCase().includes(q)
+    );
+  }, [participants, query]);
 
- const visibleMenus = useMemo(
-  () => menus.filter((m) => m.flag === "Y"),
-  [menus]
-);
-
-
+  const visibleMenus = useMemo(
+    () => menus.filter((m) => m.flag === "Y"),
+    [menus]
+  );
 
   // wiring tombol footer -> media produce/close + update DB flag utk current user
   const onToggleMic = useCallback(
@@ -413,12 +408,15 @@ const handleLeave = (data) => {
     if (!meetingId) return;
     try {
       setLoadingList(true);
-      const res = await fetch(`${API_URL}/api/participants/list?meetingId=${meetingId}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(meetingService.getAuthHeaders?.() || {}),
-        },
-      });
+      const res = await fetch(
+        `${API_URL}/api/participants/list?meetingId=${meetingId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(meetingService.getAuthHeaders?.() || {}),
+          },
+        }
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -587,7 +585,6 @@ const handleLeave = (data) => {
                       </button>
                     )}
                   </div>
-
                 </div>
 
                 <div className="prt-summary">
@@ -720,67 +717,77 @@ const handleLeave = (data) => {
 
             {/* CONTENT: VIDEO GRID (mediasoup) */}
             {activeTab === "video" && (
-            <div className="prt-video-grid">
-              {mediaError && (
-                <div className="pd-error" style={{ marginBottom: 12 }}>
-                  Media error: {mediaError}
-                </div>
-              )}
-              {!mediaReady ? (
-                <div className="pd-empty">Menyiapkan media…</div>
-              ) : (
-                <div className="video-grid">
-                  {/* === LOCAL USER === */}
-                  <VideoTile
-                    key="__local__"
-                    name={displayName || "You"}
-                    stream={localStream}
-                    placeholder={!camOn}
-                    localPreview={true}
-                  />
+              <div className="prt-video-grid">
+                {mediaError && (
+                  <div className="pd-error" style={{ marginBottom: 12 }}>
+                    Media error: {mediaError}
+                  </div>
+                )}
+                {!mediaReady ? (
+                  <div className="pd-empty">Menyiapkan media…</div>
+                ) : (
+                  <div className="video-grid">
+                    {/* === LOCAL USER === */}
+                    <VideoTile
+                      key="__local__"
+                      name={displayName || "You"}
+                      stream={localStream}
+                      placeholder={!camOn}
+                      localPreview={true}
+                    />
 
-                  {/* === SEMUA PESERTA LAIN (baik aktif maupun tidak) === */}
-                  {participants
-                    .filter((p) => String(p.id) !== String(myPeerId)) // kecuali diri sendiri
-                    .map((p) => {
-                      // cari apakah peer ini punya stream aktif
-                      let matchedPeer = null;
-                      for (const [pid, obj] of remotePeers.entries()) {
-                        const { participantId, userId } = extractPeerMeta(obj);
-                        if (
-                          String(pid) === String(p.id) ||
-                          String(participantId) === String(p.id) ||
-                          String(userId) === String(p.id)
-                        ) {
-                          matchedPeer = obj;
-                          break;
+                    {/* === SEMUA PESERTA LAIN (baik aktif maupun tidak) === */}
+                    {participants
+                      .filter((p) => String(p.id) !== String(myPeerId)) // kecuali diri sendiri
+                      .map((p) => {
+                        // cari apakah peer ini punya stream aktif
+                        let matchedPeer = null;
+                        for (const [pid, obj] of remotePeers.entries()) {
+                          const { participantId, userId } =
+                            extractPeerMeta(obj);
+                          if (
+                            String(pid) === String(p.id) ||
+                            String(participantId) === String(p.id) ||
+                            String(userId) === String(p.id)
+                          ) {
+                            matchedPeer = obj;
+                            break;
+                          }
                         }
-                      }
 
-                      const hasVideo = !!matchedPeer?.videoActive;
-                      const stream = matchedPeer?.stream || null;
+                        const stream = matchedPeer?.stream || null;
+                        const hasTrack =
+                          !!stream &&
+                          typeof stream.getVideoTracks === "function" &&
+                          stream
+                            .getVideoTracks()
+                            .some((t) => t.readyState === "live");
+                        const hasVideo = !!matchedPeer?.videoActive && hasTrack;
+                        const rev = matchedPeer?._rev || 0;
 
-                      return (
-                        <VideoTile
-                          key={p.id}
-                          name={p.displayName || "Participant"}
-                          stream={stream}
-                          placeholder={!hasVideo}
-                        />
-                      );
-                    })}
+                        return (
+                          <VideoTile
+                            key={`${p.id}-${rev}`}
+                            name={p.displayName || "Participant"}
+                            stream={stream}
+                            placeholder={!hasVideo}
+                          />
+                        );
+                      })}
 
-                  {/* fallback jika tidak ada peserta sama sekali */}
-                  {participants.length === 0 && (
-                    <div className="pd-empty" style={{ gridColumn: "1 / -1" }}>
-                      Tidak ada peserta lain saat ini.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
+                    {/* fallback jika tidak ada peserta sama sekali */}
+                    {participants.length === 0 && (
+                      <div
+                        className="pd-empty"
+                        style={{ gridColumn: "1 / -1" }}
+                      >
+                        Tidak ada peserta lain saat ini.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </main>
         {/* Bottom nav dari DB */}
@@ -811,6 +818,7 @@ function VideoTile({
   localPreview = false,
 }) {
   const ref = useRef(null);
+  const [instance, setInstance] = useState(0);
 
   useEffect(() => {
     console.log("🎥 VideoTile update", {
@@ -841,6 +849,7 @@ function VideoTile({
       try {
         el.load?.();
       } catch {}
+      setInstance((n) => n + 1);
       return;
     }
 
@@ -871,6 +880,7 @@ function VideoTile({
         </div>
       ) : (
         <video
+          key={instance}
           ref={ref}
           playsInline
           autoPlay
