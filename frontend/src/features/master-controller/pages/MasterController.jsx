@@ -21,48 +21,69 @@ export default function MasterController() {
   const navigate = useNavigate();
   const { notify, confirm } = useModal();
 
-  // ✅ Single instance of socket hook
-  const {
-    user,
-    participants,
-    mirrorFrames,
-    sendCommand,
-    fetchParticipants,
-    latency,
-  } = useControlSocket({ notify, confirm });
+  // ✅ Socket hook
+  const { user, participants, mirrorFrames, sendCommand, fetchParticipants, latency, waitForMirrorStopped } = useControlSocket({ notify, confirm });
 
-  // === Participant searching ===
+
+  // === Search & Menu Hooks ===
   const { query, setQuery, filteredParticipants } =
     useParticipants(participants);
-
-  // === Menus ===
   const { visibleMenus, loadingMenus, errMenus } = useUserMenus();
 
+  // === Local states ===
   const [activeMirrorId, setActiveMirrorId] = useState(null);
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [fullscreenId, setFullscreenId] = useState(null);
 
-  // ✅ Ensure only one mirror is active
-  const handleSendCommand = (targetId, action) => {
-    if (action === "mirror-start") {
-      if (activeMirrorId && activeMirrorId !== targetId) {
-        notify({
-          variant: "warning",
-          title: "Mirror Already Active",
-          message:
-            "Only one participant can be mirrored at a time. Stop the current mirror first.",
-        });
-        return;
-      }
+  // ✅ Prevent multiple mirrors
+// ✅ Prevent multiple mirrors (with switch confirmation)
+// ✅ Only one mirror allowed — no auto-switch, show info if already active
+const handleSendCommand = async (targetId, action) => {
+  console.log("🧠 handleSendCommand triggered:", { targetId, action, activeMirrorId });
+
+  // === START MIRROR ===
+  if (action === "mirror-start") {
+    // 1️⃣ No active mirror → start normally
+    if (!activeMirrorId) {
       setActiveMirrorId(targetId);
+      sendCommand(targetId, "mirror-start");
+      return;
     }
 
-    if (action === "mirror-stop" && activeMirrorId === targetId) {
-      setActiveMirrorId(null);
+    // 2️⃣ Mirror already active for the same user → just ignore
+    if (activeMirrorId === targetId) {
+      notify({
+        variant: "info",
+        title: "Mirror Already Active",
+        message: "This participant is already being mirrored.",
+        autoCloseMs: 2000,
+      });
+      return;
     }
 
-    sendCommand(targetId, action);
-  };
+    // 3️⃣ Mirror active for another participant → block and show info
+    notify({
+      variant: "warning",
+      title: "Mirror In Use",
+      message:
+        "Mirror is currently active on another device. Please stop it first before starting a new one.",
+      autoCloseMs: 3000,
+    });
+    return;
+  }
+
+  // === STOP MIRROR ===
+  if (action === "mirror-stop") {
+    setActiveMirrorId(null);
+    sendCommand(targetId, "mirror-stop");
+    return;
+  }
+
+  // === Other commands ===
+  sendCommand(targetId, action);
+};
+
+
 
   return (
     <MeetingLayout
@@ -125,4 +146,5 @@ export default function MasterController() {
       </div>
     </MeetingLayout>
   );
+
 }

@@ -57,7 +57,7 @@ export default function useControlSocket({ notify, confirm }) {
       }
     });
 
-    // 🛑 Mirror stop event
+    // 🛑 Mirror stop broadcast (dari semua client)
     s.on("mirror-stop", ({ from }) => {
       if (!cancel) {
         setMirrorFrames((prev) => {
@@ -66,6 +66,16 @@ export default function useControlSocket({ notify, confirm }) {
           return copy;
         });
       }
+    });
+
+    // ✅ Mirror stopped confirmation (khusus pengirim host)
+    s.on("mirror-stopped", ({ id }) => {
+      console.log(`[socket event] mirror-stopped for ${id}`);
+      setMirrorFrames((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
     });
 
     // 🕓 Latency monitor
@@ -105,7 +115,7 @@ export default function useControlSocket({ notify, confirm }) {
   }, [notify]);
 
   // ======================================================
-  // 🔹 EXECUTE COMMAND
+  // 🔹 EXECUTE COMMAND VIA HTTP FALLBACK
   // ======================================================
   const executeCommand = useCallback(
     async (targetId, action) => {
@@ -119,7 +129,6 @@ export default function useControlSocket({ notify, confirm }) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
-        // ✅ Success notification
         notify?.({
           variant: "success",
           title:
@@ -144,8 +153,22 @@ export default function useControlSocket({ notify, confirm }) {
     [notify]
   );
 
+
+  const waitForMirrorStopped = useCallback((id) => {
+    return new Promise((resolve) => {
+      const handler = (data) => {
+        if (data.id === id) {
+          socketRef.current.off("mirror-stopped", handler);
+          resolve();
+        }
+      };
+      socketRef.current.on("mirror-stopped", handler);
+    });
+  }, []);
+
+
   // ======================================================
-  // 🔹 HANDLE COMMAND BUTTON (WITH MODAL CONFIRMATION)
+  // 🔹 HANDLE COMMAND BUTTON (WITH CONFIRMATION)
   // ======================================================
   const sendCommand = useCallback(
     async (targetId, action) => {
@@ -181,7 +204,7 @@ export default function useControlSocket({ notify, confirm }) {
         }
       }
 
-      // local state updates
+      // 🧩 Local UI updates
       if (action === "mirror-stop") {
         setMirrorFrames((prev) => {
           const copy = { ...prev };
@@ -202,7 +225,48 @@ export default function useControlSocket({ notify, confirm }) {
         );
       }
 
-      await executeCommand(targetId, action);
+      // 🔌 Kirim perintah langsung ke socket untuk kecepatan real-time
+      if (socketRef.current?.connected) {
+  // ✅ KHUSUS mirror-stop: pasang listener SEBELUM emit, + timeout fallback
+ if (action === "mirror-stop") {
+  return new Promise((resolve) => {
+    let tid;
+
+    const onStopped = (data) => {
+      if (data?.id === targetId) {
+        console.log("[sendCommand] mirror-stopped match:", targetId);
+        socketRef.current?.off("mirror-stopped", onStopped);
+        clearTimeout(tid);
+        resolve();
+      }
+    };
+
+    // pasang listener dulu
+    socketRef.current.on("mirror-stopped", onStopped);
+
+    // emit setelah listener terpasang
+    socketRef.current.emit("execute-command", { targetId, command: action });
+
+    // fallback kalau event-nya tidak datang (mis. device lama)
+    tid = setTimeout(() => {
+      console.warn("[sendCommand] mirror-stopped timeout fallback for", targetId);
+      socketRef.current?.off("mirror-stopped", onStopped);
+      resolve();
+    }, 1000);
+  });
+}
+
+
+  // default: command lain non-blocking
+  socketRef.current.emit("execute-command", { targetId, command: action });
+  return Promise.resolve();
+} else {
+  // HTTP fallback
+  await executeCommand(targetId, action);
+  return Promise.resolve();
+}
+
+
     },
     [executeCommand, notify, confirm]
   );
@@ -217,5 +281,6 @@ export default function useControlSocket({ notify, confirm }) {
     latency,
     fetchParticipants,
     sendCommand,
+    waitForMirrorStopped,
   };
 }
