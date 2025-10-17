@@ -53,7 +53,7 @@ function createWindow() {
     height: 800,
     show: false,
     backgroundColor: "#111111",
-    icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    icon: path.join(process.env.VITE_PUBLIC, "img/logo.png"),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,

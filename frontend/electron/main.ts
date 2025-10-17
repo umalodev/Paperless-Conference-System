@@ -69,7 +69,7 @@ function createWindow() {
     height: 800,
     show: false,
     backgroundColor: "#111111",
-    icon: path.join(process.env.VITE_PUBLIC!, "electron-vite.svg"),
+    icon: path.join(process.env.VITE_PUBLIC!, "img/logo.png"),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -83,6 +83,33 @@ function createWindow() {
       additionalArguments: ["--enable-features=VaapiVideoDecoder"],
     },
   });
+
+
+/*  gunakan ketika production
+
+    win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    show: false,
+    backgroundColor: "#111111",
+    frame: false,               // 🚫 Hilangkan title bar
+    titleBarStyle: "hidden",    // (macOS) sembunyikan juga title area
+    title: "UP-CONNECT",        // masih bisa diset, tapi tidak tampil
+
+    icon: path.join(process.env.VITE_PUBLIC!, "img/logo.png"),
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false, // penting agar modul Electron tersedia di preload
+      webSecurity: false, // dev only
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true,
+      // Enable screen capture APIs
+      // Additional permissions for screen sharing
+      additionalArguments: ["--enable-features=VaapiVideoDecoder"],
+    },
+  }); */
 
   win.webContents.on("preload-error", (_e, p, err) => {
     console.error("[main] PRELOAD ERROR at", p, err);

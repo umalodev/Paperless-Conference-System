@@ -453,7 +453,7 @@ export default function MeetingFFooter({
 
 
         {/* Menu / Back / End */}
-        <button className="pd-ghost" onClick={handleMenu}>
+        <button className="pd-outline" onClick={handleMenu}>
           Menu
         </button>
 
