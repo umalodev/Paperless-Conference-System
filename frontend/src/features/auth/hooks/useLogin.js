@@ -8,12 +8,27 @@ export default function useLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({
+    username: false,
+    password: false,
+  });
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    // 🔹 Local validation (tanpa global message)
+    const newErrors = {
+      username: username.trim() === "",
+      password: password.trim() === "",
+    };
+    setFieldErrors(newErrors);
+
+    // Kalau masih ada field kosong, hentikan di sini
+    if (newErrors.username || newErrors.password) return;
+
+    setLoading(true);
 
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -37,33 +52,32 @@ export default function useLogin() {
         switch (response.status) {
           case 400:
           case 401:
-            msg = msg || "Username atau password salah.";
+            msg = msg || "Invalid username or password.";
             break;
           case 422:
-            msg = msg || "Data login tidak valid. Periksa input Anda.";
+            msg = msg || "Login data is invalid. Please check your input.";
             break;
           case 403:
-            msg = msg || "Akun Anda tidak memiliki akses.";
+            msg = msg || "Your account does not have access.";
             break;
           case 429:
-            msg = msg || "Terlalu banyak percobaan. Coba lagi beberapa saat.";
+            msg = msg || "Too many attempts. Please try again later.";
             break;
           default:
-            msg =
-              msg || `Terjadi kesalahan pada server (HTTP ${response.status}).`;
+            msg = msg || `Server error (HTTP ${response.status}).`;
         }
         setError(msg);
         return;
       }
 
       if (payload?.success === false) {
-        setError(payload?.message || "Username atau password salah.");
+        setError(payload?.message || "Invalid username or password.");
         return;
       }
 
       const { token, user } = payload?.data || {};
       if (!token) {
-        setError("Token tidak ditemukan pada respons login.");
+        setError("No token received from server.");
         return;
       }
 
@@ -77,9 +91,9 @@ export default function useLogin() {
       else navigate("/start");
     } catch (err) {
       if (err?.name === "TypeError") {
-        setError("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
+        setError("Cannot connect to the server. Check your internet connection.");
       } else {
-        setError(err?.message || "Terjadi kesalahan tak terduga.");
+        setError(err?.message || "An unexpected error occurred.");
       }
     } finally {
       setLoading(false);
@@ -93,6 +107,7 @@ export default function useLogin() {
     setPassword,
     loading,
     error,
+    fieldErrors,
     handleSubmit,
   };
 }

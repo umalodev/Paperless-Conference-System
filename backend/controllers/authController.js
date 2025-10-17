@@ -29,14 +29,14 @@ const authController = {
       if (!user) {
         return res
           .status(401)
-          .json({ success: false, message: "Username atau password salah" });
+          .json({ success: false, message: "Invalid username or password." });
       }
 
       const isValid = await bcrypt.compare(password, user.password);
       if (!isValid) {
         return res
           .status(401)
-          .json({ success: false, message: "Username atau password salah" });
+          .json({ success: false, message: "Invalid username or password." });
       }
 
       const sid = crypto.randomUUID();

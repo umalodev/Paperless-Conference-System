@@ -55,6 +55,7 @@ function registerControlSocket(io, socket) {
         os,
         account,
         isLocked: false,
+        isMirroring: false, // 🧩 FIX: track status mirror
       };
       console.log(`🆕 Registered new participant: ${hostname}`);
     }
@@ -65,6 +66,10 @@ function registerControlSocket(io, socket) {
   // ================= MIRROR FRAME =================
   socket.on("mirror-frame", (frame) => {
     if (!frame) return;
+
+    const p = participants[socket.id];
+    if (!p || !p.isMirroring) return; // 🧩 FIX: abaikan frame kalau mirror sudah stop
+
     io.emit("mirror-frame", { from: socket.id, frame });
     socket.emit("mirror-ack");
   });
@@ -76,9 +81,29 @@ function registerControlSocket(io, socket) {
 
     target.emit("command", payload.command);
 
-    if (payload.command === "mirror-stop")
+    // === START MIRROR ===
+    if (payload.command === "mirror-start") {
+      if (participants[payload.targetId]) {
+        participants[payload.targetId].isMirroring = true; // 🧩 FIX
+      }
+      console.log(`⚙️ Started mirroring from ${payload.targetId}`);
+    }
+
+    // === STOP MIRROR ===
+    if (payload.command === "mirror-stop") {
+      if (participants[payload.targetId]) {
+        participants[payload.targetId].isMirroring = false; // 🧩 FIX: hentikan
+      }
+
+      // Broadcast ke semua client agar stop mirror
       io.emit("mirror-stop", { from: payload.targetId });
 
+      // Kirim konfirmasi ke pengirim (host)
+      socket.emit("mirror-stopped", { id: payload.targetId }); // 🧩 FIX: sinkronisasi UI
+      console.log(`🛑 Stopped mirroring from ${payload.targetId}`);
+    }
+
+    // === LOCK/UNLOCK ===
     if (payload.command === "lock" || payload.command === "unlock") {
       const isLock = payload.command === "lock";
       participants[payload.targetId].isLocked = isLock;

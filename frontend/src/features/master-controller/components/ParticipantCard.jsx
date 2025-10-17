@@ -111,7 +111,7 @@ export default function ParticipantCard({
         ) : (
           <button
             className="icon-btn blue"
-            disabled={isAnotherMirrorActive}
+            disabled={false} 
             title={
               isAnotherMirrorActive
                 ? "Mirror sedang aktif untuk peserta lain"

@@ -440,24 +440,17 @@ export default function MeetingFFooter({
           </button>
         )}
 
-        {/* ✏️ Annotation Button */}
-        {screenShareOn && (
+        {/* ✏️ Annotation Button — hanya tampil jika user sendiri yang sedang share */}
+        {screenShareOn && String(sharingUser) === String(currentUserId) && (
           <button
             className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
-            title={
-              isAnnotating
-                ? String(sharingUser) === String(currentUserId)
-                  ? "Stop Annotating Your Screen"
-                  : "Stop Annotating Viewer Mode"
-                : String(sharingUser) === String(currentUserId)
-                ? "Annotate My Screen"
-                : "Annotate Shared Screen"
-            }
+            title={isAnnotating ? "Stop Annotating" : "Annotate My Screen"}
             onClick={() => setIsAnnotating(!isAnnotating)}
           >
             <Icon slug="annotate" />
           </button>
         )}
+
 
         {/* Menu / Back / End */}
         <button className="pd-ghost" onClick={handleMenu}>

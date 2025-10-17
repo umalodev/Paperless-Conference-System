@@ -12,6 +12,7 @@ export default function Login() {
     setPassword,
     loading,
     error,
+    fieldErrors, // ✅ tambahkan ini
     handleSubmit,
   } = useLogin();
 
@@ -26,6 +27,7 @@ export default function Login() {
           setPassword={setPassword}
           loading={loading}
           error={error}
+          fieldErrors={fieldErrors}
           handleSubmit={handleSubmit}
         />
       </div>

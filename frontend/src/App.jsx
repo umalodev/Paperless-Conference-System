@@ -5,7 +5,7 @@ import Login from "./features/auth/pages/Login.jsx";
 import "./components/LockOverlay.css";
 
 // Import role-specific dashboards
-import AdminDashboard from "./pages/admin/dashboard/admin-dashboard.jsx";
+import AdminDashboard from "./features/admin/dashboard/pages/AdminDashboard.jsx";
 import ParticipantDashboard from "./pages/participant/dashboard/participant-dashboard.jsx";
 
 import Agenda from "./pages/menu/agenda/Agenda.jsx";
