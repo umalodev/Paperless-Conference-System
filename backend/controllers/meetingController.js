@@ -730,66 +730,77 @@ const endMeeting = async (req, res) => {
     const { meetingId } = req.body;
     const userId = req.user.id;
 
-    // Check if user is host or admin in the meeting
+    // Cek meeting
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Meeting not found" });
+    }
+
+    // Idempotent: kalau sudah ended, balikin OK
+    if (meeting.status === "ended") {
+      return res.json({ success: true, message: "Meeting already ended" });
+    }
+
+    // Cek otorisasi host/admin → pakai peserta dengan flag 'Y'
     const participant = await MeetingParticipant.findOne({
       where: { meetingId, userId, flag: "Y" },
     });
 
-    if (
-      !participant ||
-      (participant.role !== "host" && participant.role !== "admin")
-    ) {
+    if (!participant || !["host", "admin"].includes(participant.role)) {
       return res.status(403).json({
         success: false,
         message: "Only hosts and admins can end meetings",
       });
     }
 
-    // End the meeting
-    const meeting = await Meeting.findByPk(meetingId);
-    if (meeting) {
-      await meeting.update({
-        status: "ended",
-        endTime: new Date(),
-      });
+    // End meeting
+    await meeting.update({ status: "ended", endTime: new Date() });
+
+    // Tandai peserta left (jangan biarkan error di sini menggagalkan response)
+    try {
+      await MeetingParticipant.update(
+        { status: "left", leaveTime: new Date(), flag: "N" },
+        { where: { meetingId, flag: "Y" } }
+      );
+    } catch (e) {
+      console.error("Warn: update participants failed on endMeeting:", e);
+      // lanjut
     }
 
-    // Mark all participants as left
-    await MeetingParticipant.update(
-      {
-        status: "left",
-        leaveTime: new Date(),
-        flag: "N",
-      },
-      { where: { meetingId, flag: "Y" } }
-    );
-
-    console.log("Meeting ended successfully");
-
-    // Send WebSocket notification to all participants
-    if (global.wss) {
-      const { wss } = global;
-      wss.clients.forEach((client) => {
-        if (client.readyState === 1 && client.meetingId === meetingId) {
-          client.send(
-            JSON.stringify({
-              type: "meeting-ended",
-              meetingId: meetingId,
-              endedBy: userId,
-              timestamp: new Date().toISOString(),
-            })
-          );
-        }
-      });
+    // WebSocket broadcast (best-effort)
+    try {
+      if (global.wss?.clients) {
+        const { wss } = global;
+        wss.clients.forEach((client) => {
+          try {
+            if (
+              client.readyState === 1 &&
+              String(client.meetingId) === String(meetingId)
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "meeting-ended",
+                  meetingId,
+                  endedBy: userId,
+                  timestamp: new Date().toISOString(),
+                })
+              );
+            }
+          } catch (e) {
+            console.warn("WS notify failed:", e);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("WS block failed:", e);
     }
 
-    res.json({
-      success: true,
-      message: "Meeting ended successfully",
-    });
+    return res.json({ success: true, message: "Meeting ended successfully" });
   } catch (error) {
     console.error("Error ending meeting:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
       error: error.message,
@@ -859,51 +870,49 @@ const getActiveMeetings = async (req, res) => {
   }
 };
 
-// Check meeting status for participant (for polling/auto-exit)
 const checkMeetingStatus = async (req, res) => {
   try {
     const { meetingId } = req.params;
     const userId = req.user.id;
 
-    console.log(
-      `Checking meeting status for meeting ${meetingId}, user ${userId}`
-    );
-
-    // Check if meeting exists
     const meeting = await Meeting.findByPk(meetingId);
     if (!meeting) {
-      console.log(`Meeting ${meetingId} not found`);
-      return res.status(404).json({
-        success: false,
-        message: "Meeting not found",
+      return res
+        .status(404)
+        .json({ success: false, message: "Meeting not found" });
+    }
+
+    // Jika meeting sudah END, balikin 200 tanpa perlu cek participant
+    if (meeting.status === "ended") {
+      return res.json({
+        success: true,
+        message: "Meeting status retrieved successfully",
+        data: {
+          meetingId: meeting.meetingId,
+          title: meeting.title,
+          status: "ended",
+          isActive: false,
+          participantRole: null,
+          participantStatus: "left",
+          endTime: meeting.endTime,
+        },
       });
     }
 
-    // Check if user is participant in this meeting
+    // (Kondisi normal) cek participant
     const participant = await MeetingParticipant.findOne({
-      where: {
-        meetingId,
-        userId,
-        flag: "Y",
-      },
+      where: { meetingId, userId, flag: "Y" },
     });
-
     if (!participant) {
-      console.log(
-        `User ${userId} is not a participant in meeting ${meetingId}`
-      );
-      return res.status(403).json({
-        success: false,
-        message: "User is not a participant in this meeting",
-      });
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "User is not a participant in this meeting",
+        });
     }
 
-    console.log(
-      `Meeting ${meetingId} status: ${meeting.status}, User role: ${participant.role}`
-    );
-
-    // Return meeting status
-    res.json({
+    return res.json({
       success: true,
       message: "Meeting status retrieved successfully",
       data: {
@@ -918,11 +927,13 @@ const checkMeetingStatus = async (req, res) => {
     });
   } catch (error) {
     console.error("Error checking meeting status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Internal server error",
+        error: error.message,
+      });
   }
 };
 
