@@ -21,6 +21,7 @@ const {
   testWebSocket,
   getDefaultMeeting,
   joinDefaultMeeting,
+  hostSmartEnter,
 } = require("../controllers/meetingController");
 const auth = require("../middleware/auth");
 
@@ -54,7 +55,7 @@ router.get(
 
 // Check meeting status (for participants to validate before joining)
 router.get(
-  "/:meetingId/status",
+  "/:meetingId/status-for-join",
   auth.isAuthenticated,
   checkMeetingStatusForJoin
 );
@@ -82,6 +83,8 @@ router.post("/auto-invite", auth.isAuthenticated, autoInviteParticipants);
 
 // Auto-join meeting for invited participants
 router.post("/auto-join", auth.isAuthenticated, autoJoinMeeting);
+
+router.post("/host-smart-enter", auth.isAuthenticated, hostSmartEnter);
 
 // Get active meetings
 router.get("/active", auth.isAuthenticated, getActiveMeetings);
