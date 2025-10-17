@@ -8,7 +8,7 @@ import { useScreenShare } from "../contexts/ScreenShareContext";
 import "./meeting-footer.css";
 import { useModal } from "../contexts/ModalProvider.jsx";
 
-export default function MeetingFooter({
+export default function MeetingFFooter({
   userRole = "participant",
   onEndMeeting,
   onLeaveMeeting,
@@ -368,8 +368,6 @@ export default function MeetingFooter({
         </button>
       </div>
 
-      {/* 🔹 Right Control Group */}
-      {/* 🔹 Right Control Group */}
       <div className="pd-controls-right">
         {/* 🟩 Screen Share Button (dengan badge) */}
         <button
