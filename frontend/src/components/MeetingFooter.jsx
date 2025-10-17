@@ -269,7 +269,12 @@ export default function MeetingFFooter({
       onConfirm: async () => {
         if (!meetingId) throw new Error("Meeting ID not found.");
         await cleanupAllMediaAndRealtime();
-        await meetingService.endMeeting(meetingId);
+        try {
+          await meetingService.endMeeting(meetingId);
+        } catch (e) {
+          // BE bisa jadi sudah berhasil mengubah status, tapi balas 500 karena hal lain.
+          console.warn("endMeeting failed, forcing client exit anyway:", e);
+        }
       },
     });
 

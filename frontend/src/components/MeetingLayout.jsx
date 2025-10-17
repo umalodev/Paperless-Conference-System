@@ -49,8 +49,6 @@ const MeetingLayout = ({
         console.log("🧩 [MeetingLayout] Connecting meeting socket (once)...");
         meetingSocketService.connect(meetingId, userId, API_URL);
       }
-
-      // ❌ Jangan disconnect saat unmount, biar socket tetap hidup antar halaman
     }
   }, [meetingId, userId, disableMeetingSocket]);
 

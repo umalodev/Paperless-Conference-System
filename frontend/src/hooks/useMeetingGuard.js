@@ -42,7 +42,7 @@ export default function useMeetingGuard({
 
     const checkStatusOnce = async () => {
       try {
-        const res = await meetingService.checkMeetingStatus(meetingId);
+        const res = await meetingService.getMeetingStatus(meetingId);
         const status = res?.data?.status; // e.g. "waiting" | "started" | "ended"
         const isActive = !!res?.data?.isActive;
 
