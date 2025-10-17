@@ -61,7 +61,7 @@ const config = {
         {
           ip: "0.0.0.0",
           //http:
-          announcedIp: "192.168.1.16",
+          announcedIp: "192.168.1.21",
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
@@ -241,9 +241,17 @@ io.on("connection", (socket) => {
 
       await producer.pause();
       logger.info("Producer paused by client", { producerId });
+      const ownerPeerId = producer.appData?.peerId || null;
+      io.to(room.id).emit("producer-paused", {
+        roomId: room.id,
+        producerId,
+        peerId: ownerPeerId,
+        kind: producer.kind,
+      });
       cb({ ok: true });
     } catch (e) {
       logger.error("pause-producer failed", e);
+
       cb({ ok: false, error: e?.message || String(e) });
     }
   });
@@ -257,9 +265,33 @@ io.on("connection", (socket) => {
 
       await producer.resume();
       logger.info("Producer resumed by client", { producerId });
+      const ownerPeerId = producer.appData?.peerId || null;
+      io.to(room.id).emit("producer-resumed", {
+        roomId: room.id,
+        producerId,
+        peerId: ownerPeerId,
+        kind: producer.kind,
+      });
       cb({ ok: true });
     } catch (e) {
       logger.error("resume-producer failed", e);
+      cb({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
+  socket.on("close-producer", async ({ producerId }, cb = () => {}) => {
+    try {
+      const room = findRoomByProducerId(producerId);
+      if (!room) return cb({ ok: false, error: "room or producer not found" });
+
+      const producer = room.producers.get(producerId);
+      if (!producer) return cb({ ok: false, error: "producer not found" });
+
+      producer.close();
+      logger.info("Producer closed by client", { producerId });
+      cb({ ok: true });
+    } catch (e) {
+      logger.error("close-producer failed", e);
       cb({ ok: false, error: e?.message || String(e) });
     }
   });
