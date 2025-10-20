@@ -251,6 +251,19 @@ class MeetingService {
     }
   }
 
+  async hostSmartEnter(displayName) {
+    const res = await fetch(`${API_URL}/api/meeting/host-smart-enter`, {
+      method: "POST",
+      headers: this.getAuthHeadersWithName(), // biar X-Display-Name kepakai
+      body: JSON.stringify({ displayName }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || "Failed to smart-enter as host");
+    }
+    return json;
+  }
+
   // Get meetings by current user
   async getMyMeetings() {
     try {

@@ -492,6 +492,7 @@ const joinMeeting = async (req, res) => {
     const { meetingId } = req.body;
     const userId = req.user.id;
 
+    const meeting = await Meeting.findByPk(meetingId);
     // Validate required fields
     if (!meetingId) {
       return res.status(400).json({
@@ -500,8 +501,6 @@ const joinMeeting = async (req, res) => {
       });
     }
 
-    // Check if meeting exists
-    const meeting = await Meeting.findByPk(meetingId);
     if (!meeting) {
       return res.status(404).json({
         success: false,
@@ -517,38 +516,31 @@ const joinMeeting = async (req, res) => {
       });
     }
 
-    if (meeting.status === "waiting" || meeting.status === "active") {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Meeting belum dimulai oleh host. Silakan tunggu host memulai meeting.",
-      });
-    }
+    const isOwnerHost = meeting.userId === userId;
 
-    // Check if meeting has host
     const hostParticipant = await MeetingParticipant.findOne({
-      where: {
-        meetingId,
-        role: "host",
-        flag: "Y",
-      },
+      where: { meetingId, role: "host", flag: "Y" },
     });
 
-    if (!hostParticipant) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Meeting belum dimulai oleh host. Silakan tunggu host bergabung.",
-      });
-    }
-
-    // Check if host is currently online (has joined the meeting)
-    if (hostParticipant.status !== "joined") {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Host belum bergabung ke meeting. Silakan tunggu host bergabung.",
-      });
+    if (!isOwnerHost) {
+      if (meeting.status === "ended") {
+        /* sudah ada */
+      }
+      if (meeting.status === "waiting" || meeting.status === "active") {
+        return res
+          .status(400)
+          .json({ success: false, message: "Meeting belum dimulai..." });
+      }
+      if (!hostParticipant) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Host belum bergabung..." });
+      }
+      if (hostParticipant.status !== "joined") {
+        return res
+          .status(400)
+          .json({ success: false, message: "Host belum bergabung..." });
+      }
     }
 
     // Check if user is already in the meeting
@@ -738,66 +730,77 @@ const endMeeting = async (req, res) => {
     const { meetingId } = req.body;
     const userId = req.user.id;
 
-    // Check if user is host or admin in the meeting
+    // Cek meeting
+    const meeting = await Meeting.findByPk(meetingId);
+    if (!meeting) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Meeting not found" });
+    }
+
+    // Idempotent: kalau sudah ended, balikin OK
+    if (meeting.status === "ended") {
+      return res.json({ success: true, message: "Meeting already ended" });
+    }
+
+    // Cek otorisasi host/admin → pakai peserta dengan flag 'Y'
     const participant = await MeetingParticipant.findOne({
       where: { meetingId, userId, flag: "Y" },
     });
 
-    if (
-      !participant ||
-      (participant.role !== "host" && participant.role !== "admin")
-    ) {
+    if (!participant || !["host", "admin"].includes(participant.role)) {
       return res.status(403).json({
         success: false,
         message: "Only hosts and admins can end meetings",
       });
     }
 
-    // End the meeting
-    const meeting = await Meeting.findByPk(meetingId);
-    if (meeting) {
-      await meeting.update({
-        status: "ended",
-        endTime: new Date(),
-      });
+    // End meeting
+    await meeting.update({ status: "ended", endTime: new Date() });
+
+    // Tandai peserta left (jangan biarkan error di sini menggagalkan response)
+    try {
+      await MeetingParticipant.update(
+        { status: "left", leaveTime: new Date(), flag: "N" },
+        { where: { meetingId, flag: "Y" } }
+      );
+    } catch (e) {
+      console.error("Warn: update participants failed on endMeeting:", e);
+      // lanjut
     }
 
-    // Mark all participants as left
-    await MeetingParticipant.update(
-      {
-        status: "left",
-        leaveTime: new Date(),
-        flag: "N",
-      },
-      { where: { meetingId, flag: "Y" } }
-    );
-
-    console.log("Meeting ended successfully");
-
-    // Send WebSocket notification to all participants
-    if (global.wss) {
-      const { wss } = global;
-      wss.clients.forEach((client) => {
-        if (client.readyState === 1 && client.meetingId === meetingId) {
-          client.send(
-            JSON.stringify({
-              type: "meeting-ended",
-              meetingId: meetingId,
-              endedBy: userId,
-              timestamp: new Date().toISOString(),
-            })
-          );
-        }
-      });
+    // WebSocket broadcast (best-effort)
+    try {
+      if (global.wss?.clients) {
+        const { wss } = global;
+        wss.clients.forEach((client) => {
+          try {
+            if (
+              client.readyState === 1 &&
+              String(client.meetingId) === String(meetingId)
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "meeting-ended",
+                  meetingId,
+                  endedBy: userId,
+                  timestamp: new Date().toISOString(),
+                })
+              );
+            }
+          } catch (e) {
+            console.warn("WS notify failed:", e);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("WS block failed:", e);
     }
 
-    res.json({
-      success: true,
-      message: "Meeting ended successfully",
-    });
+    return res.json({ success: true, message: "Meeting ended successfully" });
   } catch (error) {
     console.error("Error ending meeting:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
       error: error.message,
@@ -867,51 +870,49 @@ const getActiveMeetings = async (req, res) => {
   }
 };
 
-// Check meeting status for participant (for polling/auto-exit)
 const checkMeetingStatus = async (req, res) => {
   try {
     const { meetingId } = req.params;
     const userId = req.user.id;
 
-    console.log(
-      `Checking meeting status for meeting ${meetingId}, user ${userId}`
-    );
-
-    // Check if meeting exists
     const meeting = await Meeting.findByPk(meetingId);
     if (!meeting) {
-      console.log(`Meeting ${meetingId} not found`);
-      return res.status(404).json({
-        success: false,
-        message: "Meeting not found",
+      return res
+        .status(404)
+        .json({ success: false, message: "Meeting not found" });
+    }
+
+    // Jika meeting sudah END, balikin 200 tanpa perlu cek participant
+    if (meeting.status === "ended") {
+      return res.json({
+        success: true,
+        message: "Meeting status retrieved successfully",
+        data: {
+          meetingId: meeting.meetingId,
+          title: meeting.title,
+          status: "ended",
+          isActive: false,
+          participantRole: null,
+          participantStatus: "left",
+          endTime: meeting.endTime,
+        },
       });
     }
 
-    // Check if user is participant in this meeting
+    // (Kondisi normal) cek participant
     const participant = await MeetingParticipant.findOne({
-      where: {
-        meetingId,
-        userId,
-        flag: "Y",
-      },
+      where: { meetingId, userId, flag: "Y" },
     });
-
     if (!participant) {
-      console.log(
-        `User ${userId} is not a participant in meeting ${meetingId}`
-      );
-      return res.status(403).json({
-        success: false,
-        message: "User is not a participant in this meeting",
-      });
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "User is not a participant in this meeting",
+        });
     }
 
-    console.log(
-      `Meeting ${meetingId} status: ${meeting.status}, User role: ${participant.role}`
-    );
-
-    // Return meeting status
-    res.json({
+    return res.json({
       success: true,
       message: "Meeting status retrieved successfully",
       data: {
@@ -926,11 +927,13 @@ const checkMeetingStatus = async (req, res) => {
     });
   } catch (error) {
     console.error("Error checking meeting status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Internal server error",
+        error: error.message,
+      });
   }
 };
 
@@ -1562,6 +1565,138 @@ const autoJoinMeeting = async (req, res) => {
   }
 };
 
+async function upsertHostParticipant({ meetingId, user, displayName }) {
+  const { MeetingParticipant, UserRole } = require("../models");
+  const now = new Date();
+
+  let mp = await MeetingParticipant.findOne({
+    where: { meetingId, userId: user.id },
+  });
+
+  const roleName = user?.UserRole?.nama === "admin" ? "admin" : "host";
+
+  if (!mp) {
+    mp = await MeetingParticipant.create({
+      meetingId,
+      userId: user.id,
+      role: roleName,
+      status: "joined",
+      joinTime: now,
+      displayName,
+      isAudioEnabled: true,
+      isVideoEnabled: true,
+      isScreenSharing: false,
+      flag: "Y",
+    });
+  } else {
+    await mp.update({
+      role: roleName,
+      status: "joined",
+      joinTime: now,
+      displayName,
+      flag: "Y",
+    });
+  }
+  return mp;
+}
+module.exports = { upsertHostParticipant };
+
+const hostSmartEnter = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // pastikan user adalah host/admin
+    const user = await User.findOne({
+      where: { id: userId },
+      include: [{ model: UserRole, as: "UserRole" }],
+    });
+    if (!user || !["host", "admin"].includes(user.UserRole?.nama)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Only host/admin" });
+    }
+
+    const displayName = getDisplayName(req, user);
+
+    // 1) Cari meeting milik host yang sudah started (paling baru)
+    let meeting = await Meeting.findOne({
+      where: { userId, status: "started", flag: "Y" },
+      order: [["startTime", "DESC"]],
+    });
+
+    // 2) Kalau tidak ada, cek scheduled paling baru → boleh auto-start
+    if (!meeting) {
+      const scheduled = await Meeting.findOne({
+        where: { userId, status: "scheduled", flag: "Y" },
+        order: [["startTime", "DESC"]],
+      });
+
+      if (scheduled) {
+        // Policy auto-start (opsional): batasi misal jika startTime <= now + 5 menit
+        const now = new Date();
+        const diff = new Date(scheduled.startTime) - now;
+        const allowAutoStart = diff <= 5 * 60 * 1000; // <= +5 menit dari sekarang
+
+        if (!allowAutoStart) {
+          // Balikin info: ada scheduled tapi belum waktunya
+          return res.json({
+            success: true,
+            data: {
+              mode: "scheduled_not_started",
+              meetingId: scheduled.meetingId,
+              title: scheduled.title,
+              status: scheduled.status,
+              canStart: true,
+            },
+          });
+        }
+
+        // Auto-start
+        await scheduled.update({ status: "started" });
+        meeting = scheduled;
+      }
+    }
+
+    // 3) Kalau tetap tidak ada meeting milik host → kembalikan info untuk fallback FE
+    if (!meeting) {
+      return res.json({
+        success: true,
+        data: { mode: "no_host_meeting" },
+      });
+    }
+
+    // 4) Pastikan host jadi participant: joined + flag Y
+    await upsertHostParticipant({
+      meetingId: meeting.meetingId,
+      user,
+      displayName,
+    });
+
+    // 5) Sinkronkan currentParticipants (opsional)
+    const total = await MeetingParticipant.count({
+      where: { meetingId: meeting.meetingId, flag: "Y" },
+    });
+    if (meeting.currentParticipants !== total) {
+      await meeting.update({ currentParticipants: total });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        mode: "rejoin_or_started",
+        meetingId: meeting.meetingId,
+        title: meeting.title,
+        status: meeting.status, // started
+        isDefault: !!meeting.isDefault,
+        currentParticipants: total,
+      },
+    });
+  } catch (e) {
+    console.error("hostSmartEnter error:", e);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 module.exports = {
   createMeeting,
   startMeeting,
@@ -1584,4 +1719,5 @@ module.exports = {
   getDefaultMeeting,
   getOrCreateDefaultMeeting,
   joinDefaultMeeting,
+  hostSmartEnter,
 };

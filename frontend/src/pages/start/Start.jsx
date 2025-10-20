@@ -5,7 +5,6 @@ import meetingService from "../../services/meetingService.js";
 import { API_URL } from "../../config.js";
 import meetingSocketService from "../../services/meetingSocketService.js";
 
-
 export default function Start() {
   const [user, setUser] = React.useState(null);
   const [role, setRole] = React.useState("participant");
@@ -120,8 +119,42 @@ export default function Start() {
         console.warn("⚠️ Control Server not available (browser mode)");
       }
 
-      // === Host ===
       if (isHost) {
+        // 1) coba smart-enter
+        const resp = await meetingService.hostSmartEnter(username);
+
+        if (resp?.data?.mode === "rejoin_or_started") {
+          const meetingInfo = {
+            id: resp.data.meetingId,
+            code: resp.data.meetingId,
+            title: resp.data.title || "My Meeting",
+            status: resp.data.status || "started",
+            isDefault: !!resp.data.isDefault,
+          };
+          localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
+          setMeetingLocalName(meetingInfo.id, username);
+          navigate("/waiting"); // langsung ke ruang tunggu/ruang
+          return;
+        }
+
+        if (resp?.data?.mode === "scheduled_not_started") {
+          // Opsional: auto-start di FE atau arahkan ke halaman setup untuk “Start Meeting”
+          // Misal langsung start:
+          await meetingService.startMeeting(resp.data.meetingId);
+          const meetingInfo = {
+            id: resp.data.meetingId,
+            code: resp.data.meetingId,
+            title: resp.data.title || "My Meeting",
+            status: "started",
+            isDefault: false,
+          };
+          localStorage.setItem("currentMeeting", JSON.stringify(meetingInfo));
+          setMeetingLocalName(meetingInfo.id, username);
+          navigate("/waiting");
+          return;
+        }
+
+        // Tidak ada meeting milik host → jatuhkan ke halaman setup seperti sebelumnya
         navigate("/setup");
         return;
       }
@@ -186,9 +219,15 @@ export default function Start() {
     <div className={styles["login-container"]}>
       <div className={styles["login-box"]}>
         <div className={styles["login-header"]}>
-          <img src="/img/logo.png" alt="Logo" className={styles["login-logo"]} />
+          <img
+            src="/img/logo.png"
+            alt="Logo"
+            className={styles["login-logo"]}
+          />
           <div className="login-title-container">
-            <h2 className={styles["login-title"]}>Paperless Conference System</h2>
+            <h2 className={styles["login-title"]}>
+              Paperless Conference System
+            </h2>
             <p className={styles["login-subtitle"]}>
               Join or host a paperless conference meeting
             </p>
@@ -246,7 +285,8 @@ export default function Start() {
               >
                 <strong>ℹ️ Auto-Join Meeting</strong>
                 <br />
-                Participant akan otomatis bergabung dengan meeting yang tersedia.
+                Participant akan otomatis bergabung dengan meeting yang
+                tersedia.
               </div>
             </div>
           )}
@@ -264,7 +304,9 @@ export default function Start() {
           {user && (
             <div className={styles["meta-hint"]}>
               Logged in as{" "}
-              <strong>{user?.username || user?.name || user?.email || "user"}</strong>{" "}
+              <strong>
+                {user?.username || user?.name || user?.email || "user"}
+              </strong>{" "}
               ({role})
             </div>
           )}
