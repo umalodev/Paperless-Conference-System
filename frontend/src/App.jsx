@@ -10,7 +10,7 @@ import ParticipantDashboard from "./features/participant/pages/ParticipantDashbo
 
 import Agenda from "./features/menu/agenda/pages/AgendaPage.jsx";
 import Materials from "./features/menu/materials/pages/MaterialsPage.jsx";
-import ParticipantsPage from "./pages/menu/participant/participant.jsx";
+import ParticipantsPage from "./features/menu/participant/pages/ParticipantsPage.jsx";
 import Survey from "./pages/menu/survey/Survey.jsx";
 import Files from "./features/menu/files/pages/FilesPage.jsx";
 import Chat from "./features/menu/chating/pages/ChatPage.jsx";
