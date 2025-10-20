@@ -8,11 +8,11 @@ import "./components/LockOverlay.css";
 import AdminDashboard from "./features/admin/dashboard/pages/AdminDashboard.jsx";
 import ParticipantDashboard from "./features/participant/pages/ParticipantDashboard.jsx";
 
-import Agenda from "./pages/menu/agenda/Agenda.jsx";
-import Materials from "./pages/menu/materials/Materials.jsx";
+import Agenda from "./features/menu/agenda/pages/AgendaPage.jsx";
+import Materials from "./features/menu/materials/pages/MaterialsPage.jsx";
 import ParticipantsPage from "./pages/menu/participant/participant.jsx";
 import Survey from "./pages/menu/survey/Survey.jsx";
-import Files from "./pages/menu/files/Files.jsx";
+import Files from "./features/menu/files/pages/FilesPage.jsx";
 import Chat from "./pages/menu/chating/Chating.jsx";
 import Notes from "./pages/menu/notes/Notes.jsx";
 import Start from "./pages/start/Start.jsx";
