@@ -1,21 +1,17 @@
 // ==========================================================
-// 📄 ParticipantDashboard.jsx (FINAL MERGED VERSION)
+// 🧠 useParticipantDashboard.js
 // ==========================================================
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import "./participant-dashboard.css";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { API_URL } from "../../../config.js";
 import { useNavigate } from "react-router-dom";
-import Icon from "../../../components/Icon.jsx";
 import meetingService from "../../../services/meetingService.js";
-import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
-import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../contexts/ModalProvider.jsx";
 import meetingSocketService from "../../../services/meetingSocketService.js";
 import { cleanupAllMediaAndRealtime } from "../../../utils/mediaCleanup.js";
-import MeetingLayout from "../../../components/MeetingLayout.jsx";
+import useMeetingGuard from "../../../hooks/useMeetingGuard.js";
 
-export default function ParticipantDashboard() {
+export function useParticipantDashboard() {
   // ==========================================================
   // 🧩 STATE
   // ==========================================================
@@ -25,14 +21,6 @@ export default function ParticipantDashboard() {
   const [err, setErr] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [currentMeeting, setCurrentMeeting] = useState(null);
-  const navigate = useNavigate();
-  const { confirm, notify } = useModal();
-
-  const mediaRoom = useMediaRoom?.() || null;
-
-  // ==========================================================
-  // 🔔 BADGE MAP
-  // ==========================================================
   const [badgeMap, setBadgeMap] = useState(() => {
     try {
       const x = localStorage.getItem("badge.map");
@@ -42,6 +30,13 @@ export default function ParticipantDashboard() {
     }
   });
 
+  const navigate = useNavigate();
+  const { confirm, notify } = useModal();
+  const mediaRoom = useMediaRoom?.() || null;
+
+  // ==========================================================
+  // 🔔 BADGE MAP
+  // ==========================================================
   const setBadgeLocal = useCallback((slug, value) => {
     try {
       const key = "badge.map";
@@ -154,7 +149,6 @@ export default function ParticipantDashboard() {
 
     const latestDisplayName = nameFromLocal || displayName || user?.username || "User";
 
-    // cleanup listener lama
     meetingSocketService.off("participant_joined");
     meetingSocketService.off("participant_left");
     meetingSocketService.socket?.off("connect");
@@ -270,45 +264,35 @@ export default function ParticipantDashboard() {
       okText: "Logout",
       cancelText: "Batal",
     });
-
     if (!ok) return;
-
     try {
       const meetingId = currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
-
       try {
         await meetingSocketService.disconnect(true);
         await new Promise((r) => setTimeout(r, 400));
       } catch {}
-
       if (micOn) await stopMic().catch(() => {});
       if (camOn) await stopCam().catch(() => {});
-
       await cleanupAllMediaAndRealtime({ mediaRoom }).catch(() => {});
-
       try {
         if (window.electronAPI?.disconnectFromControlServer) {
           window.electronAPI.disconnectFromControlServer();
         }
       } catch {}
-
       try {
         if (meetingId) await meetingService.leaveMeeting(meetingId);
       } catch {}
-
       try {
         if (typeof meetingService.logout === "function") {
           await meetingService.logout();
         }
       } catch {}
-
       await notify({
         variant: "success",
         title: "Signed out",
         message: "See you soon 👋",
         autoCloseMs: 900,
       });
-
       navigate("/", { replace: true });
     } catch (e) {
       console.error("Logout error:", e);
@@ -318,9 +302,6 @@ export default function ParticipantDashboard() {
     }
   };
 
-  // ==========================================================
-  // 🧭 UI + BADGE TILE
-  // ==========================================================
   const visibleMenus = useMemo(
     () =>
       (menus || [])
@@ -330,125 +311,27 @@ export default function ParticipantDashboard() {
   );
 
   const handleTileClick = (menu) => navigate(`/menu/${menu.slug}`);
-
   const meetingIdDisplay = currentMeeting?.id || "MTG-001";
   const activeMeetingId =
     currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code || null;
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
-  // ==========================================================
-  // 🧱 RENDER
-  // ==========================================================
-  return (
-    <MeetingLayout
-      meetingId={activeMeetingId}
-      userId={user?.id || user?.userId || null}
-      userRole={user?.role || "participant"}
-      disableMeetingSocket={true}
-      badgeMap={badgeMap}
-      setBadgeLocal={setBadgeLocal}
-      meetingTitle={
-        (() => {
-          try {
-            const raw = localStorage.getItem("currentMeeting");
-            const cm = raw ? JSON.parse(raw) : null;
-            return cm?.title || `Meeting #${meetingIdDisplay}`;
-          } catch {
-            return `Meeting #${meetingIdDisplay}`;
-          }
-        })()
-      }
-    >
-      <div className="pd-app centered-page">
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <div>
-              <h1 className="pd-title">
-                {(() => {
-                  try {
-                    const raw = localStorage.getItem("currentMeeting");
-                    const cm = raw ? JSON.parse(raw) : null;
-                    return cm?.title || `Meeting #${meetingIdDisplay}`;
-                  } catch {
-                    return `Meeting #${meetingIdDisplay}`;
-                  }
-                })()}
-              </h1>
-              <div className="pd-sub">ID: {meetingIdDisplay}</div>
-            </div>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {(displayName || user?.username || "User").slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="pd-user-name">{displayName || user?.username || "Participant"}</div>
-                <div className="pd-user-role">{user?.role}</div>
-              </div>
-              <button className="pd-ghost" onClick={handleLogout}>
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="pd-main">
-          <section className="pd-panel pd-dock">
-            {loading && <div className="pd-empty">Loading menus…</div>}
-            {err && !loading && <div className="pd-error">Gagal memuat menu: {err}</div>}
-            {!loading && !err && (
-              <div className="pd-grid">
-                {visibleMenus.map((m) => {
-                  const slug = (m.slug || "").toLowerCase();
-                  const val = Number(badgeMap[slug] || 0);
-                  return (
-                    <button
-                      key={m.menuId || m.slug}
-                      className="pd-tile"
-                      onClick={() => handleTileClick(m)}
-                      aria-label={val > 0 ? `${m.label}, ${val} baru` : m.label || m.slug}
-                    >
-                      <span className="pd-tile-icon" aria-hidden>
-                        <Icon slug={m.slug} iconUrl={m.iconUrl} />
-                        {val > 0 ? (
-                          <span className="pd-badge">{val > 99 ? "99+" : val}</span>
-                        ) : m.hasNew ? (
-                          <span className="pd-dot" />
-                        ) : null}
-                      </span>
-                      <span className="pd-tile-label">{m.label}</span>
-                    </button>
-                  );
-                })}
-                {visibleMenus.length === 0 && (
-                  <div className="pd-empty">Tidak ada menu untuk role ini.</div>
-                )}
-              </div>
-            )}
-          </section>
-        </main>
-
-        <MeetingFooter
-          userRole={user?.role || "participant"}
-          onLeaveMeeting={() => {
-            if (window.confirm("Keluar dari meeting ini?")) {
-              localStorage.removeItem("currentMeeting");
-              navigate("/start");
-            }
-          }}
-          micOn={micOn}
-          camOn={camOn}
-          onToggleMic={onToggleMic}
-          onToggleCam={onToggleCam}
-          onHelpClick={() => alert("Contact support")}
-        />
-      </div>
-    </MeetingLayout>
-  );
+  return {
+    user,
+    displayName,
+    badgeMap,
+    setBadgeLocal,
+    visibleMenus,
+    loading,
+    err,
+    meetingIdDisplay,
+    activeMeetingId,
+    onToggleMic,
+    onToggleCam,
+    micOn,
+    camOn,
+    handleTileClick,
+    handleLogout,
+  };
 }

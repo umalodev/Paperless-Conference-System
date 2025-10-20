@@ -244,7 +244,8 @@ export default function Chat() {
             nameByUserId.get(String(msg.userId)) ||
             msg.Sender?.displayName ||
             msg.Sender?.username ||
-            "Unknown",
+            msg.displayName || // untuk jaga-jaga jika API langsung kirim displayName
+              "Participant",
           text: msg.textMessage || "",
           ts: new Date(msg.sendTime).getTime(),
           messageType: msg.messageType,
@@ -290,13 +291,13 @@ export default function Chat() {
     const handleChatMessage = (data) => {
       if (data?.type !== "chat_message") return;
 
-      const senderName =
-        nameByUserId.get(String(data.userId)) ||
-        data.displayName ||
-        data.name ||
-        data.username ||
-        "Unknown";
-
+    const senderName =
+      data.displayName ||
+      nameByUserId.get(String(data.userId)) ||
+      data.name ||
+      data.username ||
+      "Participant";
+      
       const newMessage = {
         id: data.messageId,
         userId: data.userId,
