@@ -3,7 +3,7 @@ import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
 import { useMediaRoom } from "../../../contexts/MediaRoomContext.jsx";
-import simpleScreenShare from "../../../services/simpleScreenShare";  // ⬅️ tambahin ini
+import simpleScreenShare from "../../../services/simpleScreenShare";
 
 export default function ScreenSharePage() {
   const [user, setUser] = useState(null);

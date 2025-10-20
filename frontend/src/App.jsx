@@ -12,15 +12,27 @@ import Agenda from "./features/menu/agenda/pages/AgendaPage.jsx";
 import Materials from "./features/menu/materials/pages/MaterialsPage.jsx";
 import ParticipantsPage from "./features/menu/participant/pages/ParticipantsPage.jsx";
 import Survey from "./pages/menu/survey/Survey.jsx";
+
+
+
+
+import Start from "./features/start/pages/Start.jsx";
+import WaitingRoom from "./features/waiting/pages/WaitingRoom.jsx";
+import SetUp from "./features/setup/pages/SetUp.jsx";
+
+import ScreenSharePage from "./features/share-screen/pages/ScreenShare.jsx";
+
+
 import Files from "./features/menu/files/pages/FilesPage.jsx";
 import Chat from "./features/menu/chating/pages/ChatPage.jsx";
 import Notes from "./features/menu/notes/pages/NotesPage.jsx";
-import Start from "./pages/start/Start.jsx";
-import WaitingRoom from "./pages/waiting/WaitingRoom.jsx";
-import SetUp from "./pages/start/SetUp.jsx";
+
+
+
 import Services from "./features/menu/services/pages/ServicesPage.jsx";
-import ScreenSharePage from "./pages/menu/screenshare/ScreenShare.jsx";
+
 import Whiteboard from "./features/menu/whiteboard/pages/WhiteboardPage.jsx";
+
 import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
 import MasterController from "./features/master-controller/pages/MasterController.jsx";
 import { ModalProvider } from "./contexts/ModalProvider.jsx";
