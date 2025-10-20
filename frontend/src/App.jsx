@@ -11,7 +11,7 @@ import ParticipantDashboard from "./features/participant/pages/ParticipantDashbo
 import Agenda from "./features/menu/agenda/pages/AgendaPage.jsx";
 import Materials from "./features/menu/materials/pages/MaterialsPage.jsx";
 import ParticipantsPage from "./features/menu/participant/pages/ParticipantsPage.jsx";
-import Survey from "./pages/menu/survey/Survey.jsx";
+import Survey from "./features/menu/survey/pages/SurveyPage.jsx";
 
 
 
@@ -21,16 +21,10 @@ import WaitingRoom from "./features/waiting/pages/WaitingRoom.jsx";
 import SetUp from "./features/setup/pages/SetUp.jsx";
 
 import ScreenSharePage from "./features/share-screen/pages/ScreenShare.jsx";
-
-
 import Files from "./features/menu/files/pages/FilesPage.jsx";
 import Chat from "./features/menu/chating/pages/ChatPage.jsx";
 import Notes from "./features/menu/notes/pages/NotesPage.jsx";
-
-
-
 import Services from "./features/menu/services/pages/ServicesPage.jsx";
-
 import Whiteboard from "./features/menu/whiteboard/pages/WhiteboardPage.jsx";
 
 import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
