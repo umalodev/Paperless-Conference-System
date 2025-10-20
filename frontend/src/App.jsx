@@ -19,7 +19,7 @@ import Start from "./features/start/pages/Start.jsx";
 import WaitingRoom from "./features/waiting/pages/WaitingRoom.jsx";
 import SetUp from "./features/setup/pages/SetUp.jsx";
 import Services from "./pages/menu/services/services.jsx";
-import ScreenSharePage from "./pages/menu/screenshare/ScreenShare.jsx";
+import ScreenSharePage from "./features/share-screen/pages/ScreenShare.jsx";
 import Whiteboard from "./pages/menu/whiteboard/whiteboards.jsx";
 import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
 import MasterController from "./features/master-controller/pages/MasterController.jsx";
