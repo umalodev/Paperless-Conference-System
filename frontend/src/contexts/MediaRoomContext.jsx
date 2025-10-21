@@ -1,3 +1,4 @@
+// src/contexts/MediaRoomContext.jsx
 import React, {
   createContext,
   useContext,
@@ -8,27 +9,27 @@ import React, {
   useCallback,
 } from "react";
 import useMediasoupRoom from "../hooks/useMediasoupRoom";
+import meetingSocketService from "../services/meetingSocketService.js";
 
-/** Tombol unlock sekali untuk lewati autoplay policy + audio sinks tersembunyi */
+/** Tombol unlock audio global (bypass autoplay policy) */
 function GlobalAudioLayer({ remotePeers, myPeerId }) {
   const [unlocked, setUnlocked] = useState(
     () => sessionStorage.getItem("audioUnlocked") === "1"
   );
-  useEffect(() => {
-    sessionStorage.setItem("audioUnlocked", unlocked ? "1" : "0");
-  }, [unlocked]);
-
-  // hitung berapa sink yang masih terblokir
   const [blockedCount, setBlockedCount] = useState(0);
+
   const onBlocked = useCallback(() => setBlockedCount((c) => c + 1), []);
   const onUnblocked = useCallback(
     () => setBlockedCount((c) => Math.max(0, c - 1)),
     []
   );
 
+  useEffect(() => {
+    sessionStorage.setItem("audioUnlocked", unlocked ? "1" : "0");
+  }, [unlocked]);
+
   const triggerReplayAll = () => setUnlocked((u) => !u);
 
-  // tombol global; tampil sampai user klik sekali
   return (
     <>
       {!unlocked && blockedCount > 0 && (
@@ -38,20 +39,12 @@ function GlobalAudioLayer({ remotePeers, myPeerId }) {
           </button>
         </div>
       )}
-      {/* Sink audio global (hidden). Selalu terpasang di semua halaman */}
-      <div
-        style={{
-          position: "absolute",
-          width: 0,
-          height: 0,
-          overflow: "hidden",
-        }}
-      >
+      <div style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
         {Array.from(remotePeers.entries()).map(([pid, obj]) => (
           <AudioSink
-            key={`global-audio-${pid}`}
+            key={`audio-${pid}`}
             stream={obj.stream}
-            muted={String(pid) === String(myPeerId)} // jangan putar suara kita sendiri
+            muted={String(pid) === String(myPeerId)}
             hideButton
             unlockedSignal={unlocked}
             onBlocked={onBlocked}
@@ -63,7 +56,7 @@ function GlobalAudioLayer({ remotePeers, myPeerId }) {
   );
 }
 
-/** Dipakai GlobalAudioLayer */
+/** Komponen sink audio tersembunyi */
 function AudioSink({
   stream,
   muted,
@@ -79,8 +72,10 @@ function AudioSink({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
     const hasAudio = !!stream && stream.getAudioTracks().length > 0;
     el.srcObject = hasAudio ? stream : null;
+
     if (hasAudio && !muted) {
       el.play()
         .then(() => setNeedUnlock(false))
@@ -91,16 +86,14 @@ function AudioSink({
   useEffect(() => {
     if (needUnlock !== prevNeedUnlock.current) {
       prevNeedUnlock.current = needUnlock;
-      if (needUnlock) onBlocked && onBlocked();
-      else onUnblocked && onUnblocked();
+      if (needUnlock) onBlocked?.();
+      else onUnblocked?.();
     }
   }, [needUnlock, onBlocked, onUnblocked]);
 
   const unlock = () => {
     const el = ref.current;
-    el?.play()
-      ?.then(() => setNeedUnlock(false))
-      .catch(() => {});
+    el?.play()?.then(() => setNeedUnlock(false)).catch(() => {});
   };
 
   return (
@@ -110,77 +103,135 @@ function AudioSink({
           Enable audio
         </button>
       )}
-      <audio
-        ref={ref}
-        autoPlay
-        playsInline
-        muted={muted}
-        style={{ display: "none" }}
-      />
+      <audio ref={ref} autoPlay playsInline muted={muted} style={{ display: "none" }} />
     </>
   );
 }
 
+// ====================== CONTEXT ======================
+
 const MediaRoomContext = createContext(null);
 
 export function MediaRoomProvider({ children }) {
-  // ✅ FIX: Gunakan useState + useEffect untuk sync localStorage setelah mount
   const [meeting, setMeeting] = useState(null);
   const [myPeerId, setMyPeerId] = useState(null);
   const [localStorageReady, setLocalStorageReady] = useState(false);
 
+  /** 🔹 Ambil meeting & user dari localStorage */
   useEffect(() => {
-    console.log("🔍 MediaRoomProvider: Reading localStorage...");
     try {
       const rawMeeting = localStorage.getItem("currentMeeting");
       const rawUser = localStorage.getItem("user");
-      console.log("📦 localStorage raw:", {
-        currentMeeting: rawMeeting,
-        user: rawUser,
-      }); // ✅ Log detail: Ini akan tampil isi exact
-
       const cm = rawMeeting ? JSON.parse(rawMeeting) : null;
       const newMeeting = cm?.id || cm?.meetingId || cm?.code || null;
-
-      const userRaw = rawUser || "{}";
       const newPeerId = String(
-        JSON.parse(userRaw)?.id || localStorage.getItem("userId") || "me"
+        JSON.parse(rawUser || "{}")?.id ||
+          localStorage.getItem("userId") ||
+          "me"
       );
-
-      console.log("📦 localStorage parsed:", { newMeeting, newPeerId });
 
       setMeeting(newMeeting);
       setMyPeerId(newPeerId);
-      setLocalStorageReady(true);
     } catch (e) {
       console.error("❌ Error reading localStorage:", e);
-      setLocalStorageReady(true); // Tetap set true biar UI gak stuck
+    } finally {
+      setLocalStorageReady(true);
     }
-  }, []); // Run sekali setelah mount
+  }, []);
 
-  // ✅ Hook hanya jalan jika localStorage ready + valid
+  // Hook Mediasoup utama
   const media = useMediasoupRoom({
     roomId: meeting,
     peerId: myPeerId,
   });
 
+  // 🔹 Gunakan state manual untuk sinkronisasi mic & cam antar user
+  const [micState, setMicState] = useState(false);
+  const [camState, setCamState] = useState(false);
+  const micRef = useRef(false);
+  const camRef = useRef(false);
+
+  useEffect(() => {
+    micRef.current = micState;
+    camRef.current = camState;
+  }, [micState, camState]);
+
+  /** 🔹 Broadcast event perubahan mic/cam */
+  const broadcastMediaChange = useCallback(
+    (type, value) => {
+      if (!meeting || !myPeerId) return;
+      const userObj = JSON.parse(localStorage.getItem("user") || "{}");
+      const participantId = String(userObj?.userId ?? userObj?.id ?? myPeerId);
+
+      const micValue = type === "micOn" ? value : micRef.current;
+      const camValue = type === "camOn" ? value : camRef.current;
+
+      console.log("📡 EMIT → participant_media_changed", {
+        participantId,
+        micOn: micValue,
+        camOn: camValue,
+      });
+
+meetingSocketService.send({
+  type: "participant_media_changed",
+  participantId,
+  micOn: micValue,
+  camOn: camValue,
+});
+
+    },
+    [meeting, myPeerId]
+  );
+
+  /** 🔹 Override fungsi mic & cam agar broadcast sinkron */
+  const startMic = async () => {
+    await media.startMic();
+    setMicState(true);
+    broadcastMediaChange("micOn", true);
+  };
+
+  const stopMic = async () => {
+    await media.stopMic();
+    setMicState(false);
+    broadcastMediaChange("micOn", false);
+  };
+
+  const startCam = async () => {
+    await media.startCam();
+    setCamState(true);
+    broadcastMediaChange("camOn", true);
+  };
+
+  const stopCam = async () => {
+    await media.stopCam();
+    setCamState(false);
+    broadcastMediaChange("camOn", false);
+  };
+
+  /** 🔹 Nilai Context */
   const value = useMemo(
     () => ({
       ...media,
+      micOn: micState,
+      camOn: camState,
+      startMic,
+      stopMic,
+      startCam,
+      stopCam,
       myPeerId,
-      localStorageReady, // Export untuk debug di consumer
+      localStorageReady,
     }),
-    [media, myPeerId, localStorageReady]
+    [media, micState, camState, myPeerId, localStorageReady]
   );
 
-  // Jika localStorage gak ready atau invalid, tampilkan loading dengan style visible
+  /** 🔹 UI Loading state */
   if (!localStorageReady) {
     return (
       <div
         style={{
           padding: 20,
           textAlign: "center",
-          backgroundColor: "white", // ✅ Fix black screen: Force white bg
+          backgroundColor: "white",
           color: "black",
           minHeight: "100vh",
           display: "flex",
@@ -199,7 +250,7 @@ export function MediaRoomProvider({ children }) {
         style={{
           padding: 20,
           textAlign: "center",
-          backgroundColor: "white", // ✅ Fix black screen
+          backgroundColor: "white",
           color: "black",
           minHeight: "100vh",
           display: "flex",
@@ -214,16 +265,22 @@ export function MediaRoomProvider({ children }) {
     );
   }
 
+  /** 🔹 Provider utama */
   return (
     <MediaRoomContext.Provider value={value}>
       {children}
-      {meeting && media.remotePeers?.size > 0 && (
-        <GlobalAudioLayer remotePeers={media.remotePeers} myPeerId={myPeerId} />
+
+      {meeting && value.remotePeers && value.remotePeers.size > 0 && (
+        <GlobalAudioLayer
+          remotePeers={value.remotePeers}
+          myPeerId={myPeerId}
+        />
       )}
     </MediaRoomContext.Provider>
   );
 }
 
+/** Hook pemanggil */
 export function useMediaRoom() {
   const ctx = useContext(MediaRoomContext);
   if (!ctx)

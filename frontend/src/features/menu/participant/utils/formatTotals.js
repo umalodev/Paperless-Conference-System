@@ -6,16 +6,25 @@
  * @param {Map} remotePeers - map dari mediasoup peer
  * @param {boolean} micOn - mic lokal aktif
  * @param {boolean} camOn - cam lokal aktif
+ * @param {string|number} myPeerId - ID peer lokal (agar tidak dihitung dua kali)
  * @returns {{ total: number, micOn: number, camOn: number }}
  */
-export function formatTotals(participants, remotePeers, micOn, camOn) {
+export function formatTotals(participants, remotePeers, micOn, camOn, myPeerId) {
   const total = participants.length;
-  const liveMic =
-    (micOn ? 1 : 0) +
-    Array.from(remotePeers.values()).filter((v) => v.audioActive).length;
-  const liveCam =
-    (camOn ? 1 : 0) +
-    Array.from(remotePeers.values()).filter((v) => v.videoActive).length;
 
-  return { total, micOn: liveMic, camOn: liveCam };
+  let micCount = 0;
+  let camCount = 0;
+
+  // ✅ hitung semua peer kecuali diri sendiri
+  for (const [pid, peer] of remotePeers.entries()) {
+    if (String(pid) === String(myPeerId)) continue;
+    if (peer.audioActive) micCount++;
+    if (peer.videoActive) camCount++;
+  }
+
+  // ✅ tambahkan status lokal
+  if (micOn) micCount++;
+  if (camOn) camCount++;
+
+  return { total, micOn: micCount, camOn: camCount };
 }

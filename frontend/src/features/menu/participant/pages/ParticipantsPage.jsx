@@ -12,6 +12,7 @@ import meetingService from "../../../../services/meetingService.js";
 import meetingSocketService from "../../../../services/meetingSocketService.js";
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
+import Icon from "../../../../components/Icon.jsx"; // ✅ tambahkan ini untuk ikon refresh
 
 // Layout & Components
 import ParticipantsLayout from "../layouts/ParticipantsLayout.jsx";
@@ -37,6 +38,10 @@ export default function ParticipantsPage() {
   const [errList, setErrList] = useState("");
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("list");
+
+  // ✅ Tambahkan state untuk refresh video
+  const [videoRefreshKey, setVideoRefreshKey] = useState(0);
+  const [refreshingVideo, setRefreshingVideo] = useState(false);
 
   const navigate = useNavigate();
   const meetingId = useMemo(() => {
@@ -133,7 +138,10 @@ export default function ParticipantsPage() {
           updated[idx] = { ...updated[idx], displayName: name };
           return updated;
         }
-        return [...prev, { id, displayName: name, mic: false, cam: false, role: "participant" }];
+        return [
+          ...prev,
+          { id, displayName: name, mic: false, cam: false, role: "participant" },
+        ];
       });
     };
 
@@ -181,7 +189,12 @@ export default function ParticipantsPage() {
     myPeerId,
   } = useMediaRoom();
 
-  const liveFlagsFor = useLiveFlags(remotePeers, String(myPeerId), micOn, camOn);
+  const liveFlagsFor = useLiveFlags(
+    remotePeers,
+    String(myPeerId),
+    micOn,
+    camOn
+  );
   const totals = useMemo(
     () => formatTotals(participants, remotePeers, micOn, camOn),
     [participants.length, remotePeers, micOn, camOn]
@@ -261,8 +274,21 @@ export default function ParticipantsPage() {
     }
   };
 
-  const onToggleMic = useCallback(() => (micOn ? stopMic() : startMic()), [micOn]);
-  const onToggleCam = useCallback(() => (camOn ? stopCam() : startCam()), [camOn]);
+  const onToggleMic = useCallback(
+    () => (micOn ? stopMic() : startMic()),
+    [micOn]
+  );
+  const onToggleCam = useCallback(
+    () => (camOn ? stopCam() : startCam()),
+    [camOn]
+  );
+
+  // ✅ Tombol khusus refresh video
+  const handleRefreshVideo = () => {
+    setRefreshingVideo(true);
+    setVideoRefreshKey((k) => k + 1);
+    setTimeout(() => setRefreshingVideo(false), 700);
+  };
 
   useMeetingGuard({ pollingMs: 5000, showAlert: true });
 
@@ -272,7 +298,8 @@ export default function ParticipantsPage() {
       user={user}
       displayName={displayName}
       meetingTitle={
-        JSON.parse(localStorage.getItem("currentMeeting") || "{}")?.title || "Default"
+        JSON.parse(localStorage.getItem("currentMeeting") || "{}")?.title ||
+        "Default"
       }
       visibleMenus={visibleMenus}
       onSelectNav={handleSelectNav}
@@ -283,7 +310,14 @@ export default function ParticipantsPage() {
       loadingMenus={loadingMenus}
       errMenus={errMenus}
     >
-      <ParticipantTabs activeTab={activeTab} onChange={setActiveTab} />
+      
+    <ParticipantTabs
+      activeTab={activeTab}
+      onChange={setActiveTab}
+      onRefreshVideo={handleRefreshVideo}
+      refreshingVideo={refreshingVideo}
+    />
+
       {activeTab === "list" ? (
         <ParticipantList
           participants={participants}
@@ -306,6 +340,7 @@ export default function ParticipantsPage() {
         />
       ) : (
         <VideoGrid
+          key={videoRefreshKey} // 💥 Re-render hanya VideoGrid
           participants={participants}
           remotePeers={remotePeers}
           localStream={localStream}

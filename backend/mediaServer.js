@@ -189,6 +189,29 @@ io.on("connection", (socket) => {
     }
   });
 
+  // === Broadcast perubahan Mic/Cam antar peserta ===
+  socket.on("participant_media_changed", (data) => {
+    const { participantId, micOn, camOn } = data;
+    logger.info("🎤 participant_media_changed", { participantId, micOn, camOn });
+
+    // cari room tempat socket ini berada
+    const room = [...rooms.values()].find((r) => r.peers.has(socket.id));
+    if (!room) {
+      logger.warn("participant_media_changed: room not found for socket", socket.id);
+      return;
+    }
+
+    // broadcast ke semua peserta lain di ruangan
+    socket.to(room.id).emit("participant_media_changed", { participantId, micOn, camOn });
+
+    // pantulkan juga ke pengirim agar sinkron dengan UI sendiri
+    socket.emit("participant_media_changed", { participantId, micOn, camOn });
+
+    logger.info("🎤 participant_media_changed", { participantId, micOn, camOn });
+  });
+
+
+
   socket.on("create-transport", async (data) => {
     try {
       const { direction, roomId } = data;

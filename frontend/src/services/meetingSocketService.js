@@ -135,7 +135,7 @@ class MeetingSocketService {
   // =========================================================
   // Message Handling
   // =========================================================
-  handleMessage(data) {
+    handleMessage(data) {
     if (!data?.type) return;
 
     switch (data.type) {
@@ -152,6 +152,11 @@ class MeetingSocketService {
       case "participant_left":
         console.log("🚪 Participant left:", data.displayName);
         this.emit("participant_left", data);
+        break;
+
+      case "participant_media_changed": // ✅ <---- tambahkan ini
+        console.log("🎙️ participant_media_changed:", data);
+        this.emit("participant_media_changed", data);
         break;
 
       case "chat_message":
@@ -185,6 +190,7 @@ class MeetingSocketService {
         break;
     }
   }
+
 
   // =========================================================
   // Helper: Dispatch ke global window event
