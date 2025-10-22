@@ -85,6 +85,13 @@ export default function useStartPage() {
 
       const token = localStorage.getItem("token");
 
+      if (window.electronAPI && window.electronAPI.connectToControlServer) {
+        console.log("🛰️ Connecting device to Control Server from useStartPage...");
+        window.electronAPI.connectToControlServer(token, username || user?.username);
+      } else {
+        console.warn("⚠️ electronAPI not available (not running in Electron?)");
+      }
+
       if (isHost) {
         const resp = await meetingService.hostSmartEnter(username);
         if (resp?.data?.mode === "rejoin_or_started") {
