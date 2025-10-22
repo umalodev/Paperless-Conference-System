@@ -41,9 +41,27 @@ export default function SurveyLayout({
       mediasoupDevice={null}
       meetingTitle={meetingTitle}
     >
-      <div className="pd-app">
+      {/* === Global Scroll Wrapper === */}
+      <div
+        className="pd-app survey-scrollable"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          overflow: "hidden",
+        }}
+      >
         {/* === Topbar === */}
-        <header className="pd-topbar">
+        <header
+          className="pd-topbar"
+          style={{
+            flexShrink: 0,
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            background: "#fff",
+          }}
+        >
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <div>
@@ -75,26 +93,50 @@ export default function SurveyLayout({
           </div>
         </header>
 
-        {/* === Main Content === */}
-        <main className="pd-main">{children}</main>
+        {/* === Scrollable main === */}
+        <main
+          className="pd-main scrollable-content"
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "24px",
+            scrollBehavior: "smooth",
+            height: "100vh",
+          }}
+        >
+          {children}
+        </main>
 
         {/* === Bottom Navigation === */}
         {!loadingMenus && !errMenus && (
-          <BottomNav
-            items={visibleMenus}
-            active="survey"
-            onSelect={onSelectNav}
-          />
+          <div
+            style={{
+              position: "fixed",
+              bottom: 70, // sedikit di atas footer control
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              pointerEvents: "auto",
+            }}
+          >
+            <BottomNav
+              items={visibleMenus}
+              active="survey"
+              onSelect={onSelectNav}
+            />
+          </div>
         )}
 
         {/* === Footer Control === */}
-        <MeetingFooter
-          userRole={user?.role || "participant"}
-          micOn={micOn}
-          camOn={camOn}
-          onToggleMic={onToggleMic}
-          onToggleCam={onToggleCam}
-        />
+        <div style={{ flexShrink: 0 }}>
+          <MeetingFooter
+            userRole={user?.role || "participant"}
+            micOn={micOn}
+            camOn={camOn}
+            onToggleMic={onToggleMic}
+            onToggleCam={onToggleCam}
+          />
+        </div>
       </div>
     </MeetingLayout>
   );

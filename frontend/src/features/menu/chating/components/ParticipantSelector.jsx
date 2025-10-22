@@ -2,7 +2,7 @@
 import React from "react";
 
 export default function ParticipantSelector({
-  participants,
+  participants = [],
   user,
   loading,
   onSelectParticipant,
@@ -13,7 +13,8 @@ export default function ParticipantSelector({
 
   return (
     <div className="participant-selector">
-      <h3>Select a Participant for Private Chat:</h3>
+      <h3>Select a Participant for Private Chat</h3>
+
       {loading ? (
         <div className="pd-empty">Loading participants...</div>
       ) : activeParticipants.length > 0 ? (
@@ -29,21 +30,25 @@ export default function ParticipantSelector({
               </div>
               <div className="participant-info">
                 <div className="participant-name">
-                  {participant.displayName}
+                  {participant.displayName || "Unknown User"}
                 </div>
-                <div className="participant-role">{participant.role}</div>
-                <div className="participant-status">
-                  <span
-                    className={`status-dot ${participant.status}`}
-                  ></span>
-                  {participant.status}
+                <div className="participant-meta">
+                  <span className="participant-role">
+                    {participant.role || "Participant"}
+                  </span>
+                  <span className="participant-status">
+                    <span
+                      className={`status-dot ${participant.status || "left"}`}
+                    ></span>
+                    {participant.status || "offline"}
+                  </span>
                 </div>
               </div>
             </button>
           ))}
         </div>
       ) : (
-        <div className="pd-empty">No active participants available</div>
+        <div className="pd-empty">No active participants found</div>
       )}
     </div>
   );

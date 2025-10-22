@@ -1,5 +1,5 @@
 // src/features/chat/components/ChatComposer.jsx
-import React from "react";
+import React, { useRef } from "react";
 import Icon from "../../../../components/Icon.jsx";
 
 export default function ChatComposer({
@@ -10,31 +10,41 @@ export default function ChatComposer({
   onFileUpload,
   sending,
 }) {
+  const fileInputRef = useRef();
+
   return (
-    <div className="chat-composer">
-      <div className="composer-left">
-        <label className="chat-iconbtn" title="Lampirkan File">
-          <Icon slug="attach" iconUrl="/img/icons/attach.svg" size={20} />
-          <input
-            type="file"
-            style={{ display: "none" }}
-            onChange={onFileUpload}
-          />
-        </label>
-      </div>
+    <div className="chat-composer-modern">
+      {/* Tombol file */}
+      <button
+        className="composer-btn attach"
+        title="Lampirkan File"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Icon slug="attach" iconUrl="/img/icons/attach.svg" size={18} />
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        style={{ display: "none" }}
+        onChange={onFileUpload}
+      />
+
+      {/* Text area */}
       <textarea
-        className="chat-input"
+        className="composer-input"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}
+        placeholder="Tulis pesan..."
         rows={1}
-        placeholder="Ketik pesan..."
       />
+
+      {/* Tombol kirim */}
       <button
-        className="chat-send"
+        className={`composer-btn send ${sending ? "disabled" : ""}`}
         onClick={onSend}
         disabled={sending || !text.trim()}
-        title="Kirim"
+        title="Kirim Pesan"
       >
         <Icon slug="send" />
       </button>

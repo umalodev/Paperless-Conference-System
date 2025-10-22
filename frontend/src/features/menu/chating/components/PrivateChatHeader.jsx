@@ -3,9 +3,10 @@ import React from "react";
 
 export default function PrivateChatHeader({ onBack }) {
   return (
-    <div className="chat-back-button">
-      <button className="back-btn" onClick={onBack}>
-        ← Kembali ke Daftar Participant
+    <div className="private-chat-header">
+      <button className="private-back-btn" onClick={onBack}>
+        <span className="arrow-icon">&lt;</span>
+        <span>Kembali ke Daftar Peserta</span>
       </button>
     </div>
   );

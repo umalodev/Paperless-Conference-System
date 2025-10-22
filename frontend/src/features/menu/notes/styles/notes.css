@@ -125,17 +125,28 @@
   justify-content: flex-end;
 }
 
-/* list */
+/* === Notes Grid (scrollable after 2–4 cards) === */
 .notes-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+  max-height: calc(2 * 160px + 20px); /* 🟢 2 kartu + sedikit ruang */
+  overflow-y: auto;
+  padding-right: 6px; /* agar scrollbar tidak nutupi isi */
+  scroll-behavior: smooth;
 }
+
+/* 🖥️ Desktop / Tablet — tampilkan 4 kartu total (2x2 grid) */
 @media (min-width: 700px) {
   .notes-grid {
     grid-template-columns: 1fr 1fr;
+    max-height: calc(2 * 160px + 20px); /* 2 baris = 4 kartu total */
   }
 }
+
+
+
+
 .note-card {
   border: 1px solid rgba(16, 124, 16, 0.12);
   border-radius: 14px;
