@@ -1,5 +1,11 @@
 // src/features/menu/materials/pages/MaterialsPage.jsx
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../../config.js";
 import meetingService from "../../../../services/meetingService.js";
@@ -18,11 +24,7 @@ import {
   SkeletonAccordion,
 } from "../components";
 
-import {
-  useMaterials,
-  useMaterialsHistory,
-  useMaterialBadge,
-} from "../hooks";
+import { useMaterials, useMaterialsHistory, useMaterialBadge } from "../hooks";
 
 import { formatMeta, extKind } from "../utils";
 import "../styles/materials.css";
@@ -44,8 +46,15 @@ export default function MaterialsPage() {
   const isHost = /^(host|admin)$/i.test(user?.role || "");
 
   // ===== MEDIA ROOM =====
-  const { ready: mediaReady, micOn, camOn, startMic, stopMic, startCam, stopCam } =
-    useMediaRoom();
+  const {
+    ready: mediaReady,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+  } = useMediaRoom();
 
   const onToggleMic = useCallback(() => {
     if (!mediaReady) return;
@@ -79,12 +88,8 @@ export default function MaterialsPage() {
     deleteMaterial,
   } = useMaterials({ meetingId, notify, confirm });
 
-  const {
-    historyGroups,
-    loadingHistory,
-    errHistory,
-    reloadHistory,
-  } = useMaterialsHistory({ meetingId });
+  const { historyGroups, loadingHistory, errHistory, reloadHistory } =
+    useMaterialsHistory({ meetingId });
 
   const { showHistory, toggleHistory, markAllRead, setBadgeLocal } =
     useMaterialBadge({ meetingId });
@@ -179,7 +184,7 @@ export default function MaterialsPage() {
         }
       })()}
     >
-      <div className="pd-app">
+      <div className="pd-app materials-page">
         {/* ===== HEADER ===== */}
         <header className="pd-topbar">
           <div className="pd-left">
@@ -203,7 +208,9 @@ export default function MaterialsPage() {
                 {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div>
-                <div className="pd-user-name">{displayName || "Participant"}</div>
+                <div className="pd-user-name">
+                  {displayName || "Participant"}
+                </div>
                 <div className="pd-user-role">{user?.role}</div>
               </div>
             </div>
@@ -270,7 +277,9 @@ export default function MaterialsPage() {
             {/* CURRENT MATERIALS */}
             {loadingItems && <SkeletonGrid />}
             {errItems && !loadingItems && (
-              <div className="pd-error">Failed to load materials: {errItems}</div>
+              <div className="pd-error">
+                Failed to load materials: {errItems}
+              </div>
             )}
             {!loadingItems && !errItems && items.length === 0 && (
               <div className="pd-empty">No materials yet</div>
@@ -333,7 +342,11 @@ export default function MaterialsPage() {
                             key={group.meetingId}
                             group={group}
                             onPreview={(it) =>
-                              window.open(it.url, "_blank", "noopener,noreferrer")
+                              window.open(
+                                it.url,
+                                "_blank",
+                                "noopener,noreferrer"
+                              )
                             }
                             onDownload={(it) => {
                               const a = document.createElement("a");

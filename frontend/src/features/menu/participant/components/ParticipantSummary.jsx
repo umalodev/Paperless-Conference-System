@@ -10,7 +10,7 @@ export default function ParticipantSummary({ totals }) {
           <Icon slug="users" />
         </div>
         <div>
-          <div className="prt-card-title">{totals.total}</div>
+          <div className="prt-card-title">{totals?.total ?? 0}</div>
           <div className="prt-card-sub">Total</div>
         </div>
       </div>
@@ -19,7 +19,7 @@ export default function ParticipantSummary({ totals }) {
           <Icon slug="mic" />
         </div>
         <div>
-          <div className="prt-card-title">{totals.micOn}</div>
+          <div className="prt-card-title">{totals?.micOn ?? 0}</div>
           <div className="prt-card-sub">Mic On</div>
         </div>
       </div>
@@ -28,7 +28,7 @@ export default function ParticipantSummary({ totals }) {
           <Icon slug="camera" />
         </div>
         <div>
-          <div className="prt-card-title">{totals.camOn}</div>
+          <div className="prt-card-title">{totals?.camOn ?? 0}</div>
           <div className="prt-card-sub">Cam On</div>
         </div>
       </div>

@@ -32,7 +32,7 @@ export default function ParticipantItem({
         <button
           className={`prt-pill ${live.mic ? "on" : "off"}`}
           title={
-            participant.mic
+            live.mic
               ? "Mic On - Click to turn off"
               : "Mic Off - Click to turn on"
           }
@@ -51,7 +51,7 @@ export default function ParticipantItem({
         <button
           className={`prt-pill ${live.cam ? "on" : "off"}`}
           title={
-            participant.cam
+            live.cam
               ? "Camera On - Click to turn off"
               : "Camera Off - Click to turn on"
           }

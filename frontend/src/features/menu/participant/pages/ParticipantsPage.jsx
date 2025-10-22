@@ -1,10 +1,5 @@
 // src/features/menu/participants/pages/ParticipantsPage.jsx
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "../styles/participant.css";
 import { API_URL } from "../../../../config.js";
 import { useNavigate } from "react-router-dom";
@@ -16,11 +11,7 @@ import Icon from "../../../../components/Icon.jsx"; // ✅ tambahkan ini untuk i
 
 // Layout & Components
 import ParticipantsLayout from "../layouts/ParticipantsLayout.jsx";
-import {
-  ParticipantTabs,
-  ParticipantList,
-  VideoGrid,
-} from "../components";
+import { ParticipantTabs, ParticipantList, VideoGrid } from "../components";
 
 // Utils
 import { extractPeerMeta, formatTotals } from "../utils";
@@ -140,7 +131,13 @@ export default function ParticipantsPage() {
         }
         return [
           ...prev,
-          { id, displayName: name, mic: false, cam: false, role: "participant" },
+          {
+            id,
+            displayName: name,
+            mic: false,
+            cam: false,
+            role: "participant",
+          },
         ];
       });
     };
@@ -164,10 +161,22 @@ export default function ParticipantsPage() {
     meetingSocketService.on("participant_left", handleLeave);
     meetingSocketService.on("participant_updated", handleUpdate);
 
+    const handleMediaChanged = ({ participantId, micOn, camOn }) => {
+      setParticipants((prev) =>
+        prev.map((p) =>
+          String(p.id) === String(participantId)
+            ? { ...p, mic: !!micOn, cam: !!camOn }
+            : p
+        )
+      );
+    };
+    meetingSocketService.on("participant_media_changed", handleMediaChanged);
+
     return () => {
       meetingSocketService.off("participant_joined", handleJoin);
       meetingSocketService.off("participant_left", handleLeave);
       meetingSocketService.off("participant_updated", handleUpdate);
+      meetingSocketService.off("participant_media_changed", handleMediaChanged);
     };
   }, [meetingId]);
 
@@ -195,10 +204,29 @@ export default function ParticipantsPage() {
     micOn,
     camOn
   );
-  const totals = useMemo(
-    () => formatTotals(participants, remotePeers, micOn, camOn),
-    [participants.length, remotePeers, micOn, camOn]
-  );
+
+  const totals = useMemo(() => {
+    const myId = String(myPeerId ?? "");
+    let total = participants.length;
+    let micCount = 0;
+    let camCount = 0;
+
+    for (const p of participants) {
+      const pid = String(p.id);
+      if (pid === myId) {
+        if (micOn) micCount++;
+        if (camOn) camCount++;
+        continue;
+      }
+      const live = remotePeers.get(pid);
+      const micLive = live?.audioActive ?? p.mic ?? false;
+      const camLive = live?.videoActive ?? p.cam ?? false;
+      if (micLive) micCount++;
+      if (camLive) camCount++;
+    }
+    return { total, micOn: micCount, camOn: camCount };
+    // ⚠️ Gunakan participants sebagai dependency penuh (bukan hanya length)
+  }, [participants, remotePeers, micOn, camOn, myPeerId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -310,13 +338,12 @@ export default function ParticipantsPage() {
       loadingMenus={loadingMenus}
       errMenus={errMenus}
     >
-      
-    <ParticipantTabs
-      activeTab={activeTab}
-      onChange={setActiveTab}
-      onRefreshVideo={handleRefreshVideo}
-      refreshingVideo={refreshingVideo}
-    />
+      <ParticipantTabs
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        onRefreshVideo={handleRefreshVideo}
+        refreshingVideo={refreshingVideo}
+      />
 
       {activeTab === "list" ? (
         <ParticipantList

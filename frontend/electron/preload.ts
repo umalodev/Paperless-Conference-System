@@ -21,7 +21,6 @@ if (!(globalThis as any).__CONTROL_CONNECTED__) {
   console.log("[preload] Duplicate preload detected, skipping socket init");
 }
 
-
 // =====================================================
 // 🧩 SOCKET CONNECTION (Manual connect via Start.jsx)
 // =====================================================
@@ -32,7 +31,7 @@ function connectToControlServer(token?: string, displayName?: string) {
     return;
   }
 
-    if (socket && !socket.connected) {
+  if (socket && !socket.connected) {
     socket.connect();
     return;
   }
@@ -65,24 +64,32 @@ function connectToControlServer(token?: string, displayName?: string) {
     console.log("[preload] Registered participant:", payload);
   });
 
-// === RECONNECT HANDLER (modern socket.io)
-socket.io.on("reconnect_attempt", (attempt) => {
-  console.log(`[preload] Attempting to reconnect... (try ${attempt})`);
-});
+  // === RECONNECT HANDLER (modern socket.io)
+  socket.io.on("reconnect_attempt", (attempt) => {
+    console.log(`[preload] Attempting to reconnect... (try ${attempt})`);
+  });
 
-socket.io.on("reconnect", (attempt) => {
-  console.log(`[preload] ✅ Reconnected to Control Server (attempt ${attempt})`);
+  socket.io.on("reconnect", (attempt) => {
+    console.log(
+      `[preload] ✅ Reconnected to Control Server (attempt ${attempt})`
+    );
 
-  const hostname = os.hostname();
-  const user = os.userInfo().username;
-  const platform = os.platform();
-  const payload = { hostname, user, os: platform, token, displayName, role: "device" };
-  
-  // kirim ulang register setelah reconnect sukses
-  socket!.emit("register", payload);
-  console.log("[preload] Re-register after reconnect:", payload);
-});
+    const hostname = os.hostname();
+    const user = os.userInfo().username;
+    const platform = os.platform();
+    const payload = {
+      hostname,
+      user,
+      os: platform,
+      token,
+      displayName,
+      role: "device",
+    };
 
+    // kirim ulang register setelah reconnect sukses
+    socket!.emit("register", payload);
+    console.log("[preload] Re-register after reconnect:", payload);
+  });
 
   // === ERROR HANDLER ===
   socket.on("connect_error", (err) => {
@@ -145,7 +152,6 @@ socket.io.on("reconnect", (attempt) => {
     lastAck = Date.now();
     // console.log("[mirror] ACK received");
   });
-
 }
 
 function disconnectFromControlServer() {
@@ -224,7 +230,6 @@ window.addEventListener("mousedown", preventInput, true);
 window.addEventListener("mousemove", preventInput, true);
 window.addEventListener("contextmenu", preventInput, true);
 
-
 // === Mirror Watchdog ===
 let lastAck = Date.now();
 
@@ -236,7 +241,6 @@ setInterval(() => {
     startMirror();
   }
 }, 3000);
-
 
 // =====================================================
 // 🪞 SCREEN MIRROR STREAM
@@ -293,12 +297,10 @@ function stopMirror() {
   console.log("[mirror] Stopped");
 }
 
-
 // =====================================================
 // 🧰 SCREEN CAPTURE HELPERS
 // =====================================================
 // (Removed unused getScreenSources function)
-
 
 // =====================================================
 // 🌍 EXPOSE TO RENDERER
@@ -328,13 +330,13 @@ contextBridge.exposeInMainWorld("screenAPI", {
     }
   },
 
-async createScreenStream(sourceId: string) {
-  console.log("[screenAPI] returning sourceId only (renderer will create stream)");
-  return sourceId; // ⚠️ Jangan return MediaStream dari preload
-},
-
+  async createScreenStream(sourceId: string) {
+    console.log(
+      "[screenAPI] returning sourceId only (renderer will create stream)"
+    );
+    return sourceId; // ⚠️ Jangan return MediaStream dari preload
+  },
 });
-
 
 contextBridge.exposeInMainWorld("ipc", {
   on: (...args: Parameters<typeof ipcRenderer.on>) => ipcRenderer.on(...args),
