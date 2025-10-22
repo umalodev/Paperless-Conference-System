@@ -42,12 +42,20 @@ export default function SurveyViewer({ survey, meetingId }) {
         if (my?.answers?.length) {
           const pre = {};
           for (const a of my.answers) {
+            const qid = Number(a.questionId);
             if (a.selectedOptionId != null)
-              pre[a.questionId] = Number(a.selectedOptionId);
-            else if (a.selectedOptionIds)
-              pre[a.questionId] = a.selectedOptionIds.map(Number);
-            else if (a.answerDate) pre[a.questionId] = String(a.answerDate);
-            else if (a.answerText != null) pre[a.questionId] = a.answerText;
+              pre[qid] = Number(a.selectedOptionId);
+            else if (
+              Array.isArray(a.selectedOptionIds) &&
+              a.selectedOptionIds.length > 0
+            )
+              pre[qid] = a.selectedOptionIds.map(Number);
+            else if (a.answerDate) {
+              const s = String(a.answerDate);
+              pre[qid] = s.length >= 10 ? s.slice(0, 10) : s; // YYYY-MM-DD
+            } else if (a.answerText != null) {
+              pre[qid] = a.answerText;
+            }
           }
           setAnswers(pre);
           setAlreadySubmitted(true);
@@ -89,7 +97,8 @@ export default function SurveyViewer({ survey, meetingId }) {
         case "short_text":
         case "paragraph":
         case "date":
-          if (!ans || String(ans).trim() === "") return `Please fill: ${q.text}`;
+          if (!ans || String(ans).trim() === "")
+            return `Please fill: ${q.text}`;
           break;
         case "multiple_choice":
           if (ans === undefined || ans === null || ans === "")
@@ -233,10 +242,10 @@ export default function SurveyViewer({ survey, meetingId }) {
                     </span>
                   )}
                   {(q.type === "short_text" || q.type === "paragraph") && (
-                    <span>{answers[q.id]?.toString() || <i>(empty)</i>}</span>
+                    <span>{answers[q.id] || <i>(empty)</i>}</span>
                   )}
                   {q.type === "date" && (
-                    <span>{answers[q.id] || <i>(empty)</i>}</span>
+                    <span>{answers[q.id]?.toString() || <i>(empty)</i>}</span>
                   )}
                 </div>
               </div>
@@ -277,7 +286,7 @@ export default function SurveyViewer({ survey, meetingId }) {
         className="svr-list"
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr", 
+          gridTemplateColumns: "1fr",
           gap: "16px",
         }}
       >
