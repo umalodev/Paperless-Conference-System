@@ -27,7 +27,6 @@ import Notes from "./features/menu/notes/pages/NotesPage.jsx";
 import Services from "./features/menu/services/pages/ServicesPage.jsx";
 import Whiteboard from "./features/menu/whiteboard/pages/WhiteboardPage.jsx";
 
-import GlobalAnnotationOverlay from "./components/GlobalAnnotationOverlay.jsx";
 import MasterController from "./features/master-controller/pages/MasterController.jsx";
 import { ModalProvider } from "./contexts/ModalProvider.jsx";
 import GlobalAuthEvents from "./components/GlobalAuthEvents.jsx";
@@ -76,7 +75,6 @@ function App() {
         </Routes>
 
         <GlobalAuthEvents />
-        <GlobalAnnotationOverlay />
       </ModalProvider>
     </HashRouter>
   );
