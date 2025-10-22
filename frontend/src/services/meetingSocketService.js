@@ -22,10 +22,8 @@ class MeetingSocketService {
    * Connect to meeting via Socket.IO
    */
   async connect(meetingId, userId, apiUrl) {
-      console.log("🧠 connect() called with:", { meetingId, userId, apiUrl });
 
     if (this.socket && this.socket.connected) {
-      console.log("Socket.IO already connected");
       return;
     }
 
@@ -33,7 +31,6 @@ class MeetingSocketService {
       const userData = JSON.parse(localStorage.getItem("user") || "{}");
       if (userData?.id) userId = userData.id;
     } catch (err) {
-      console.warn("⚠️ Cannot parse user from localStorage:", err);
     }
 
     this.isConnecting = true;
@@ -46,7 +43,6 @@ class MeetingSocketService {
 
       if (this.socket) this.socket.disconnect();
 
-      console.log(`🔌 Connecting to Socket.IO: ${apiUrl}, meetingId=${meetingId}`);
 
       this.socket = io(apiUrl, {
         path: "/meeting", // 💡 samakan dengan backend
@@ -61,7 +57,6 @@ class MeetingSocketService {
 
       this._registerCoreEvents();
     } catch (err) {
-      console.error("❌ Failed to connect Socket.IO:", err);
       this.isConnecting = false;
     }
   }
@@ -73,7 +68,6 @@ class MeetingSocketService {
     const socket = this.socket;
 
     socket.on("connect", () => {
-      console.log("✅ Connected to meeting socket:", socket.id);
       this.isConnecting = false;
       this.reconnectAttempts = 0;
 
@@ -106,28 +100,23 @@ class MeetingSocketService {
     });
 
     socket.on("disconnect", (reason) => {
-      console.warn("⚠️ Socket disconnected:", reason);
       this.isConnecting = false;
       this._lastJoinSent = false;
     });
 
     socket.on("reconnect_attempt", (n) => {
-      console.log(`🔄 Reconnecting... attempt ${n}`);
     });
 
     socket.on("connect_error", (err) => {
-      console.error("❌ Socket connection error:", err.message);
       this.isConnecting = false;
     });
 
     socket.on("error", (err) => {
-      console.error("⚠️ Server-side Socket.IO error:", err);
       this.emit("error", err);
     });
 
     // 🔔 Semua pesan utama dikirim lewat "message"
     socket.on("message", (data) => {
-      console.log("📩 Message received:", data);
       this.handleMessage(data);
     });
   }
@@ -145,17 +134,14 @@ class MeetingSocketService {
 
       case "participant_joined":
       case "join-room":
-        console.log("⚡ Participant joined:", data);
         this.emit("participant_joined", data);
         break;
 
       case "participant_left":
-        console.log("🚪 Participant left:", data.displayName);
         this.emit("participant_left", data);
         break;
 
       case "participant_media_changed": // ✅ <---- tambahkan ini
-        console.log("🎙️ participant_media_changed:", data);
         this.emit("participant_media_changed", data);
         break;
 
@@ -176,17 +162,14 @@ class MeetingSocketService {
         break;
 
       case "meeting-ended":
-        console.log("📢 Meeting ended:", data);
         this.emit("meeting-ended", data);
         break;
 
       case "error":
-        console.error("🚫 Server error:", data.message);
         this.emit("error", data);
         break;
 
       default:
-        console.log("ℹ️ Unhandled socket message type:", data.type);
         break;
     }
   }
@@ -206,14 +189,12 @@ class MeetingSocketService {
   // =========================================================
   send(message) {
     if (!this.socket) {
-      console.warn("Socket not initialized");
       return;
     }
 
     if (message?.type === "join-room") {
       // Izinkan rejoin jika message.force = true
       if (this._lastJoinSent && !message.force) {
-        console.warn("⚠️ Duplicate join-room prevented");
         return;
       }
       this._lastJoinSent = true;
@@ -221,9 +202,7 @@ class MeetingSocketService {
 
     if (this.socket.connected) {
       this.socket.emit("message", message);
-      console.log("📤 Message sent:", message);
     } else {
-      console.warn("Socket not connected. Message skipped:", message);
     }
   }
 
@@ -252,7 +231,6 @@ class MeetingSocketService {
         try {
           cb(data);
         } catch (err) {
-          console.error("Event listener error:", err);
         }
       }
     }
@@ -264,12 +242,10 @@ class MeetingSocketService {
   async disconnect(force = false) {
     if (this.socket) {
       if (force) {
-        console.log("🧹 Forcing full socket cleanup");
         try {
           this.socket.removeAllListeners();
           if (this.socket.io?.opts) this.socket.io.opts.reconnection = false;
         } catch (e) {
-          console.warn("⚠️ Cleanup listener error:", e);
         }
 
         // 💡 kirim "leave-room" sebelum benar-benar disconnect
@@ -289,13 +265,11 @@ class MeetingSocketService {
             });
             await new Promise((res) => setTimeout(res, 100)); // beri waktu agar server broadcast
           } catch (err) {
-            console.warn("⚠️ leave-room emit error:", err);
           }
         }
       }
 
       this.socket.disconnect();
-      console.log("🔌 Socket.IO manually disconnected");
     }
 
     // ✅ reset semua flag
