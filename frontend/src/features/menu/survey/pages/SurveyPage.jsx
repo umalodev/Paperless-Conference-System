@@ -3,11 +3,7 @@ import { useSurveyManager } from "../hooks";
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
 import "../styles/Survey.css";
-import {
-  SurveyViewer,
-  SurveyEditor,
-  SurveyResponses,
-} from "../components";
+import { SurveyViewer, SurveyEditor, SurveyResponses } from "../components";
 import Icon from "../../../../components/Icon.jsx";
 
 export default function SurveyPage() {
@@ -75,11 +71,11 @@ export default function SurveyPage() {
       loadingMenus={loadingMenus}
       errMenus={errMenus}
     >
-      {/* === Konten Survey === */}
       <section className="svr-wrap">
+        {/* === Header === */}
         <div className="svr-header">
           <div className="svr-title">
-            <img src="/img/Survey1.png" alt="" className="svr-title-icon" />
+            <img src="/img/Survey1.png" alt="Survey icon" className="svr-title-icon" />
             <span className="svr-title-text">Survey</span>
           </div>
 
@@ -90,7 +86,7 @@ export default function SurveyPage() {
                 onClick={() => setManageMode((v) => !v)}
               >
                 <img src="/img/pengaturan.png" alt="" className="pd-icon-img" />
-                <span>{manageMode ? "Close Manage" : "Manage surveys"}</span>
+                <span>{manageMode ? "Close Manage" : "Manage Surveys"}</span>
               </button>
             )}
 
@@ -100,7 +96,7 @@ export default function SurveyPage() {
                 onClick={() => setShowResponses((v) => !v)}
               >
                 <img src="/img/eye.png" alt="" className="pd-icon-img" />
-                <span>{showResponses ? "Tutup Jawaban" : "Lihat Jawaban"}</span>
+                <span>{showResponses ? "Hide Responses" : "View Responses"}</span>
               </button>
             )}
 
@@ -115,58 +111,77 @@ export default function SurveyPage() {
           </div>
         </div>
 
+        {/* === Content Area === */}
         {loading && <div className="pd-empty">Loading survey...</div>}
         {err && !loading && <div className="pd-error">{err}</div>}
 
         {!loading && !err && (
           <>
+            {/* === RESPONSES VIEW === */}
             {isHost && !editing && showResponses && activeSurvey && (
               <SurveyResponses survey={activeSurvey} />
             )}
 
+            {/* === MANAGE SURVEYS === */}
             {isHost && manageMode && !editing && (
               <div className="svr-item">
-                <div className="svr-qtext" style={{ marginBottom: 8 }}>
+                <div className="svr-qtext" style={{ marginBottom: 10 }}>
                   Manage Surveys
                 </div>
 
                 {surveys.length === 0 ? (
-                  <div className="pd-empty" style={{ marginBottom: 8 }}>
-                    There is no survey yet.
+                  <div className="svr-empty">
+                    <Icon slug="clipboard" /> There is no survey yet.
                   </div>
                 ) : (
                   <div className="svr-list">
                     {surveys.map((s) => (
                       <div className="svr-item" key={s.surveyId}>
                         <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                          {s.title || "(tanpa judul)"}{" "}
+                          {s.title || "(Untitled)"}{" "}
                           {s.isShow === "Y" ? (
-                            <span style={{ color: "#059669" }}>• aktif</span>
+                            <span style={{ color: "#059669" }}>• Active</span>
                           ) : (
-                            <span style={{ color: "#6b7280" }}>• draft</span>
+                            <span style={{ color: "#6b7280" }}>• Draft</span>
                           )}
                         </div>
 
                         {s.description && (
-                          <div style={{ marginBottom: 8 }}>{s.description}</div>
+                          <div
+                            style={{
+                              marginBottom: 8,
+                              color: "#475569",
+                              fontSize: 14,
+                            }}
+                          >
+                            {s.description}
+                          </div>
                         )}
 
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <div className="svr-actions">
                           <button
                             className="svr-btn sm"
                             onClick={() => startEdit(s)}
                           >
-                            <img src="/img/edit.png" alt="" className="pd-icon-img" />
+                            <img
+                              src="/img/edit.png"
+                              alt="Edit"
+                              className="pd-icon-img"
+                            />
                             <span>Edit</span>
                           </button>
 
                           <button
-                            className="svr-btn"
+                            className="svr-btn sm"
                             onClick={() => setActive(s, s.isShow !== "Y")}
                           >
-                            <img src="/img/eye.png" alt="" className="pd-icon-img" />
+                            <img
+                              src="/img/eye.png"
+                              alt="Toggle"
+                              className="pd-icon-img"
+                            />
                             <span>
-                              {s.isShow === "Y" ? "Sembunyikan" : "Tampilkan"}
+                              {s.isShow === "Y" ? "Hide" : "Show"}
                             </span>
                           </button>
 
@@ -174,8 +189,12 @@ export default function SurveyPage() {
                             className="svr-btn sm danger"
                             onClick={() => removeSurvey(s)}
                           >
-                            <img src="/img/delete.png" alt="" className="pd-icon-img" />
-                            <span>Hapus</span>
+                            <img
+                              src="/img/delete.png"
+                              alt="Delete"
+                              className="pd-icon-img"
+                            />
+                            <span>Delete</span>
                           </button>
                         </div>
                       </div>
@@ -183,7 +202,7 @@ export default function SurveyPage() {
                   </div>
                 )}
 
-                <div style={{ marginTop: 10 }}>
+                <div style={{ marginTop: 12 }}>
                   <button className="svr-submit" onClick={startCreate}>
                     <Icon slug="plus" />
                     <span>Create a Survey</span>
@@ -192,6 +211,7 @@ export default function SurveyPage() {
               </div>
             )}
 
+            {/* === EDITOR === */}
             {isHost && editing && (
               <SurveyEditor
                 initialSurvey={editing.surveyId ? editing : null}
@@ -202,6 +222,7 @@ export default function SurveyPage() {
               />
             )}
 
+            {/* === VIEWER === */}
             {!manageMode && !editing && (
               <SurveyViewer survey={activeSurvey} meetingId={meetingId} />
             )}

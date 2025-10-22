@@ -19,7 +19,7 @@ export default function SurveyViewer({ survey, meetingId }) {
       .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
       .map((q) => ({
         id: q.questionId,
-        type: (q.typeName || "").toLowerCase(), // short_text | paragraph | multiple_choice | checkbox | date
+        type: (q.typeName || "").toLowerCase(),
         text: q.questionBody,
         required: q.isRequired === "Y",
         options: (q.Options || [])
@@ -30,17 +30,16 @@ export default function SurveyViewer({ survey, meetingId }) {
     return qs;
   }, [survey]);
 
-  // Prefill & tandai jika sudah submit
+  // Prefill existing responses
   useEffect(() => {
     let cancel = false;
     (async () => {
       if (!survey?.surveyId) return;
       try {
         setLoading(true);
-        const my = await getMyResponse(survey.surveyId); // { submissionId, answers: [...] } atau null
+        const my = await getMyResponse(survey.surveyId);
         if (cancel) return;
         if (my?.answers?.length) {
-          // isi state jawaban (untuk opsi "lihat jawaban")
           const pre = {};
           for (const a of my.answers) {
             if (a.selectedOptionId != null)
@@ -52,7 +51,7 @@ export default function SurveyViewer({ survey, meetingId }) {
           }
           setAnswers(pre);
           setAlreadySubmitted(true);
-          setSubmitMsg("Thank you! You have already completed this survey.");
+          setSubmitMsg("You have already completed this survey. Thank you!");
         } else {
           setAlreadySubmitted(false);
           setAnswers({});
@@ -67,7 +66,7 @@ export default function SurveyViewer({ survey, meetingId }) {
     };
   }, [survey]);
 
-  // Handlers input
+  // Input handlers
   const setSingleChoice = (qid, optionId) =>
     setAnswers((s) => ({ ...s, [qid]: Number(optionId) }));
   const setMultiChoice = (qid, optionId, checked) =>
@@ -90,15 +89,15 @@ export default function SurveyViewer({ survey, meetingId }) {
         case "short_text":
         case "paragraph":
         case "date":
-          if (!ans || String(ans).trim() === "") return `Harap isi: ${q.text}`;
+          if (!ans || String(ans).trim() === "") return `Please fill: ${q.text}`;
           break;
         case "multiple_choice":
           if (ans === undefined || ans === null || ans === "")
-            return `Harap pilih jawaban: ${q.text}`;
+            return `Please choose an answer: ${q.text}`;
           break;
         case "checkbox":
           if (!Array.isArray(ans) || ans.length === 0)
-            return `Harap pilih minimal satu: ${q.text}`;
+            return `Please select at least one option: ${q.text}`;
           break;
         default:
           break;
@@ -126,19 +125,19 @@ export default function SurveyViewer({ survey, meetingId }) {
         responses,
       });
       setAlreadySubmitted(true);
-      setSubmitMsg("Terima kasih! Jawaban Anda tersimpan.");
+      setSubmitMsg("Thank you! Your responses have been recorded.");
     } catch (e) {
-      setSubmitMsg(`Gagal submit: ${e.message || e}`);
+      setSubmitMsg(`Failed to submit: ${e.message || e}`);
     } finally {
       setSubmitting(false);
     }
   };
 
   if (!survey) {
-    return <div className="pd-empty">There are no surveys displayed yet.</div>;
+    return <div className="pd-empty">No survey available.</div>;
   }
 
-  // === MODE SUDAH SUBMIT: tampilkan pesan terima kasih, opsional lihat jawaban ===
+  // === Already submitted mode ===
   if (alreadySubmitted) {
     return (
       <>
@@ -171,10 +170,10 @@ export default function SurveyViewer({ survey, meetingId }) {
         >
           <div style={{ fontSize: "48px", marginBottom: 12 }}>🎉</div>
           <div style={{ fontSize: "16px", fontWeight: 600, marginBottom: 4 }}>
-            Thank you! Survey has been successfully submitted.
+            Thank you! Your survey has been successfully submitted.
           </div>
           <div style={{ fontSize: "14px", opacity: 0.8 }}>
-            Jawaban Anda telah tersimpan dengan aman.
+            Your answers are safely recorded.
           </div>
         </div>
 
@@ -191,13 +190,21 @@ export default function SurveyViewer({ survey, meetingId }) {
           >
             <Icon slug="eye" />{" "}
             <span>
-              {showAnswers ? "Sembunyikan jawaban" : "👀 Lihat jawaban saya"}
+              {showAnswers ? "Hide my answers" : "👀 View my answers"}
             </span>
           </button>
         </div>
 
         {showAnswers && (
-          <div className="svr-list" style={{ marginTop: 10 }}>
+          <div
+            className="svr-list"
+            style={{
+              marginTop: 10,
+              display: "grid",
+              gridTemplateColumns: "1fr", // ✅ one card per row
+              gap: "16px",
+            }}
+          >
             {questions.map((q) => (
               <div className="svr-item" key={q.id}>
                 <div className="svr-qtext">{q.text}</div>
@@ -206,7 +213,7 @@ export default function SurveyViewer({ survey, meetingId }) {
                     <span>
                       {q.options.find(
                         (op) => Number(op.optionId) === Number(answers[q.id])
-                      )?.label || <i>(kosong)</i>}
+                      )?.label || <i>(empty)</i>}
                     </span>
                   )}
                   {q.type === "checkbox" && (
@@ -221,15 +228,15 @@ export default function SurveyViewer({ survey, meetingId }) {
                           .map((op) => op.label)
                           .join(", ")
                       ) : (
-                        <i>(kosong)</i>
+                        <i>(empty)</i>
                       )}
                     </span>
                   )}
                   {(q.type === "short_text" || q.type === "paragraph") && (
-                    <span>{answers[q.id]?.toString() || <i>(kosong)</i>}</span>
+                    <span>{answers[q.id]?.toString() || <i>(empty)</i>}</span>
                   )}
                   {q.type === "date" && (
-                    <span>{answers[q.id] || <i>(kosong)</i>}</span>
+                    <span>{answers[q.id] || <i>(empty)</i>}</span>
                   )}
                 </div>
               </div>
@@ -240,7 +247,7 @@ export default function SurveyViewer({ survey, meetingId }) {
     );
   }
 
-  // === MODE BELUM SUBMIT: render form seperti biasa ===
+  // === Not yet submitted mode ===
   return (
     <>
       {survey.title ? (
@@ -266,7 +273,14 @@ export default function SurveyViewer({ survey, meetingId }) {
         </div>
       ) : null}
 
-      <div className="svr-list">
+      <div
+        className="svr-list"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr", 
+          gap: "16px",
+        }}
+      >
         {questions.map((q) => (
           <div className="svr-item" key={q.id}>
             <div className="svr-qtext">
@@ -315,19 +329,21 @@ export default function SurveyViewer({ survey, meetingId }) {
               <input
                 type="text"
                 className="svr-text"
-                placeholder="Tulis jawaban singkat…"
+                placeholder="Write a short answer..."
                 value={answers[q.id] || ""}
                 onChange={(e) => setText(q.id, e.target.value)}
+                style={{ width: "100%", boxSizing: "border-box" }}
               />
             )}
 
             {q.type === "paragraph" && (
               <textarea
                 className="svr-text"
-                placeholder="Tulis jawaban…"
+                placeholder="Write your answer..."
                 value={answers[q.id] || ""}
                 onChange={(e) => setText(q.id, e.target.value)}
                 rows={3}
+                style={{ width: "100%", boxSizing: "border-box" }}
               />
             )}
 
@@ -337,6 +353,7 @@ export default function SurveyViewer({ survey, meetingId }) {
                 className="svr-text"
                 value={answers[q.id] || ""}
                 onChange={(e) => setDate(q.id, e.target.value)}
+                style={{ width: "100%", boxSizing: "border-box" }}
               />
             )}
           </div>
@@ -346,7 +363,7 @@ export default function SurveyViewer({ survey, meetingId }) {
       {submitMsg && (
         <div
           className={`svr-msg ${
-            submitMsg.startsWith("Terima kasih") ? "ok" : "err"
+            submitMsg.startsWith("Thank you") ? "ok" : "err"
           }`}
         >
           {submitMsg}
@@ -360,7 +377,7 @@ export default function SurveyViewer({ survey, meetingId }) {
           disabled={submitting || loading}
         >
           <Icon slug="send" />
-          <span>{submitting ? "Mengirim…" : "Kirim Jawaban"}</span>
+          <span>{submitting ? "Submitting…" : "Submit Answers"}</span>
         </button>
       </div>
     </>
