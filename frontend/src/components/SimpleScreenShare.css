@@ -199,3 +199,27 @@
 .sharing-placeholder{
   color: #f0f0f0f0;
 }
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  90% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+
+.share-ended-banner {
+  pointer-events: none; /* biar nggak ganggu klik */
+  user-select: none;
+}

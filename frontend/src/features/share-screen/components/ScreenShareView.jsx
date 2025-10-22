@@ -4,20 +4,15 @@ import MeetingFooter from "../../../components/MeetingFooter.jsx";
 import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
 
 export default function ScreenShareView({
-  // meta
   meetingId,
   userRole,
   userId,
-
-  // share & annotate
   sharingUser,
   setSharingUser,
   screenShareOn,
   setScreenShareOn,
   isAnnotating,
   onToggleAnnotate,
-
-  // media
   micOn,
   camOn,
   onToggleMic,
@@ -41,9 +36,7 @@ export default function ScreenShareView({
             setSharingUser={setSharingUser}
             setScreenShareOn={setScreenShareOn}
             isAnnotating={isAnnotating}
-            setIsAnnotating={() => {
-              /* kept for backward compat if needed */
-            }}
+            setIsAnnotating={() => {}}
           />
         </main>
 

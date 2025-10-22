@@ -35,27 +35,27 @@ useEffect(() => {
 
   const handleMessage = (event) => {
     try {
-      const data = JSON.parse(event.data);
+      const msg = event?.data ?? event;
+      const data = typeof msg === "string" ? JSON.parse(msg) : msg;
 
       // hanya tangani coretan
-      if (data.type === "anno:commit" && data.shape) {
-        // kalau mode full (viewer menggambar) → skip coretan dari dirinya sendiri
-        if (mode === "full" && data.from === window.currentUserId) return;
+      if (!data?.type?.startsWith("anno:")) return;
 
-        // kalau mode receive-only (sharer) → render semua coretan
+      if (data.type === "anno:commit" && data.shape) {
+        if (mode === "full" && data.from === window.currentUserId) return;
         drawRemoteShape(data.shape);
       }
 
       if (data.type === "anno:clear") {
-        clearAll(true); // skip broadcast
+        clearAll(true);
       }
     } catch (e) {
       console.error("WS parse error:", e);
     }
   };
 
-  window.ws.addEventListener("message", handleMessage);
-  return () => window.ws.removeEventListener("message", handleMessage);
+  window.ws.on?.("message", handleMessage);
+  return () => window.ws?.off?.("message", handleMessage);
 }, [mode]);
 
   // ---- Draw shape from remote ----

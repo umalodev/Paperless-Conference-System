@@ -216,16 +216,24 @@ export default function MeetingFFooter({
   // =========================================================
   const defaultBack = async () => {
     try {
-      // 1) Matikan media dan koneksi realtime
+      // 🟡 1️⃣ Stop screen share jika masih aktif
+      try {
+        if (window.simpleScreenShare?.isSharing) {
+          console.log("🛑 Stopping screen share before going Home...");
+          window.simpleScreenShare.stopScreenShare();
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to stop screen share:", err);
+      }
+
+      // 🟢 2️⃣ Matikan media dan koneksi realtime
       await cleanupAllMediaAndRealtime();
 
-      // 2) Putuskan control server untuk participant
+      // 🟣 3️⃣ Putuskan control server untuk participant
       if (!isHost) {
         try {
           if (window.electronAPI?.disconnectFromControlServer) {
-            console.log(
-              "🔌 [Participant] Disconnecting from Control Server (Home button)..."
-            );
+            console.log("🔌 [Participant] Disconnecting from Control Server (Home button)...");
             window.electronAPI.disconnectFromControlServer();
           }
         } catch (err) {
@@ -238,12 +246,10 @@ export default function MeetingFFooter({
           } catch {}
         }
       } else {
-        console.log(
-          "ℹ️ Host navigates home — server session may stay, but local media is off."
-        );
+        console.log("ℹ️ Host navigates home — server session may stay, but local media is off.");
       }
 
-      // 3) Sinkronkan UI toggle agar ikon jadi OFF
+      // 🔵 4️⃣ Sinkronkan ikon mic/cam jadi OFF
       try {
         await stopMicCtx?.();
       } catch {}
@@ -257,6 +263,7 @@ export default function MeetingFFooter({
       navigate(isHost ? "/setup" : "/start");
     }
   };
+
 
   const defaultEndMeeting = async () => {
     const ok = await confirm({
