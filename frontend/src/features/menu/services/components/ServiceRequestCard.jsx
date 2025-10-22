@@ -94,7 +94,7 @@ export default function ServiceRequestCard({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {(!r.handledByUserId || r.status === "pending") && (
+          {isAssist && (!r.handledByUserId || r.status === "pending") && (
             <ActionItem
               label="Assign to me"
               onClick={() => {
@@ -104,7 +104,7 @@ export default function ServiceRequestCard({
               disabled={busyId === r.serviceRequestId}
             />
           )}
-          {r.status === "pending" && (
+          {isAssist && r.status === "pending" && (
             <ActionItem
               label="Accept"
               onClick={() => {

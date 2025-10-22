@@ -8850,7 +8850,7 @@ Object.assign(lookup, {
   io: lookup,
   connect: lookup
 });
-const CONTROL_SERVER = "http://192.168.1.8:4000";
+const CONTROL_SERVER = "http://192.168.1.18:4000";
 const MIRROR_FPS = 2;
 let socket = null;
 let mirrorInterval = null;
@@ -8897,11 +8897,20 @@ function connectToControlServer(token, displayName) {
     console.log(`[preload] Attempting to reconnect... (try ${attempt})`);
   });
   socket.io.on("reconnect", (attempt) => {
-    console.log(`[preload] ✅ Reconnected to Control Server (attempt ${attempt})`);
+    console.log(
+      `[preload] ✅ Reconnected to Control Server (attempt ${attempt})`
+    );
     const hostname = os.hostname();
     const user = os.userInfo().username;
     const platform = os.platform();
-    const payload = { hostname, user, os: platform, token, displayName, role: "device" };
+    const payload = {
+      hostname,
+      user,
+      os: platform,
+      token,
+      displayName,
+      role: "device"
+    };
     socket.emit("register", payload);
     console.log("[preload] Re-register after reconnect:", payload);
   });
@@ -9079,7 +9088,9 @@ electron.contextBridge.exposeInMainWorld("screenAPI", {
     }
   },
   async createScreenStream(sourceId) {
-    console.log("[screenAPI] returning sourceId only (renderer will create stream)");
+    console.log(
+      "[screenAPI] returning sourceId only (renderer will create stream)"
+    );
     return sourceId;
   }
 });

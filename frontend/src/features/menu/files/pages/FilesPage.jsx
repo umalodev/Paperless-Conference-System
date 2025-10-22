@@ -49,11 +49,18 @@ export default function FilesPage() {
   }, []);
 
   // ===== FILES HOOKS =====
-  const { files, loadingFiles, errFiles,loadFiles, uploading, handleUpload, handleDelete } =
-    useFiles({ meetingId, notify, confirm, setBadgeLocal });
+  const {
+    files,
+    loadingFiles,
+    errFiles,
+    loadFiles,
+    uploading,
+    handleUpload,
+    handleDelete,
+  } = useFiles({ meetingId, notify, confirm, setBadgeLocal });
 
-const { historyGroups, loadingHistory, errHistory, reloadHistory } =
-  useFilesHistory({ meetingId });
+  const { historyGroups, loadingHistory, errHistory, reloadHistory } =
+    useFilesHistory({ meetingId });
 
   const {
     ready: mediaReady,
@@ -185,14 +192,14 @@ const { historyGroups, loadingHistory, errHistory, reloadHistory } =
         }
       })()}
     >
-      <div className="pd-app">
+      <div className="pd-app files-page">
         {/* ===== TOPBAR ===== */}
         <header className="pd-topbar">
           <div className="pd-left">
             <span className="pd-live" aria-hidden />
             <h1 className="pd-title">
-              {JSON.parse(localStorage.getItem("currentMeeting") || "{}")?.title ||
-                "Meeting Default"}
+              {JSON.parse(localStorage.getItem("currentMeeting") || "{}")
+                ?.title || "Meeting Default"}
             </h1>
           </div>
           <div className="pd-right">
@@ -221,7 +228,11 @@ const { historyGroups, loadingHistory, errHistory, reloadHistory } =
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
-                <img src="/img/Files1.png" alt="" className="files-title-icon" />
+                <img
+                  src="/img/Files1.png"
+                  alt=""
+                  className="files-title-icon"
+                />
                 <span className="files-title-text">Files</span>
               </div>
               <div className="files-actions">
@@ -244,8 +255,8 @@ const { historyGroups, loadingHistory, errHistory, reloadHistory } =
                 <button
                   className="files-btn ghost"
                   onClick={() => {
-                    loadFiles();        // 🔁 Re-fetch daftar file sekarang
-                    reloadHistory();    // 🔁 Re-fetch riwayat meeting
+                    loadFiles(); // 🔁 Re-fetch daftar file sekarang
+                    reloadHistory(); // 🔁 Re-fetch riwayat meeting
                   }}
                   disabled={loadingFiles || loadingHistory}
                   title="Refresh"
@@ -308,7 +319,8 @@ const { historyGroups, loadingHistory, errHistory, reloadHistory } =
                 <section className="files-history">
                   <div className="files-history-head">
                     <h3 className="files-history-title">
-                      <Icon iconUrl="/img/history.png" size={18} /> History Files
+                      <Icon iconUrl="/img/history.png" size={18} /> History
+                      Files
                     </h3>
                     <div className="files-history-actions">
                       <input
@@ -317,7 +329,9 @@ const { historyGroups, loadingHistory, errHistory, reloadHistory } =
                         placeholder="Search in history…"
                         value={qHistory}
                         onChange={(e) => setQHistory(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && fetchHistory(qHistory)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && fetchHistory(qHistory)
+                        }
                       />
                       <button
                         className="files-btn"
@@ -335,23 +349,27 @@ const { historyGroups, loadingHistory, errHistory, reloadHistory } =
                       Gagal memuat riwayat: {errHistory}
                     </div>
                   )}
-                  {!loadingHistory && !errHistory && historyGroups.length === 0 && (
-                    <div className="pd-empty">Belum ada riwayat files.</div>
-                  )}
-                  {!loadingHistory && !errHistory && historyGroups.length > 0 && (
-                    <div className="files-accordion">
-                      {historyGroups.map((g) => (
-                        <FilesHistoryGroup
-                          key={g.meetingId}
-                          group={g}
-                          me={user}
-                          onOpen={(f) => openFile(f)}
-                          onDownload={(f) => downloadFile(f)}
-                          onDelete={(id) => handleDelete(id)}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  {!loadingHistory &&
+                    !errHistory &&
+                    historyGroups.length === 0 && (
+                      <div className="pd-empty">Belum ada riwayat files.</div>
+                    )}
+                  {!loadingHistory &&
+                    !errHistory &&
+                    historyGroups.length > 0 && (
+                      <div className="files-accordion">
+                        {historyGroups.map((g) => (
+                          <FilesHistoryGroup
+                            key={g.meetingId}
+                            group={g}
+                            me={user}
+                            onOpen={(f) => openFile(f)}
+                            onDownload={(f) => downloadFile(f)}
+                            onDelete={(id) => handleDelete(id)}
+                          />
+                        ))}
+                      </div>
+                    )}
                 </section>
               </>
             )}

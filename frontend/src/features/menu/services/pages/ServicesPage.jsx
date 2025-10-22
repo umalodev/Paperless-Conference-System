@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../../components/BottomNav";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
@@ -21,11 +27,7 @@ import {
   getMeetingDisplayName,
   setBadgeLocal,
 } from "../utils";
-import {
-  ServiceQuickOptions,
-  ServiceForm,
-  ServiceList,
-} from "../components";
+import { ServiceQuickOptions, ServiceForm, ServiceList } from "../components";
 
 export default function ServicesPage() {
   // ====================== STATES ======================
@@ -268,7 +270,7 @@ export default function ServicesPage() {
         }
       })()}
     >
-      <div className="pd-app">
+      <div className="pd-app services-page">
         {/* Top Bar */}
         <header className="pd-topbar">
           <div className="pd-left">
@@ -310,7 +312,7 @@ export default function ServicesPage() {
 
         {/* Main */}
         <main className="pd-main">
-            <div className={`svc-grid ${isAssist ? "is-assist" : ""}`}>
+          <div className={`svc-grid ${isAssist ? "is-assist" : ""}`}>
             <ServiceList
               title={isAssist ? "All requests (others)" : "My Requests"}
               requests={isAssist ? teamRequests : myRequests}

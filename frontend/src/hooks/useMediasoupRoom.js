@@ -272,24 +272,20 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         });
 
         socket.on("producer-paused", ({ peerId: ownerPeerId, kind }) => {
-          if (kind !== "video") return;
           updateRemotePeer(ownerPeerId, (cur) => {
             const copy = { ...cur };
-
-            copy.videoActive = false;
+            if (kind === "video") copy.videoActive = false;
+            if (kind === "audio") copy.audioActive = false;
             return copy;
           });
         });
 
         // 🟩 Server broadcast: producer video diresume → re-attach & minta keyframe
         socket.on("producer-resumed", ({ peerId: ownerPeerId, kind }) => {
-          if (kind !== "video") return;
           updateRemotePeer(ownerPeerId, (cur) => {
             const copy = { ...cur };
-            // track consumer sudah ada di consumer object, tapi untuk amannya,
-            // kita tidak hard-attach di sini. Flagkan aktif, nanti
-            // event 'producerresume' dari consumer akan melakukan re-attach + keyframe.
-            copy.videoActive = true;
+            if (kind === "video") copy.videoActive = true;
+            if (kind === "audio") copy.audioActive = true;
             return copy;
           });
         });
