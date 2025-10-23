@@ -57,7 +57,7 @@ export default function VideoTile({
           className="video-el"
         />
       )}
-      <AudioSink stream={stream} muted={true} />
+      <AudioSink stream={stream} muted={localPreview} />
       <div className="video-name">{name}</div>
     </div>
   );

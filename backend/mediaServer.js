@@ -533,6 +533,7 @@ io.on("connection", (socket) => {
         if (!room) return cb({ ok: false, error: "room not found" });
 
         let mutedCount = 0;
+        const changedPeers = new Set();
         // pause semua audio producer
         for (const producer of room.producers.values()) {
           if (producer.kind !== "audio") continue;
@@ -543,12 +544,28 @@ io.on("connection", (socket) => {
             await producer.pause();
           } catch {}
           mutedCount++;
+          changedPeers.add(ownerPeerId);
+
+          io.to(room.id).emit("producer-paused", {
+            roomId: room.id,
+            producerId: producer.id,
+            peerId: ownerPeerId,
+            kind: "audio",
+          });
 
           // info ke pemilik mic bahwa dia di-mute host (opsional tapi bikin UI sinkron)
           const ownerPeer = [...room.peers.values()].find(
             (p) => p.id === ownerPeerId
           );
           ownerPeer?.socket?.emit("muted-by-host", { kind: "audio" });
+        }
+
+        for (const pid of changedPeers) {
+          io.to(room.id).emit("participant_media_changed", {
+            participantId: String(pid),
+            micOn: false,
+            camOn: undefined, // biarkan tidak berubah
+          });
         }
 
         cb({ ok: true, muted: mutedCount });

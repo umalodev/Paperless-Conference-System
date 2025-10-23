@@ -20,6 +20,7 @@ export default function useMediasoupRoom({ roomId, peerId }) {
   const [remotePeers, setRemotePeers] = useState(new Map());
   const [micOn, setMicOn] = useState(false);
   const [camOn, setCamOn] = useState(false);
+  const [mutedByHostTick, setMutedByHostTick] = useState(0);
 
   const updateRemotePeer = useCallback((pid, updater) => {
     setRemotePeers((prev) => {
@@ -267,7 +268,17 @@ export default function useMediasoupRoom({ roomId, peerId }) {
             try {
               p?.pause();
             } catch {}
+            try {
+              p?.track?.stop?.();
+            } catch {}
+            try {
+              localAudioStreamRef.current
+                ?.getTracks()
+                ?.forEach((t) => t.stop());
+            } catch {}
+            localAudioStreamRef.current = null;
             setMicOn(false);
+            setMutedByHostTick((t) => t + 1);
           }
         });
 
@@ -526,7 +537,27 @@ export default function useMediasoupRoom({ roomId, peerId }) {
 
       if (p) {
         await p.replaceTrack({ track });
-        await p.resume();
+
+        // ✅ Minta server resume dulu
+        try {
+          const socket = socketRef.current;
+          if (socket && p.id) {
+            await new Promise((resolve) => {
+              socket.emit("resume-producer", { producerId: p.id }, (ack) => {
+                if (!ack?.ok)
+                  console.warn("resume-producer failed:", ack?.error);
+                resolve();
+              });
+            });
+          }
+        } catch (e) {
+          console.warn("Failed to notify server resume:", e);
+        }
+
+        // ✅ Baru resume di sisi client (aman kalau sudah resumed)
+        try {
+          await p.resume();
+        } catch {}
       } else {
         p = await transport.produce({
           track,
@@ -546,16 +577,18 @@ export default function useMediasoupRoom({ roomId, peerId }) {
         p.on("close", () => {
           if (audioProducerRef.current === p) audioProducerRef.current = null;
         });
-      }
 
-      try {
-        const socket = socketRef.current;
-        if (socket && p?.id) {
-          socket.emit("resume-producer", { producerId: p.id }, (ack) => {
-            if (!ack?.ok) console.warn("resume-producer failed:", ack?.error);
-          });
-        }
-      } catch {}
+        try {
+          const socket = socketRef.current;
+          if (socket && p.id) {
+            await new Promise((resolve) => {
+              socket.emit("resume-producer", { producerId: p.id }, () =>
+                resolve()
+              );
+            });
+          }
+        } catch {}
+      }
 
       try {
         localAudioStreamRef.current?.getTracks()?.forEach((t) => t.stop());
@@ -728,11 +761,35 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     const socket = socketRef.current;
     if (!socket) return { ok: false, error: "socket not ready" };
     return new Promise((resolve) => {
-      socket.emit("host-mute-all", { roomId, exceptPeerId: peerId }, (res) =>
-        resolve(res)
-      );
+      socket.emit("host-mute-all", { roomId, exceptPeerId: peerId }, (res) => {
+        if (res?.ok) {
+          applyLocalMuteAll(peerId);
+        }
+        resolve(res);
+      });
     });
   }, [roomId, peerId]);
+
+  const applyLocalMuteAll = useCallback((exceptId) => {
+    setRemotePeers((prev) => {
+      const next = new Map(prev);
+      for (const [pid, obj] of next.entries()) {
+        if (String(pid) === String(exceptId)) continue;
+        const copy = { ...obj };
+        const infos = new Map(copy.consumersInfo || []);
+        // set semua info kind=audio jadi inactive
+        for (const [cid, info] of infos) {
+          if (info?.kind === "audio")
+            infos.set(cid, { ...info, active: false });
+        }
+        copy.consumersInfo = infos;
+        copy.audioActive = false;
+        copy._rev = (copy._rev || 0) + 1;
+        next.set(pid, copy);
+      }
+      return next;
+    });
+  }, []);
 
   return {
     ready,
@@ -746,5 +803,6 @@ export default function useMediasoupRoom({ roomId, peerId }) {
     stopCam,
     localStream,
     muteAllOthers,
+    mutedByHostTick,
   };
 }
