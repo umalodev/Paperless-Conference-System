@@ -5,8 +5,9 @@ import MeetingLayout from "../../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useWhiteboard, useCanvasDrawing, useWhiteboardMenu } from "../hooks";
-import { exportCanvasAsPNG, formatTime, formatInitials } from "../utils";
+import { exportCanvasAsPNG, formatInitials } from "../utils";
 import "../styles/whiteboard.css";
+import { formatTime } from "../../../../utils/format.js";
 
 export default function WhiteboardPage() {
   const navigate = useNavigate();
@@ -93,6 +94,13 @@ export default function WhiteboardPage() {
   // ===== Export PNG =====
   const handleExport = () => exportCanvasAsPNG(canvasRef);
 
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+
   return (
     <MeetingLayout
       meetingId={meetingId}
@@ -113,7 +121,7 @@ export default function WhiteboardPage() {
           </div>
           <div className="pd-right">
             <div className="pd-clock" aria-live="polite">
-              {formatTime()}
+              {formatTime(now)}
             </div>
             <div className="pd-user">
               <div className="pd-avatar">{formatInitials(displayName)}</div>

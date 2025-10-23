@@ -10,6 +10,7 @@ import BottomNav from "../../../../components/BottomNav";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import "../styles/services.css";
+import { formatTime } from "../../../../utils/format.js";
 
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
@@ -62,6 +63,14 @@ export default function ServicesPage() {
     startCam,
     stopCam,
   } = useMediaRoom();
+
+
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
 
   // ====================== INIT USER ======================
   useEffect(() => {
@@ -291,10 +300,7 @@ export default function ServicesPage() {
           </div>
           <div className="pd-right">
             <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatTime(now)}
             </div>
             <div className="pd-user">
               <div className="pd-avatar">

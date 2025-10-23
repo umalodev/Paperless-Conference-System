@@ -4,6 +4,8 @@ import {
   downloadResponsesCSV,
   getMcStats, // ⬅️ tambah
 } from "../../../../services/surveyService";
+import { formatDate } from "../../../../utils/format.js";
+
 
 export default function SurveyResponses({ survey }) {
   const [state, setState] = useState({ loading: true, err: "", data: null });
@@ -246,14 +248,3 @@ const td = {
   fontSize: 13,
 };
 
-function formatDate(v) {
-  const d = new Date(v);
-  if (isNaN(d)) return String(v || "");
-  return d.toLocaleString([], {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}

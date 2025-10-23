@@ -1,6 +1,7 @@
 // src/features/chat/components/MessageItem.jsx
 import React from "react";
 import { chatApi } from "../services";
+import { formatTime } from "../../../../utils/format.js"; // ✅ pakai formatter global
 
 /* 🎨 Warna khas per user (untuk teks & avatar) */
 function stringToColor(str) {
@@ -171,7 +172,7 @@ export default function MessageItem({ msg, isMine }) {
           )}
         </div>
 
-        {/* Waktu */}
+        {/* 🕒 Waktu (pakai formatTime global) */}
         <div
           className="bubble-meta"
           style={{
@@ -187,16 +188,6 @@ export default function MessageItem({ msg, isMine }) {
       </div>
     </div>
   );
-}
-
-/* util kecil */
-function formatTime(ts) {
-  try {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return "";
-  }
 }
 
 /* animasi halus saat pesan muncul */

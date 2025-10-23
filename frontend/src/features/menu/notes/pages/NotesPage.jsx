@@ -13,7 +13,7 @@ import Icon from "../../../../components/Icon.jsx";
 
 // hooks & utils
 import { useNotes, useNoteComposer, useNoteEdit } from "../hooks";
-import { formatDate } from "../utils";
+import { formatDate } from "../../../../utils/format.js";
 
 // components
 import {

@@ -27,6 +27,8 @@ import {
 import { useMaterials, useMaterialsHistory, useMaterialBadge } from "../hooks";
 
 import { formatMeta, extKind } from "../utils";
+import { formatTime } from "../../../../utils/format.js";
+
 import "../styles/materials.css";
 export default function MaterialsPage() {
   const navigate = useNavigate();

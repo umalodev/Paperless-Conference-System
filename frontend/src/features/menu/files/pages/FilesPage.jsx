@@ -10,6 +10,7 @@ import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
 import { API_URL } from "../../../../config.js"; // ✅ WAJIB: untuk fetch menus
 import meetingService from "../../../../services/meetingService.js";
+import { formatTime,guessName } from "../../../../utils/format.js";
 
 import {
   FileCard,
@@ -18,7 +19,6 @@ import {
   SkeletonAccordion,
 } from "../components";
 import { useFiles, useFilesHistory, useFileBadge } from "../hooks";
-import { guessName } from "../utils";
 
 export default function FilesPage() {
   // ===== STATE =====
@@ -204,10 +204,7 @@ export default function FilesPage() {
           </div>
           <div className="pd-right">
             <div className="pd-clock">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatTime(new Date())}
             </div>
             <div className="pd-user">
               <div className="pd-avatar">
