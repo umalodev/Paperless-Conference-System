@@ -247,7 +247,7 @@ ipcMain.on("show-lock-overlay", () => {
           <div class="lock-icon">🔒</div>
           <h1>Device Locked</h1>
           <p>Please wait until your administrator unlocks this computer.</p>
-          <div class="footer">© ${(/* @__PURE__ */ new Date()).getFullYear()} EduSnap Secure Mode</div>
+          <div class="footer">© ${(/* @__PURE__ */ new Date()).getFullYear()} UP-CONNECT</div>
         </body>
       </html>
     `;

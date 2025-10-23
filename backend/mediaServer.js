@@ -61,7 +61,7 @@ const config = {
         {
           ip: "0.0.0.0",
           //http:
-          announcedIp: "172.28.240.108",
+          announcedIp: "192.168.1.8",
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
