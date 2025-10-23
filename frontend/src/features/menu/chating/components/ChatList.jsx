@@ -24,7 +24,7 @@ export default function ChatList({ messages = [], userId, listRef }) {
       <div className="chat-list empty-state">
         <div className="empty-chat">
           <img
-            src="/img/empty-chat.svg"
+            src="/img/message.png"
             alt="No messages"
             className="empty-chat-icon"
           />

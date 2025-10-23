@@ -8850,7 +8850,7 @@ Object.assign(lookup, {
   io: lookup,
   connect: lookup
 });
-const CONTROL_SERVER = "http://192.168.1.18:4000";
+const CONTROL_SERVER = "http://192.168.1.8:4000";
 const MIRROR_FPS = 2;
 let socket = null;
 let mirrorInterval = null;
