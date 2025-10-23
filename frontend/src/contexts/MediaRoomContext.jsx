@@ -39,10 +39,17 @@ function GlobalAudioLayer({ remotePeers, myPeerId }) {
           </button>
         </div>
       )}
-      <div style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+      <div
+        style={{
+          position: "absolute",
+          width: 0,
+          height: 0,
+          overflow: "hidden",
+        }}
+      >
         {Array.from(remotePeers.entries()).map(([pid, obj]) => (
           <AudioSink
-            key={`audio-${pid}`}
+            key={`audio-${pid}-${obj._rev}`}
             stream={obj.stream}
             muted={String(pid) === String(myPeerId)}
             hideButton
@@ -66,8 +73,38 @@ function AudioSink({
   onUnblocked,
 }) {
   const ref = useRef(null);
+  const [tick, setTick] = useState(0);
   const [needUnlock, setNeedUnlock] = useState(false);
   const prevNeedUnlock = useRef(false);
+
+  useEffect(() => {
+    if (!stream) return;
+    const onAdd = () => setTick((t) => t + 1);
+    const onRem = () => setTick((t) => t + 1);
+    try {
+      stream.addEventListener?.("addtrack", onAdd);
+      stream.addEventListener?.("removetrack", onRem);
+    } catch {}
+    // fallback beberapa browser
+    try {
+      stream.onaddtrack = onAdd;
+    } catch {}
+    try {
+      stream.onremovetrack = onRem;
+    } catch {}
+    return () => {
+      try {
+        stream.removeEventListener?.("addtrack", onAdd);
+        stream.removeEventListener?.("removetrack", onRem);
+      } catch {}
+      try {
+        if (stream.onaddtrack === onAdd) stream.onaddtrack = null;
+      } catch {}
+      try {
+        if (stream.onremovetrack === onRem) stream.onremovetrack = null;
+      } catch {}
+    };
+  }, [stream]);
 
   useEffect(() => {
     const el = ref.current;
@@ -81,7 +118,7 @@ function AudioSink({
         .then(() => setNeedUnlock(false))
         .catch(() => setNeedUnlock(true));
     }
-  }, [stream, muted, unlockedSignal]);
+  }, [stream, muted, unlockedSignal, tick]);
 
   useEffect(() => {
     if (needUnlock !== prevNeedUnlock.current) {
@@ -93,7 +130,9 @@ function AudioSink({
 
   const unlock = () => {
     const el = ref.current;
-    el?.play()?.then(() => setNeedUnlock(false)).catch(() => {});
+    el?.play()
+      ?.then(() => setNeedUnlock(false))
+      .catch(() => {});
   };
 
   return (
@@ -103,7 +142,13 @@ function AudioSink({
           Enable audio
         </button>
       )}
-      <audio ref={ref} autoPlay playsInline muted={muted} style={{ display: "none" }} />
+      <audio
+        ref={ref}
+        autoPlay
+        playsInline
+        muted={muted}
+        style={{ display: "none" }}
+      />
     </>
   );
 }
@@ -172,16 +217,22 @@ export function MediaRoomProvider({ children }) {
         camOn: camValue,
       });
 
-meetingSocketService.send({
-  type: "participant_media_changed",
-  participantId,
-  micOn: micValue,
-  camOn: camValue,
-});
-
+      meetingSocketService.send({
+        type: "participant_media_changed",
+        participantId,
+        micOn: micValue,
+        camOn: camValue,
+      });
     },
     [meeting, myPeerId]
   );
+
+  useEffect(() => {
+    if (!media?.mutedByHostTick) return;
+    setMicState(false); // footer & item saya padam
+    micRef.current = false;
+    broadcastMediaChange("micOn", false); // beritahu peserta lain
+  }, [media?.mutedByHostTick, broadcastMediaChange]);
 
   /** 🔹 Override fungsi mic & cam agar broadcast sinkron */
   const startMic = async () => {
@@ -271,10 +322,7 @@ meetingSocketService.send({
       {children}
 
       {meeting && value.remotePeers && value.remotePeers.size > 0 && (
-        <GlobalAudioLayer
-          remotePeers={value.remotePeers}
-          myPeerId={myPeerId}
-        />
+        <GlobalAudioLayer remotePeers={value.remotePeers} myPeerId={myPeerId} />
       )}
     </MediaRoomContext.Provider>
   );
