@@ -270,63 +270,77 @@ export function useParticipantDashboard() {
       const meetingId =
         currentMeeting?.meetingId || currentMeeting?.id || currentMeeting?.code;
 
-      // 🛑 1️⃣ Hentikan screen share jika masih aktif
-      if (window.simpleScreenShare?.isSharing) {
+        // 🟥 0️⃣ Jika host dan bukan meeting default → end meeting
+        if (
+          user?.role === "host" &&
+          meetingId &&
+          !currentMeeting?.isDefault // 🚫 jangan end meeting default
+        ) {
+          try {
+            console.log("🛑 Host logging out — ending non-default meeting...");
+            await meetingService.endMeeting(meetingId);
+          } catch (e) {
+            console.warn("⚠️ Gagal mengakhiri meeting saat logout:", e);
+          }
+        }
+
+        // 🛑 1️⃣ Hentikan screen share jika masih aktif
+        if (window.simpleScreenShare?.isSharing) {
+          try {
+            console.log("🛑 Stopping active screen share before logout...");
+            await window.simpleScreenShare.stopScreenShare();
+            await window.simpleScreenShare.cleanup();
+          } catch (err) {
+            console.warn("⚠️ Failed to stop screen share during logout:", err);
+          }
+        }
+
+        // 🔌 2️⃣ Putus koneksi socket meeting
         try {
-          console.log("🛑 Stopping active screen share before logout...");
-          await window.simpleScreenShare.stopScreenShare();
-          await window.simpleScreenShare.cleanup();
-        } catch (err) {
-          console.warn("⚠️ Failed to stop screen share during logout:", err);
-        }
+          await meetingSocketService.disconnect(true);
+          await new Promise((r) => setTimeout(r, 300));
+        } catch {}
+
+        // 🎤 3️⃣ Matikan mic & cam
+        if (micOn) await stopMic().catch(() => {});
+        if (camOn) await stopCam().catch(() => {});
+
+        // 🔵 4️⃣ Cleanup media dan realtime connection
+        await cleanupAllMediaAndRealtime({ mediaRoom }).catch(() => {});
+
+        // 🔴 5️⃣ Disconnect Control Server (Electron)
+        try {
+          if (window.electronAPI?.disconnectFromControlServer) {
+            window.electronAPI.disconnectFromControlServer();
+          }
+        } catch {}
+
+        // 🟤 6️⃣ Inform backend bahwa user keluar meeting
+        try {
+          if (meetingId) await meetingService.leaveMeeting(meetingId);
+        } catch {}
+
+        // ⚪ 7️⃣ Logout dari sistem
+        try {
+          if (typeof meetingService.logout === "function") {
+            await meetingService.logout();
+          }
+        } catch {}
+
+        await notify({
+          variant: "success",
+          title: "Signed out",
+          message: "See you soon 👋",
+          autoCloseMs: 900,
+        });
+
+        navigate("/", { replace: true });
+      } catch (e) {
+        console.error("Logout error:", e);
+        localStorage.clear();
+        sessionStorage.clear();
+        navigate("/", { replace: true });
       }
-
-      // 🔌 2️⃣ Putus koneksi socket meeting
-      try {
-        await meetingSocketService.disconnect(true);
-        await new Promise((r) => setTimeout(r, 300));
-      } catch {}
-
-      // 🎤 3️⃣ Matikan mic & cam
-      if (micOn) await stopMic().catch(() => {});
-      if (camOn) await stopCam().catch(() => {});
-
-      // 🔵 4️⃣ Cleanup media dan realtime connection
-      await cleanupAllMediaAndRealtime({ mediaRoom }).catch(() => {});
-
-      // 🔴 5️⃣ Disconnect Control Server (Electron)
-      try {
-        if (window.electronAPI?.disconnectFromControlServer) {
-          window.electronAPI.disconnectFromControlServer();
-        }
-      } catch {}
-
-      // 🟤 6️⃣ Inform backend bahwa user keluar meeting
-      try {
-        if (meetingId) await meetingService.leaveMeeting(meetingId);
-      } catch {}
-
-      // ⚪ 7️⃣ Logout dari sistem
-      try {
-        if (typeof meetingService.logout === "function") {
-          await meetingService.logout();
-        }
-      } catch {}
-
-      await notify({
-        variant: "success",
-        title: "Signed out",
-        message: "See you soon 👋",
-        autoCloseMs: 900,
-      });
-
-      navigate("/", { replace: true });
-    } catch (e) {
-      console.error("Logout error:", e);
-      localStorage.clear();
-      sessionStorage.clear();
-      navigate("/", { replace: true });
-    }
   };
 
 

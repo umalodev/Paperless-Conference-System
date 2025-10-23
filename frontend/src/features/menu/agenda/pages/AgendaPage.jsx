@@ -13,12 +13,12 @@ import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
 import "../styles/Agenda.css";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import meetingService from "../../../../services/meetingService.js";
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
 
 // ======= modular pieces =======
-import AgendaHeader from "../components/AgendaHeader.jsx";
 import AgendaFormAdd from "../components/AgendaFormAdd.jsx";
 import AgendaFormEdit from "../components/AgendaFormEdit.jsx";
 import AgendaItem from "../components/AgendaItem.jsx";
@@ -399,7 +399,7 @@ export default function Agenda() {
     >
       <div className="pd-app agenda-page">
         {/* Top bar */}
-        <AgendaHeader displayName={displayName} user={user} />
+      <MeetingHeader displayName={displayName} user={user} />
 
         {/* Content */}
         <main className="pd-main">

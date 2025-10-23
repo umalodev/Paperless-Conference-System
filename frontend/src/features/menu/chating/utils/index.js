@@ -1,6 +1,5 @@
 // src/features/chat/utils/index.js
 export * from "./fileValidation.js";
-export * from "./formatTime.js";
 
 /**
  * Helper sederhana untuk menampilkan notifikasi error upload

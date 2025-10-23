@@ -2,6 +2,7 @@
 import React from "react";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import BottomNav from "../../../../components/BottomNav.jsx";
 import Icon from "../../../../components/Icon.jsx";
 
@@ -35,34 +36,8 @@ export default function ParticipantsLayout({
     >
       <div className="pd-app">
         {/* ===== HEADER ===== */}
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <div>
-              <h1 className="pd-title">{meetingTitle || "Meeting Default"}</h1>
-            </div>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {(displayName || "US").slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="pd-user-name">{displayName}</div>
-                <div className="pd-user-role">
-                  {user?.role || "Participant"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
+        <MeetingHeader displayName={displayName} user={user} />
+      
         {/* ===== MAIN CONTENT ===== */}
         <main className="pd-main">
           <section className="prt-wrap">{children}</section>

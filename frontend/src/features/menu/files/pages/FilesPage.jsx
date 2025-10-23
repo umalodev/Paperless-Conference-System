@@ -4,6 +4,7 @@ import BottomNav from "../../../../components/BottomNav.jsx";
 import Icon from "../../../../components/Icon.jsx";
 import "../styles/files.css";
 import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
@@ -194,31 +195,8 @@ export default function FilesPage() {
     >
       <div className="pd-app files-page">
         {/* ===== TOPBAR ===== */}
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <h1 className="pd-title">
-              {JSON.parse(localStorage.getItem("currentMeeting") || "{}")
-                ?.title || "Meeting Default"}
-            </h1>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock">
-              {formatTime(new Date())}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {displayName.slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="pd-user-name">
-                  {displayName || "Participant"}
-                </div>
-                <div className="pd-user-role">{user?.role}</div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <MeetingHeader displayName={displayName} user={user} />
+
 
         {/* ===== CONTENT ===== */}
         <main className="pd-main">

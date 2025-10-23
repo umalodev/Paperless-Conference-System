@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import simpleScreenShare from "../services/simpleScreenShare";
-import "./SimpleScreenShare.css";
-import AnnotateZoomCanvas from "./AnnotateZoomCanvas";
-import { useScreenShare } from "../contexts/ScreenShareContext";
+import simpleScreenShare from "../../../services/simpleScreenShare";
+import "../styles/SimpleScreenShare.css";
+import AnnotateZoomCanvas from "../../../components/AnnotateZoomCanvas";
+import { useScreenShare } from "../../../contexts/ScreenShareContext";
 
 const SimpleScreenShare = ({ meetingId, userId }) => {
   const [internalIsSharing, setInternalIsSharing] = useState(false);

@@ -1,6 +1,7 @@
 // src/features/survey/layouts/SurveyLayout.jsx
 import React from "react";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import BottomNav from "../../../../components/BottomNav.jsx";
 
@@ -52,46 +53,8 @@ export default function SurveyLayout({
         }}
       >
         {/* === Topbar === */}
-        <header
-          className="pd-topbar"
-          style={{
-            flexShrink: 0,
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-            background: "#fff",
-          }}
-        >
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <div>
-              <h1 className="pd-title">{meetingTitle}</h1>
-            </div>
-          </div>
-
-          <div className="pd-right">
-            <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {displayName?.slice(0, 2)?.toUpperCase() || "U"}
-              </div>
-              <div>
-                <div className="pd-user-name">
-                  {displayName || "Participant"}
-                </div>
-                <div className="pd-user-role">
-                  {user?.role || "Participant"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <MeetingHeader displayName={displayName} user={user} />
+        
 
         {/* === Scrollable main === */}
         <main

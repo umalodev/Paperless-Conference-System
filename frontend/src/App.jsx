@@ -29,7 +29,7 @@ import Whiteboard from "./features/menu/whiteboard/pages/WhiteboardPage.jsx";
 
 import MasterController from "./features/master-controller/pages/MasterController.jsx";
 import { ModalProvider } from "./contexts/ModalProvider.jsx";
-import GlobalAuthEvents from "./components/GlobalAuthEvents.jsx";
+import GlobalAuthEvents from "./contexts/GlobalAuthEvents.jsx";
 
 function App() {
   return (

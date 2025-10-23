@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../../components/BottomNav.jsx";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useWhiteboard, useCanvasDrawing, useWhiteboardMenu } from "../hooks";
@@ -109,30 +110,7 @@ export default function WhiteboardPage() {
     >
       <div className="pd-app whiteboard-page">
         {/* ===== Header ===== */}
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <div>
-              <h1 className="pd-title">
-                {JSON.parse(localStorage.getItem("currentMeeting") || "{}")?.title ||
-                  "Meeting Default"}
-              </h1>
-            </div>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock" aria-live="polite">
-              {formatTime(now)}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">{formatInitials(displayName)}</div>
-              <div>
-                <div className="pd-user-name">{displayName || "Participant"}</div>
-                <div className="pd-user-role">{user?.role}</div>
-              </div>
-            </div>
-          </div>
-        </header>
-
+        <MeetingHeader displayName={displayName} user={user} />
         {/* ===== Content ===== */}
         <main className="pd-main">
           <section className="wb-wrap">
