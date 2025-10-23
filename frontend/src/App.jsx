@@ -2,7 +2,6 @@ import "./utils/installFetch401Guard.js";
 import ProtectedMediaLayout from "./layouts/ProtectedMediaLayout.jsx";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./features/auth/pages/Login.jsx";
-import "./components/LockOverlay.css";
 
 // Import role-specific dashboards
 import AdminDashboard from "./features/admin/dashboard/pages/AdminDashboard.jsx";

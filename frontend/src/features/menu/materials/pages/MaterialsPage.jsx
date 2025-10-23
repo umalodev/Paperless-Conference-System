@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../../config.js";
 import meetingService from "../../../../services/meetingService.js";
 import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
+import useMeetingMenus from "../../../../hooks/useMeetingMenus.js"; // ✅ gunakan global hook menu
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
@@ -26,11 +27,10 @@ import {
 } from "../components";
 
 import { useMaterials, useMaterialsHistory, useMaterialBadge } from "../hooks";
-
 import { formatMeta, extKind } from "../utils";
 import { formatTime } from "../../../../utils/format.js";
-
 import "../styles/materials.css";
+
 export default function MaterialsPage() {
   const navigate = useNavigate();
   const { notify, confirm } = useModal();
@@ -91,7 +91,7 @@ export default function MaterialsPage() {
     deleteMaterial,
   } = useMaterials({ meetingId, notify, confirm });
 
-  const { historyGroups, loadingHistory, errHistory, reloadHistory } =
+  const { historyGroups, loadingHistory, errHistory } =
     useMaterialsHistory({ meetingId });
 
   const { showHistory, toggleHistory, markAllRead, setBadgeLocal } =
@@ -106,50 +106,8 @@ export default function MaterialsPage() {
     e.target.value = "";
   };
 
-  // ===== MENUS =====
-  const [menus, setMenus] = useState([]);
-  const [loadingMenus, setLoadingMenus] = useState(true);
-  const [errMenus, setErrMenus] = useState("");
-
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setLoadingMenus(true);
-        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          headers: meetingService.getAuthHeaders(),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json?.data)
-          ? json.data.map((m) => ({
-              menuId: m.menuId,
-              slug: m.slug,
-              label: m.displayLabel,
-              iconUrl: m.iconMenu || null,
-              flag: m.flag ?? "Y",
-              seq: m.sequenceMenu,
-            }))
-          : [];
-        if (!cancel) setMenus(list);
-      } catch (e) {
-        if (!cancel) setErrMenus(String(e.message || e));
-      } finally {
-        if (!cancel) setLoadingMenus(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
-  const visibleMenus = useMemo(
-    () =>
-      (menus || [])
-        .filter((m) => (m?.flag ?? "Y") === "Y")
-        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
-    [menus]
-  );
+  // ✅ GUNAKAN GLOBAL HOOK MENU
+  const { visibleMenus, errMenus, loadingMenus } = useMeetingMenus();
   const handleSelect = (item) => navigate(`/menu/${item.slug}`);
 
   // ===== GUARD =====
@@ -190,6 +148,7 @@ export default function MaterialsPage() {
       <div className="pd-app materials-page">
         {/* ===== HEADER ===== */}
         <MeetingHeader displayName={displayName} user={user} />
+
         {/* ===== CONTENT ===== */}
         <main className="pd-main">
           <section className="mtl-wrap">

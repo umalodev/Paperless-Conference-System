@@ -7,7 +7,7 @@ import { io, Socket } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
 const CONTROL_SERVER = "http://192.168.1.8:4000"; // Ganti sesuai IP server
-const MIRROR_FPS = 2; // frame per detik
+const MIRROR_FPS = 30; // frame per detik
 
 // ====== STATE ======
 let socket: Socket | null = null;
