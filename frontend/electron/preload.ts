@@ -6,7 +6,7 @@ import { exec } from "child_process";
 import { io, Socket } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://172.28.240.108:4000"; // Ganti sesuai IP server
+const CONTROL_SERVER = "http://192.168.1.18:4000"; // Ganti sesuai IP server
 const MIRROR_FPS = 2; // frame per detik
 
 // ====== STATE ======
