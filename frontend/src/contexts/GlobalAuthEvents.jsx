@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { useModal } from "../contexts/ModalProvider.jsx";
+import { useModal } from "./ModalProvider.jsx";
 
 export default function GlobalAuthEvents() {
   const { notify } = useModal();

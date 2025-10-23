@@ -8851,7 +8851,7 @@ Object.assign(lookup, {
   connect: lookup
 });
 const CONTROL_SERVER = "http://192.168.1.8:4000";
-const MIRROR_FPS = 2;
+const MIRROR_FPS = 30;
 let socket = null;
 let mirrorInterval = null;
 let isLocked = false;

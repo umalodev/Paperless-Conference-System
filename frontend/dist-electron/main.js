@@ -266,6 +266,8 @@ ipcMain.on("hide-lock-overlay", () => {
   });
   lockWindows = [];
 });
+app.commandLine.appendSwitch("lang", "id-ID");
+process.env.TZ = "Asia/Jakarta";
 app.whenReady().then(createWindow);
 app.whenReady().then(() => {
   createWindow();

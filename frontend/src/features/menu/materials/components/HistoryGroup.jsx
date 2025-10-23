@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import Icon from "../../../../components/Icon.jsx";
 import MaterialCard from "./MaterialCard.jsx";
-import { formatDateRange, formatMeta, extKind } from "../utils/format.js";
+import { formatMeta, extKind } from "../utils/format.js";
+import { formatDateRange } from "../../../../utils/format.js";
 
 export default function HistoryGroup({ group, onPreview, onDownload }) {
   const [open, setOpen] = useState(false);

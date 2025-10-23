@@ -1,7 +1,7 @@
 // src/features/agenda/components/AgendaHistoryGroup.jsx
 import React, { useState } from "react";
 import Icon from "../../../../components/Icon.jsx";
-import { formatRange, formatDateRange } from "../utils/format.js";
+import { formatRange, formatDateRange } from "../../../../utils/format.js";
 
 export default function AgendaHistoryGroup({ group }) {
   const [open, setOpen] = useState(false);

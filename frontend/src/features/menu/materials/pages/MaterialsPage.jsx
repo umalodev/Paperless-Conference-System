@@ -10,12 +10,14 @@ import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../../../config.js";
 import meetingService from "../../../../services/meetingService.js";
 import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
+import useMeetingMenus from "../../../../hooks/useMeetingMenus.js"; // ✅ gunakan global hook menu
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
 import BottomNav from "../../../../components/BottomNav.jsx";
 import Icon from "../../../../components/Icon.jsx";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 
 import {
   MaterialCard,
@@ -25,9 +27,10 @@ import {
 } from "../components";
 
 import { useMaterials, useMaterialsHistory, useMaterialBadge } from "../hooks";
-
 import { formatMeta, extKind } from "../utils";
+import { formatTime } from "../../../../utils/format.js";
 import "../styles/materials.css";
+
 export default function MaterialsPage() {
   const navigate = useNavigate();
   const { notify, confirm } = useModal();
@@ -88,7 +91,7 @@ export default function MaterialsPage() {
     deleteMaterial,
   } = useMaterials({ meetingId, notify, confirm });
 
-  const { historyGroups, loadingHistory, errHistory, reloadHistory } =
+  const { historyGroups, loadingHistory, errHistory } =
     useMaterialsHistory({ meetingId });
 
   const { showHistory, toggleHistory, markAllRead, setBadgeLocal } =
@@ -103,50 +106,8 @@ export default function MaterialsPage() {
     e.target.value = "";
   };
 
-  // ===== MENUS =====
-  const [menus, setMenus] = useState([]);
-  const [loadingMenus, setLoadingMenus] = useState(true);
-  const [errMenus, setErrMenus] = useState("");
-
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setLoadingMenus(true);
-        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          headers: meetingService.getAuthHeaders(),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json?.data)
-          ? json.data.map((m) => ({
-              menuId: m.menuId,
-              slug: m.slug,
-              label: m.displayLabel,
-              iconUrl: m.iconMenu || null,
-              flag: m.flag ?? "Y",
-              seq: m.sequenceMenu,
-            }))
-          : [];
-        if (!cancel) setMenus(list);
-      } catch (e) {
-        if (!cancel) setErrMenus(String(e.message || e));
-      } finally {
-        if (!cancel) setLoadingMenus(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
-  const visibleMenus = useMemo(
-    () =>
-      (menus || [])
-        .filter((m) => (m?.flag ?? "Y") === "Y")
-        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
-    [menus]
-  );
+  // ✅ GUNAKAN GLOBAL HOOK MENU
+  const { visibleMenus, errMenus, loadingMenus } = useMeetingMenus();
   const handleSelect = (item) => navigate(`/menu/${item.slug}`);
 
   // ===== GUARD =====
@@ -186,36 +147,7 @@ export default function MaterialsPage() {
     >
       <div className="pd-app materials-page">
         {/* ===== HEADER ===== */}
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <h1 className="pd-title">
-              {localStorage.getItem("currentMeeting")
-                ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
-                  "Meeting Default"
-                : "Default"}
-            </h1>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {displayName.slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="pd-user-name">
-                  {displayName || "Participant"}
-                </div>
-                <div className="pd-user-role">{user?.role}</div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <MeetingHeader displayName={displayName} user={user} />
 
         {/* ===== CONTENT ===== */}
         <main className="pd-main">

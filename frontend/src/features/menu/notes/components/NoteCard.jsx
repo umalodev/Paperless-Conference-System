@@ -1,4 +1,5 @@
 import React from "react";
+import { formatDate } from "../../../../utils/format.js";
 
 export default function NoteCard({
   note,
@@ -72,19 +73,6 @@ export default function NoteCard({
   );
 }
 
-function formatDate(iso) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString([], {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "";
-  }
-}
 
 function SaveIcon() {
   return (

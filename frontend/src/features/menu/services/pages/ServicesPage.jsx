@@ -8,8 +8,10 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../../components/BottomNav";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import "../styles/services.css";
+import { formatTime } from "../../../../utils/format.js";
 
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
@@ -62,6 +64,14 @@ export default function ServicesPage() {
     startCam,
     stopCam,
   } = useMediaRoom();
+
+
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
 
   // ====================== INIT USER ======================
   useEffect(() => {
@@ -272,44 +282,7 @@ export default function ServicesPage() {
     >
       <div className="pd-app services-page">
         {/* Top Bar */}
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <div>
-              <h1 className="pd-title">
-                {localStorage.getItem("currentMeeting")
-                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
-                    "Meeting Default"
-                  : "Default"}
-              </h1>
-              <div className="pd-sub">
-                {isAssist
-                  ? "Assist console — handle participants' requests"
-                  : ""}
-              </div>
-            </div>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {displayName.slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="pd-user-name">{displayName || "User"}</div>
-                <div className="pd-user-role">
-                  {user?.role || "Participant"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
+        <MeetingHeader displayName={displayName} user={user} />
         {/* Main */}
         <main className="pd-main">
           <div className={`svc-grid ${isAssist ? "is-assist" : ""}`}>

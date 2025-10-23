@@ -346,6 +346,13 @@ ipcMain.on("hide-lock-overlay", () => {
   lockWindows = [];
 });
 
+// ⏰ Paksa locale jadi Indonesia
+app.commandLine.appendSwitch("lang", "id-ID");
+
+// Optional: set timezone manual ke WIB
+process.env.TZ = "Asia/Jakarta";
+
+
 app.whenReady().then(createWindow);
 
 

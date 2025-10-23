@@ -4,6 +4,7 @@
 import React from "react";
 import Icon from "../../../components/Icon.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
+import MeetingHeader from "../../../components/MeetingHeader.jsx";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import "../../../features/participant/styles/participant-dashboard.css";
 
@@ -35,42 +36,24 @@ export default function ParticipantDashboardLayout({
     >
       <div className="pd-app centered-page">
         {/* HEADER */}
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden />
-            <div>
-              <h1 className="pd-title">
-                {(() => {
-                  try {
-                    const raw = localStorage.getItem("currentMeeting");
-                    const cm = raw ? JSON.parse(raw) : null;
-                    return cm?.title || `Meeting #${meetingIdDisplay}`;
-                  } catch {
-                    return `Meeting #${meetingIdDisplay}`;
-                  }
-                })()}
-              </h1>
-              <div className="pd-sub">ID: {meetingIdDisplay}</div>
-            </div>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock">
-              {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {(displayName || user?.username || "User").slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="pd-user-name">{displayName || user?.username || "Participant"}</div>
-                <div className="pd-user-role">{user?.role}</div>
-              </div>
-              <button className="pd-ghost" onClick={handleLogout}>
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+        <MeetingHeader
+          displayName={displayName}
+          user={user}
+          title={(() => {
+            try {
+              const raw = localStorage.getItem("currentMeeting");
+              const cm = raw ? JSON.parse(raw) : null;
+              return cm?.title || `Meeting #${meetingIdDisplay}`;
+            } catch {
+              return `Meeting #${meetingIdDisplay}`;
+            }
+          })()}
+          meetingId={meetingIdDisplay}
+          showId={true}
+          showLogout={true}
+          onLogout={handleLogout}
+        />
+
 
         {/* MAIN */}
         <main className="pd-main">

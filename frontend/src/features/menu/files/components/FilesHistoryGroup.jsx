@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import Icon from "../../../../components/Icon.jsx";
 import { FileCard } from "./index";
-import { formatDateRange } from "../utils/format";
+import { formatDateRange } from "../../../../utils/format.js";
 
 export default function FilesHistoryGroup({ group, me, onOpen, onDownload, onDelete }) {
   const [open, setOpen] = useState(false);

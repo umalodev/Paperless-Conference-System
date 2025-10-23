@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import BottomNav from "../../../../components/BottomNav.jsx";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
+import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
@@ -13,7 +14,7 @@ import Icon from "../../../../components/Icon.jsx";
 
 // hooks & utils
 import { useNotes, useNoteComposer, useNoteEdit } from "../hooks";
-import { formatDate } from "../utils";
+import { formatDate } from "../../../../utils/format.js";
 
 // components
 import {
@@ -176,36 +177,8 @@ export default function NotesPage() {
     >
       <div className="pd-app">
         {/* Header */}
-        <header className="pd-topbar">
-          <div className="pd-left">
-            <span className="pd-live" aria-hidden="true" />
-            <div>
-              <h1 className="pd-title">
-                {localStorage.getItem("currentMeeting")
-                  ? JSON.parse(localStorage.getItem("currentMeeting"))?.title ||
-                    "Meeting Default"
-                  : "Default"}
-              </h1>
-            </div>
-          </div>
-          <div className="pd-right">
-            <div className="pd-clock" aria-live="polite">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-            <div className="pd-user">
-              <div className="pd-avatar">
-                {displayName.slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="pd-user-name">{displayName || "Participant"}</div>
-                <div className="pd-user-role">{user?.role}</div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <MeetingHeader displayName={displayName} user={user} />
+
 
         {/* Main */}
         <main className="pd-main">

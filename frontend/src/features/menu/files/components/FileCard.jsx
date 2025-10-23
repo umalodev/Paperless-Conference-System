@@ -1,7 +1,7 @@
 // src/features/menu/files/components/FileCard.jsx
 import React from "react";
 import Icon from "../../../../components/Icon.jsx";
-import { formatSize, formatDate } from "../utils/format";
+import { formatSize, formatDate } from "../../../../utils/format.js";
 import { extKind, extLabel, getExt } from "../utils/extKind";
 
 export default function FileCard({ file, me, onOpen, onDownload, onDelete }) {

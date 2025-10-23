@@ -1,7 +1,7 @@
 import React from "react";
 import MeetingLayout from "../../../components/MeetingLayout.jsx";
 import MeetingFooter from "../../../components/MeetingFooter.jsx";
-import SimpleScreenShare from "../../../components/SimpleScreenShare.jsx";
+import SimpleScreenShare from "./SimpleScreenShare.jsx";
 
 export default function ScreenShareView({
   meetingId,
