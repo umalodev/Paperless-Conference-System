@@ -32,7 +32,7 @@ import {
   formatRange,
   toDateInputValue,
   toTimeInputValue,
-} from "../utils/format.js";
+} from "../../../../utils/format.js";
 
 export default function Agenda() {
   const [user, setUser] = useState(null);
