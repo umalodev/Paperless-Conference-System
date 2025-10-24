@@ -86,7 +86,6 @@ export default function WaitingRoomLayout() {
           </div>{" "}
         </div>{" "}
       </header>
-      ```
       <main className="wr-main">
         <div className="wr-card">
           {!started && (
