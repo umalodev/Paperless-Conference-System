@@ -16,6 +16,7 @@ import useMeetingMenus from "../../../../hooks/useMeetingMenus.js";
 import useAgendas from "../hooks/useAgendas.js";
 import useAgendaBadge from "../hooks/useAgendaBadge.js";
 import useAgendaHistory from "../hooks/useAgendaHistory.js";
+import HistoryAccordion from "../../../../components/HistoryAccordion.jsx";
 import useAgendaForm from "../hooks/useAgendaForm.js";
 
 import {
@@ -27,10 +28,11 @@ import {
 import AgendaFormAdd from "../components/AgendaFormAdd.jsx";
 import AgendaFormEdit from "../components/AgendaFormEdit.jsx";
 import AgendaItem from "../components/AgendaItem.jsx";
-import AgendaHistoryGroup from "../components/AgendaHistoryGroup.jsx";
 import AgendaSkeletonList from "../components/AgendaSkeletonList.jsx";
 
 import "../styles/Agenda.css";
+import "../../../../components/history-accordion.css";
+
 
 export default function AgendaPage() {
   const navigate = useNavigate();
@@ -249,7 +251,29 @@ export default function AgendaPage() {
                 {!historyLoading && !historyErr && historyGroups.length > 0 && (
                   <div className="ag-accordion">
                     {historyGroups.map((g) => (
-                      <AgendaHistoryGroup key={g.meetingId} group={g} />
+                      <HistoryAccordion
+                        key={g.meetingId}
+                        title={g.title || `Meeting #${g.meetingId}`}
+                        status={g.status}
+                        startTime={g.startTime}
+                        endTime={g.endTime}
+                        count={g.agendas?.length || 0}
+                        classPrefix="ag"
+                        emptyText="No agenda available."
+                      >
+                        {g.agendas.map((a) => (
+                          <div className="ag-item" key={a.id}>
+                            <div className="ag-item-left">
+                              <span className="ag-dot" />
+                              <div className="ag-item-title">{a.judul}</div>
+                            </div>
+                            <div className="ag-item-right">
+                              <div className="ag-item-time">{formatRange(a.startTime, a.endTime)}</div>
+                            </div>
+                            {a.deskripsi && <div className="ag-item-desc">{a.deskripsi}</div>}
+                          </div>
+                        ))}
+                      </HistoryAccordion>
                     ))}
                   </div>
                 )}

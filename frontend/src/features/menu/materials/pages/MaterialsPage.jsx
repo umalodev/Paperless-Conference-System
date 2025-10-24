@@ -18,6 +18,7 @@ import MeetingLayout from "../../../../components/MeetingLayout.jsx";
 import BottomNav from "../../../../components/BottomNav.jsx";
 import Icon from "../../../../components/Icon.jsx";
 import MeetingHeader from "../../../../components/MeetingHeader.jsx";
+import HistoryAccordion from "../../../../components/HistoryAccordion.jsx";
 
 import {
   MaterialCard,
@@ -270,23 +271,36 @@ export default function MaterialsPage() {
                     historyGroups.length > 0 && (
                       <div className="mtl-accordion">
                         {historyGroups.map((group) => (
-                          <HistoryGroup
+                          <HistoryAccordion
                             key={group.meetingId}
-                            group={group}
-                            onPreview={(it) =>
-                              window.open(
-                                it.url,
-                                "_blank",
-                                "noopener,noreferrer"
-                              )
-                            }
-                            onDownload={(it) => {
-                              const a = document.createElement("a");
-                              a.href = it.url;
-                              a.download = it.name;
-                              a.click();
-                            }}
-                          />
+                            title={group.title || `Meeting #${group.meetingId}`}
+                            status={group.status}
+                            startTime={group.startTime}
+                            endTime={group.endTime}
+                            count={group.materials?.length || 0}
+                            classPrefix="mtl"
+                            emptyText="No materials available."
+                          >
+                            <div className="mtl-grid">
+                              {(group.materials || []).map((it) => (
+                                <MaterialCard
+                                  key={it.id}
+                                  name={it.name}
+                                  meta={formatMeta(it)}
+                                  ext={extKind(it.name)}
+                                  onPreview={() =>
+                                    window.open(it.url, "_blank", "noopener,noreferrer")
+                                  }
+                                  onDownload={() => {
+                                    const a = document.createElement("a");
+                                    a.href = it.url;
+                                    a.download = it.name;
+                                    a.click();
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </HistoryAccordion>
                         ))}
                       </div>
                     )}
