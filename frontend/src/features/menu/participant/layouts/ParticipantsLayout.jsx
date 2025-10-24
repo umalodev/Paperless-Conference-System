@@ -47,7 +47,7 @@ export default function ParticipantsLayout({
         {!loadingMenus && !errMenus && (
           <BottomNav
             items={visibleMenus}
-            active="participants"
+            active="participant"
             onSelect={onSelectNav}
           />
         )}

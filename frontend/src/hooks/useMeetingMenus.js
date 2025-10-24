@@ -24,6 +24,7 @@ export default function useMeetingMenus() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const json = await res.json();
+        console.table(json.data.map((m) => m.slug));
         const list = Array.isArray(json?.data)
           ? json.data.map((m) => ({
               menuId: m.menuId,
