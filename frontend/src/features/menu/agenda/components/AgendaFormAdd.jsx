@@ -1,37 +1,35 @@
-// src/features/agenda/components/AgendaFormAdd.jsx
 import React from "react";
 
 export default function AgendaFormAdd({
   form,
   formErr,
   saving,
-  addJudulRef,
-  addDateRef,
-  addStartRef,
-  addEndRef,
   handleFormChange,
   submitAdd,
   closeAdd,
 }) {
   return (
     <form className="agenda-form" onSubmit={submitAdd} noValidate>
+      {/* === Judul === */}
       <div className="af-row">
         <label className="af-label">
           Judul <span className="req-star">*</span>
         </label>
         <input
-          ref={addJudulRef}
           name="judul"
           className="af-input"
           placeholder="Example: Opening"
           value={form.judul}
           onChange={handleFormChange}
           required
-          onInvalid={(e) => e.target.setCustomValidity("Judul wajib diisi.")}
+          onInvalid={(e) =>
+            e.target.setCustomValidity("Judul wajib diisi.")
+          }
           onInput={(e) => e.currentTarget.setCustomValidity("")}
         />
       </div>
 
+      {/* === Deskripsi === */}
       <div className="af-row">
         <label className="af-label">Description</label>
         <textarea
@@ -44,64 +42,74 @@ export default function AgendaFormAdd({
         />
       </div>
 
+      {/* === Tanggal dan Waktu === */}
       <div className="af-grid">
         <div className="af-col">
           <label className="af-label">
             Tanggal <span className="req-star">*</span>
           </label>
           <input
-            ref={addDateRef}
             type="date"
             name="date"
             className="af-input"
             value={form.date}
             onChange={handleFormChange}
             required
-            onInvalid={(e) => e.target.setCustomValidity("Tanggal wajib diisi.")}
+            onInvalid={(e) =>
+              e.target.setCustomValidity("Tanggal wajib diisi.")
+            }
             onInput={(e) => e.currentTarget.setCustomValidity("")}
           />
         </div>
+
         <div className="af-col">
           <label className="af-label">
             Mulai <span className="req-star">*</span>
           </label>
           <input
-            ref={addStartRef}
             type="time"
             name="start"
             className="af-input"
             value={form.start}
             onChange={handleFormChange}
             required
-            onInvalid={(e) => e.target.setCustomValidity("Jam mulai wajib diisi.")}
+            onInvalid={(e) =>
+              e.target.setCustomValidity("Jam mulai wajib diisi.")
+            }
             onInput={(e) => e.currentTarget.setCustomValidity("")}
           />
         </div>
+
         <div className="af-col">
           <label className="af-label">
             Selesai <span className="req-star">*</span>
           </label>
           <input
-            ref={addEndRef}
             type="time"
             name="end"
             className="af-input"
             value={form.end}
-            onChange={(e) => {
-              if (addEndRef.current) addEndRef.current.setCustomValidity("");
-              handleFormChange(e);
-            }}
+            onChange={handleFormChange}
             required
-            onInvalid={(e) => e.target.setCustomValidity("Jam selesai wajib diisi.")}
+            onInvalid={(e) =>
+              e.target.setCustomValidity("Jam selesai wajib diisi.")
+            }
             onInput={(e) => e.currentTarget.setCustomValidity("")}
           />
         </div>
       </div>
 
+      {/* === Error Message === */}
       {formErr && <div className="pd-error mt-8">{formErr}</div>}
 
+      {/* === Actions === */}
       <div className="af-actions">
-        <button type="button" className="pd-ghost" onClick={closeAdd} disabled={saving}>
+        <button
+          type="button"
+          className="pd-ghost"
+          onClick={closeAdd}
+          disabled={saving}
+        >
           Cancel
         </button>
         <button type="submit" className="pd-danger" disabled={saving}>
