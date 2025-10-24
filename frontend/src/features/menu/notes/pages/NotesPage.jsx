@@ -1,22 +1,21 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import BottomNav from "../../../../components/BottomNav.jsx";
+
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
-import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import MeetingHeader from "../../../../components/MeetingHeader.jsx";
-import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
-import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
-import { useModal } from "../../../../contexts/ModalProvider.jsx";
-import meetingService from "../../../../services/meetingService.js";
-import { API_URL } from "../../../../config.js";
-import "../styles/Notes.css";
+import MeetingFooter from "../../../../components/MeetingFooter.jsx";
+import BottomNav from "../../../../components/BottomNav.jsx";
 import Icon from "../../../../components/Icon.jsx";
 
-// hooks & utils
+import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
+import { useModal } from "../../../../contexts/ModalProvider.jsx";
+import useMeetingGuard from "../../../../hooks/useMeetingGuard.js";
+import useMeetingInfo from "../../../../hooks/useMeetingInfo.js";
+import useMeetingMenus from "../../../../hooks/useMeetingMenus.js";
+
 import { useNotes, useNoteComposer, useNoteEdit } from "../hooks";
 import { formatDate } from "../../../../utils/format.js";
 
-// components
 import {
   NoteCard,
   NotesComposer,
@@ -24,12 +23,20 @@ import {
   NotesSkeleton,
 } from "../components";
 
-export default function NotesPage() {
-  const [user, setUser] = useState(null);
-  const { confirm } = useModal();
-  const navigate = useNavigate();
+import "../styles/Notes.css";
 
-  // ====== MediaRoom ======
+export default function NotesPage() {
+  const navigate = useNavigate();
+  const { confirm, notify } = useModal();
+
+  // ✅ Ambil info meeting dan user
+  const { user, displayName, meetingId, meetingTitle } = useMeetingInfo();
+
+  // ✅ Ambil menu menggunakan hook global
+  const { menus, visibleMenus, loading: loadingMenus, error: errMenus } =
+    useMeetingMenus();
+
+  // ✅ Kontrol mic/cam
   const {
     ready: mediaReady,
     micOn,
@@ -50,75 +57,12 @@ export default function NotesPage() {
     camOn ? stopCam() : startCam();
   }, [mediaReady, camOn, startCam, stopCam]);
 
-  // ====== Meeting ======
-  const meetingId = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("currentMeeting");
-      const cm = raw ? JSON.parse(raw) : null;
-      return cm?.id || cm?.meetingId || cm?.code || null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // ====== User info ======
-  const [displayName, setDisplayName] = useState("");
-  useEffect(() => {
-    const u = localStorage.getItem("user");
-    if (u) setUser(JSON.parse(u));
-    const dn = localStorage.getItem("pconf.displayName") || "";
-    setDisplayName(dn);
-  }, []);
-
-  // ====== Menus ======
-  const [menus, setMenus] = useState([]);
-  const [loadingMenus, setLoadingMenus] = useState(true);
-  const [errMenus, setErrMenus] = useState("");
-
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setLoadingMenus(true);
-        const res = await fetch(`${API_URL}/api/menu/user/menus`, {
-          headers: meetingService.getAuthHeaders(),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json?.data)
-          ? json.data.map((m) => ({
-              menuId: m.menuId,
-              slug: m.slug,
-              label: m.displayLabel,
-              flag: m.flag ?? "Y",
-              iconUrl: m.iconMenu || null,
-              seq: m.sequenceMenu,
-            }))
-          : [];
-        if (!cancel) setMenus(list);
-      } catch (e) {
-        if (!cancel) setErrMenus(String(e.message || e));
-      } finally {
-        if (!cancel) setLoadingMenus(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
-  const visibleMenus = useMemo(
-    () =>
-      (menus || [])
-        .filter((m) => (m?.flag ?? "Y") === "Y")
-        .sort((a, b) => (a.seq ?? 999) - (b.seq ?? 999)),
-    [menus]
-  );
-
+  // ✅ Navigasi menu bawah
   const handleSelectNav = (item) => navigate(`/menu/${item.slug}`);
 
-  // ====== Notes Hooks ======
-  const { notes, setNotes, loadingNotes, errNotes, loadNotes } = useNotes(meetingId);
+  // ✅ Notes hooks
+  const { notes, setNotes, loadingNotes, errNotes, loadNotes } =
+    useNotes(meetingId);
 
   const {
     title,
@@ -144,11 +88,11 @@ export default function NotesPage() {
     handleDelete,
   } = useNoteEdit({ confirm });
 
-  useMeetingGuard({ pollingMs: 5000, showAlert: true });
-
   const saving = savingComposer || savingEdit;
 
-  // ====== Simplified refresh (tanpa modal/notify) ======
+  useMeetingGuard({ pollingMs: 5000, showAlert: true });
+
+  // ✅ Refresh catatan
   const reloadNotes = useCallback(async () => {
     try {
       await loadNotes();
@@ -157,28 +101,16 @@ export default function NotesPage() {
     }
   }, [loadNotes]);
 
-  // ====== Render ======
   return (
     <MeetingLayout
       meetingId={meetingId}
       userId={user?.id}
       userRole={user?.role || "participant"}
-      socket={null}
-      mediasoupDevice={null}
-      meetingTitle={(() => {
-        try {
-          const raw = localStorage.getItem("currentMeeting");
-          const cm = raw ? JSON.parse(raw) : null;
-          return cm?.title || `Meeting #${meetingId}`;
-        } catch {
-          return `Meeting #${meetingId}`;
-        }
-      })()}
+      meetingTitle={meetingTitle}
     >
-      <div className="pd-app">
+      <div className="pd-app notes-page">
         {/* Header */}
         <MeetingHeader displayName={displayName} user={user} />
-
 
         {/* Main */}
         <main className="pd-main">
@@ -186,7 +118,11 @@ export default function NotesPage() {
             {/* Header actions */}
             <div className="notes-header">
               <div className="notes-title">
-                <img src="/img/notebook.png" alt="Catatan" className="action-icon" />
+                <img
+                  src="/img/notebook.png"
+                  alt="Catatan"
+                  className="action-icon"
+                />
                 <span>Notes</span>
               </div>
               <div className="notes-actions">
@@ -253,9 +189,14 @@ export default function NotesPage() {
         {!loadingMenus && !errMenus && (
           <BottomNav
             items={visibleMenus}
-            active="note"
+            active="notes"
             onSelect={handleSelectNav}
           />
+        )}
+        {errMenus && (
+          <div className="pd-error" style={{ marginTop: 12 }}>
+            Gagal memuat menu: {errMenus}
+          </div>
         )}
 
         {/* Footer */}
