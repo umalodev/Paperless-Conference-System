@@ -17,10 +17,10 @@ export default function AgendaHistoryGroup({ group }) {
           </div>
           <div className="ag-acc-meta">{formatDateRange(startTime, endTime)}</div>
         </div>
-        <div className="ag-acc-count">
-          <Icon slug="calendar" />
-          {agendas?.length || 0}
-        </div>
+          <div className="ag-acc-count">
+            <Icon slug="files" style={{ width: 14, height: 14 }} />
+            {agendas?.length || 0}
+          </div>
       </button>
 
       {open && (
