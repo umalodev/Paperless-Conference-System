@@ -11,6 +11,9 @@ const { Server } = require("socket.io");
 const { verifyToken } = require("./utils/jwt");
 const sequelize = require("./db/db");
 const models = require("./models");
+const {
+  startMidnightClearAllChatsJob,
+} = require("./jobs/midnightClearAllChats");
 
 // =========================================================
 // ⚙️ Server Setup
@@ -103,7 +106,8 @@ const validateMeetingStatus = async (meetingId) => {
   try {
     const meeting = await models.Meeting.findByPk(meetingId);
     if (!meeting) return false;
-    if (meeting.status !== "active" && meeting.status !== "started") return false;
+    if (meeting.status !== "active" && meeting.status !== "started")
+      return false;
 
     const hostParticipant = await models.MeetingParticipant.findOne({
       where: { meetingId, role: "host", flag: "Y" },
@@ -121,7 +125,13 @@ const validateMeetingStatus = async (meetingId) => {
 // 🧠 Socket Aggregator (semua socket modular di sini)
 // =========================================================
 const setupAllSockets = require("./sockets");
-setupAllSockets(io, models, validateMeetingStatus, broadcastToMeeting, roomName);
+setupAllSockets(
+  io,
+  models,
+  validateMeetingStatus,
+  broadcastToMeeting,
+  roomName
+);
 
 // =========================================================
 // 🚀 Express Middleware & Routes
@@ -144,7 +154,8 @@ app.use(
   "/uploads",
   express.static(UPLOAD_DIR, {
     index: false,
-    setHeaders: (res) => res.setHeader("Cross-Origin-Resource-Policy", "cross-origin"),
+    setHeaders: (res) =>
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin"),
   })
 );
 
@@ -166,6 +177,9 @@ app.use((req, res) => {
   try {
     await sequelize.sync({ alter: true });
     console.log("✅ Database synced successfully");
+
+    startMidnightClearAllChatsJob();
+    console.log("🗓️  Scheduler 'clear chat' aktif (setiap 00:00 WIB)");
 
     server.listen(PORT, HOST, () => {
       console.log(`🚀 Backend listening at http://${HOST}:${PORT}`);

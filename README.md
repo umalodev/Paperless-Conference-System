@@ -17,6 +17,7 @@ Sistem konferensi tanpa kertas yang terdiri dari **backend** (Node.js/Express) d
    npm install mysql2 cors dotenv
    npm install sequelize sequelize-cli mysql2
    npm install mediasoup-client socket.io-client
+   npm install node-cron
    ```
 
 3. Buat file .env dan isi konfigurasi database
