@@ -200,24 +200,27 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
             </div>
             <div className="video-container" ref={overlayRef}>
               {isSharing ? (
-                <>
-                  <div className="sharing-placeholder">
-                    <p>🔴 You are sharing your screen</p>
-                  </div>
-                  <AnnotateZoomCanvas attachTo={overlayRef} mode="receive-only" />
-                </>
-              ) : (
-                <>
-                  <img
-                    ref={imageRef}
-                    alt="Screen Share"
-                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                  />
-                  {isAnnotating && (
-                    <AnnotateZoomCanvas attachTo={overlayRef} mode="full" />
-                  )}
-                </>
-              )}
+  <>
+    <div className="sharing-placeholder">
+      <p>🔴 You are sharing your screen</p>
+    </div>
+    {isAnnotating && (
+      <AnnotateZoomCanvas attachTo={overlayRef} mode="full" />
+    )}
+  </>
+) : (
+  <>
+    <img
+      ref={imageRef}
+      alt="Screen Share"
+      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+    />
+    {isAnnotating && (
+      <AnnotateZoomCanvas attachTo={overlayRef} mode="receive-only" />
+    )}
+  </>
+)}
+
             </div>
           </div>
         ) : (
