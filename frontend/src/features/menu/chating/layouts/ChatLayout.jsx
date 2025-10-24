@@ -56,7 +56,7 @@ export default function ChatLayout({
 
         {/* ======= 🔻 Bottom Navigation ======= */}
         {menus?.length > 0 && (
-          <BottomNav items={menus} active={activeSlug} onSelect={onSelectNav} />
+          <BottomNav items={menus} active="chat" onSelect={onSelectNav} />
         )}
 
         {/* ======= 🎙️ Meeting Footer ======= */}
