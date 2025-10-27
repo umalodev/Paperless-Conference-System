@@ -7,19 +7,39 @@ module.exports = (models, opts = {}) => {
   const { File, User, Meeting, FileRead } = models;
   const uploadBaseUrl = opts.uploadBaseUrl || "/uploads/files";
 
-  const sanitize = (row) => ({
-    fileId: row.fileId,
-    meetingId: row.meetingId,
-    name: row.originalName,
-    url: row.url,
-    size: row.size,
-    mimeType: row.mimeType,
-    description: row.description,
-    uploaderId: row.uploaderId,
-    uploaderName: row.Uploader?.username || row.Uploader?.nama || "User",
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  });
+  // helper: base publik (hormat proxy)
+  const publicBase = (req) => {
+    const proto = (req.headers["x-forwarded-proto"] || req.protocol || "http")
+      .split(",")[0]
+      .trim();
+    const host = (req.headers["x-forwarded-host"] || req.get("host") || "")
+      .split(",")[0]
+      .trim();
+    return `${proto}://${host}`;
+  };
+
+  // helper: pastikan ada relative URL meski row.url null
+  const buildRelUrl = (row) => row.url || `${uploadBaseUrl}/${row.storedName}`;
+
+  // sanitize dengan urlAbs
+  const sanitize = (row, req) => {
+    const rel = buildRelUrl(row);
+    const base = req ? publicBase(req) : ""; // req opsional
+    return {
+      fileId: row.fileId,
+      meetingId: row.meetingId,
+      name: row.originalName,
+      url: rel,
+      urlAbs: base ? `${base}${rel}` : undefined,
+      size: row.size,
+      mimeType: row.mimeType,
+      description: row.description,
+      uploaderId: row.uploaderId,
+      uploaderName: row.Uploader?.username || row.Uploader?.nama || "User",
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  };
 
   return {
     // GET /api/files?meetingId=...
@@ -36,7 +56,10 @@ module.exports = (models, opts = {}) => {
           include: [{ model: User, as: "Uploader" }],
           order: [["created_at", "DESC"]],
         });
-        return res.json({ success: true, data: rows.map(sanitize) });
+        return res.json({
+          success: true,
+          data: rows.map((r) => sanitize(r, req)),
+        });
       } catch (e) {
         return res
           .status(500)
@@ -56,7 +79,6 @@ module.exports = (models, opts = {}) => {
           return res
             .status(400)
             .json({ success: false, message: "meetingId is required" });
-
         if (!req.file)
           return res
             .status(400)
@@ -66,11 +88,13 @@ module.exports = (models, opts = {}) => {
         const storedName = req.file.filename;
         const mimeType = req.file.mimetype;
         const size = req.file.size;
+
+        // simpan RELATIVE url ke DB (aman untuk dipindah host)
         const url = `${uploadBaseUrl}/${storedName}`;
 
         const row = await File.create({
           meetingId,
-          uploaderId: req.user.id, // sesuaikan field PK user kamu
+          uploaderId: req.user.id,
           originalName,
           storedName,
           mimeType,
@@ -84,7 +108,9 @@ module.exports = (models, opts = {}) => {
           include: [{ model: User, as: "Uploader" }],
         });
 
-        return res.status(201).json({ success: true, data: sanitize(created) });
+        return res
+          .status(201)
+          .json({ success: true, data: sanitize(created, req) });
       } catch (e) {
         return res
           .status(400)
@@ -101,7 +127,6 @@ module.exports = (models, opts = {}) => {
         const withFilesOnly = String(req.query.withFilesOnly || "1") === "1";
         const q = (req.query.q || "").trim();
 
-        // ambil meetings aktif terbaru
         const whereMeeting = { flag: "Y" };
         if (excludeMeetingId)
           whereMeeting.meetingId = { [Op.ne]: excludeMeetingId };
@@ -122,7 +147,6 @@ module.exports = (models, opts = {}) => {
         }
 
         const ids = meetings.map((m) => m.meetingId);
-
         const whereFiles = { meetingId: { [Op.in]: ids }, flag: "Y" };
         if (q) {
           whereFiles[Op.or] = [
@@ -137,7 +161,6 @@ module.exports = (models, opts = {}) => {
           order: [["created_at", "DESC"]],
         });
 
-        // group by meetingId
         const grouped = new Map();
         for (const m of meetings) {
           grouped.set(m.meetingId, {
@@ -152,7 +175,7 @@ module.exports = (models, opts = {}) => {
         for (const r of fileRows) {
           const g = grouped.get(r.meetingId);
           if (!g) continue;
-          g.files.push(sanitize(r));
+          g.files.push(sanitize(r, req));
         }
 
         let data = Array.from(grouped.values());
@@ -172,7 +195,7 @@ module.exports = (models, opts = {}) => {
       }
     },
 
-    // DELETE /api/files/:fileId (soft delete; optional: hapus file fisik)
+    // DELETE /api/files/:fileId
     remove: async (req, res) => {
       try {
         if (!req.user)
@@ -187,7 +210,6 @@ module.exports = (models, opts = {}) => {
             .status(404)
             .json({ success: false, message: "File not found" });
 
-        // rule: boleh hapus jika pemilik file atau admin/host
         const role = req.user?.UserRole?.nama;
         const isOwner = Number(row.uploaderId) === Number(req.user.id);
         const isMod = role === "admin" || role === "host";
@@ -195,13 +217,7 @@ module.exports = (models, opts = {}) => {
           return res.status(403).json({ success: false, message: "Forbidden" });
         }
 
-        // soft delete
         await row.update({ flag: "N" });
-
-        // opsional: hapus fisik (jika mau betul2 remove fisik)
-        // const fullpath = path.join(__dirname, "..", "uploads", "files", row.storedName);
-        // fs.unlink(fullpath).catch(() => {});
-
         return res.json({ success: true, message: "File deleted" });
       } catch (e) {
         return res
@@ -238,7 +254,6 @@ module.exports = (models, opts = {}) => {
       }
     },
 
-    // PATCH /api/files/:fileId/unread
     markUnread: async (req, res) => {
       try {
         const userId = req.user?.id;
@@ -257,7 +272,6 @@ module.exports = (models, opts = {}) => {
       }
     },
 
-    // POST /api/files/mark-all-read   (body: { meetingId? })
     markAllRead: async (req, res) => {
       try {
         const userId = req.user?.id;
@@ -286,7 +300,6 @@ module.exports = (models, opts = {}) => {
       }
     },
 
-    // GET /api/files/unread-count?meetingId=...
     unreadCount: async (req, res) => {
       try {
         const userId = req.user?.id;

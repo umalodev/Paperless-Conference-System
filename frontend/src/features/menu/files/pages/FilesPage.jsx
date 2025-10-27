@@ -17,11 +17,7 @@ import useMeetingInfo from "../../../../hooks/useMeetingInfo.js";
 import useMeetingMenus from "../../../../hooks/useMeetingMenus.js";
 
 import { useFiles, useFilesHistory, useFileBadge } from "../hooks";
-import {
-  FileCard,
-  SkeletonGrid,
-  SkeletonAccordion,
-} from "../components";
+import { FileCard, SkeletonGrid, SkeletonAccordion } from "../components";
 import { guessName } from "../../../../utils/format.js";
 
 export default function FilesPage() {
@@ -29,8 +25,12 @@ export default function FilesPage() {
   const { notify, confirm } = useModal();
   const { setBadgeLocal } = useFileBadge();
   const { user, displayName, meetingId, meetingTitle } = useMeetingInfo();
-  const { menus, visibleMenus, loading: loadingMenus, error: errMenus } =
-    useMeetingMenus();
+  const {
+    menus,
+    visibleMenus,
+    loading: loadingMenus,
+    error: errMenus,
+  } = useMeetingMenus();
 
   const {
     files,
@@ -132,7 +132,11 @@ export default function FilesPage() {
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
-                <img src="/img/Files1.png" alt="" className="files-title-icon" />
+                <img
+                  src="/img/Files1.png"
+                  alt=""
+                  className="files-title-icon"
+                />
                 <span className="files-title-text">Files</span>
               </div>
 
@@ -252,9 +256,11 @@ export default function FilesPage() {
                     Gagal memuat riwayat: {errHistory}
                   </div>
                 )}
-                {!loadingHistory && !errHistory && historyGroups.length === 0 && (
-                  <div className="pd-empty">Belum ada riwayat files.</div>
-                )}
+                {!loadingHistory &&
+                  !errHistory &&
+                  historyGroups.length === 0 && (
+                    <div className="pd-empty">Belum ada riwayat files.</div>
+                  )}
                 {!loadingHistory && !errHistory && historyGroups.length > 0 && (
                   <div className="files-accordion">
                     {historyGroups.map((g) => (
