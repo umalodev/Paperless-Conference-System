@@ -62,6 +62,9 @@ function connectToControlServer(token?: string, displayName?: string) {
     // Kirim register setelah koneksi benar-benar terbentuk
     socket!.emit("register", payload);
     console.log("[preload] Registered participant:", payload);
+
+    // 🟢 Setelah konek, aktifkan listener anotasi
+    setupAnnotationListener();
   });
 
   // === RECONNECT HANDLER (modern socket.io)
@@ -300,16 +303,42 @@ function stopMirror() {
 // =====================================================
 // 🧰 SCREEN CAPTURE HELPERS
 // =====================================================
-// (Removed unused getScreenSources function)
+
+// === ANNOTATION EVENTS ===
+window.addEventListener("message", (event) => {
+  const data = event.data;
+  if (data?.action === "annotation-path" && socket && socket.connected) {
+    // data.payload = array koordinat path [{x,y}, {x,y}, ...]
+    socket.emit("annotationUpdate", data.payload);
+  }
+});
+
+  // === Terima path dari orang lain (real-time) ===
+  function setupAnnotationListener() {
+    if (!socket) return;
+    const s = socket as Socket; // pastikan bertipe Socket, bukan never
+
+    s.on("annotationDraw", (pathData: any) => {
+      console.log("[preload] annotationDraw received:", pathData);
+      window.postMessage({ action: "annotation-draw", payload: pathData });
+    });
+  }
+
 
 // =====================================================
-// 🌍 EXPOSE TO RENDERER
+// 🌍 EXPOSE TO RENDERER (FINAL COMBINED)
 // =====================================================
 contextBridge.exposeInMainWorld("electronAPI", {
+  // 🔹 Fungsi utama kontrol server
   getPCInfo: () => ({ hostname: os.hostname(), os: os.platform() }),
-  connectToControlServer, // dipanggil dari Start.jsx setelah user isi displayName
+  connectToControlServer,
   disconnectFromControlServer,
+
+  // 🔹 IPC umum untuk komunikasi ke main
+  send: (channel: string, data?: any) => ipcRenderer.send(channel, data),
+  invoke: (channel: string, data?: any) => ipcRenderer.invoke(channel, data),
 });
+
 
 /// =====================================================
 // 🌍 EXPOSE TO RENDERER (screenAPI via IPC)

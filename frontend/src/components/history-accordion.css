@@ -1,0 +1,215 @@
+
+/* === FILES HISTORY ACCORDION === */
+
+.facc-acc {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.facc-acc.open {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+
+.facc-acc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: #f8fafc;
+  cursor: pointer;
+  padding: 12px 16px;
+  border: none;
+  transition: background 0.2s ease;
+}
+
+.facc-acc-head:hover {
+  background: #f1f5f9;
+}
+
+.facc-acc-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.facc-acc-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.facc-acc-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.facc-acc-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.facc-acc-body {
+  background: #fff;
+  padding: 14px 16px 16px;
+  border-top: 1px solid #e2e8f0;
+  animation: fadeIn 0.2s ease;
+}
+
+
+/* === AGENDA HISTORY ACCORDION === */
+.ag-acc {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.ag-acc.open {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+
+.ag-acc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: #f8fafc;
+  cursor: pointer;
+  padding: 12px 16px;
+  border: none;
+  transition: background 0.2s ease;
+}
+
+.ag-acc-head:hover {
+  background: #f1f5f9;
+}
+
+.ag-acc-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.ag-acc-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ag-acc-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ag-acc-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.ag-acc-body {
+  background: #fff;
+  padding: 14px 16px 16px;
+  border-top: 1px solid #e2e8f0;
+  animation: fadeIn 0.2s ease;
+}
+
+/* === MATERIALS HISTORY ACCORDION === */
+.mtl-acc {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.mtl-acc.open {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+
+.mtl-acc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: #f8fafc;
+  cursor: pointer;
+  padding: 12px 16px;
+  border: none;
+  transition: background 0.2s ease;
+}
+
+.mtl-acc-head:hover {
+  background: #f1f5f9;
+}
+
+.mtl-acc-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.mtl-acc-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mtl-acc-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.mtl-acc-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.mtl-acc-body {
+  background: #fff;
+  padding: 14px 16px 16px;
+  border-top: 1px solid #e2e8f0;
+  animation: fadeIn 0.2s ease;
+}

@@ -37,7 +37,6 @@ export default function StartForm() {
             </p>{" "}
           </div>{" "}
         </div>
-        ```
         <label className={styles["label-bold"]}>I want to :</label>
         <div className={styles["option-box"]}>
           <img

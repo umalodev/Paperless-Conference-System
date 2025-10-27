@@ -5,8 +5,10 @@ import BottomNav from "../../../../components/BottomNav.jsx";
 import MeetingHeader from "../../../../components/MeetingHeader.jsx";
 import MeetingFooter from "../../../../components/MeetingFooter.jsx";
 import MeetingLayout from "../../../../components/MeetingLayout.jsx";
+import HistoryAccordion from "../../../../components/HistoryAccordion.jsx";
 import Icon from "../../../../components/Icon.jsx";
 import "../styles/files.css";
+import "../../../../components/history-accordion.css";
 
 import { useMediaRoom } from "../../../../contexts/MediaRoomContext.jsx";
 import { useModal } from "../../../../contexts/ModalProvider.jsx";
@@ -17,7 +19,6 @@ import useMeetingMenus from "../../../../hooks/useMeetingMenus.js";
 import { useFiles, useFilesHistory, useFileBadge } from "../hooks";
 import {
   FileCard,
-  FilesHistoryGroup,
   SkeletonGrid,
   SkeletonAccordion,
 } from "../components";
@@ -257,14 +258,29 @@ export default function FilesPage() {
                 {!loadingHistory && !errHistory && historyGroups.length > 0 && (
                   <div className="files-accordion">
                     {historyGroups.map((g) => (
-                      <FilesHistoryGroup
+                      <HistoryAccordion
                         key={g.meetingId}
-                        group={g}
-                        me={user}
-                        onOpen={(f) => openFile(f)}
-                        onDownload={(f) => downloadFile(f)}
-                        onDelete={(id) => handleDelete(id)}
-                      />
+                        title={g.title || `Meeting #${g.meetingId}`}
+                        status={g.status}
+                        startTime={g.startTime}
+                        endTime={g.endTime}
+                        count={g.files?.length || 0}
+                        classPrefix="facc"
+                        emptyText="No files available."
+                      >
+                        <div className="mtl-grid files-grid">
+                          {g.files.map((f) => (
+                            <FileCard
+                              key={f.fileId || f.url}
+                              file={f}
+                              me={user}
+                              onOpen={() => openFile(f)}
+                              onDownload={() => downloadFile(f)}
+                              onDelete={() => handleDelete(f.fileId)}
+                            />
+                          ))}
+                        </div>
+                      </HistoryAccordion>
                     ))}
                   </div>
                 )}

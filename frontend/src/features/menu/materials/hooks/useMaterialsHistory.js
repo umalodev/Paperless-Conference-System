@@ -10,7 +10,7 @@ const absolutize = (u) => {
   return `${base}${p}`;
 };
 
-export default function useFilesHistory({ meetingId }) {
+export default function useMaterialsHistory({ meetingId }) {
   const [historyGroups, setHistoryGroups] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [errHistory, setErrHistory] = useState("");
@@ -20,10 +20,11 @@ export default function useFilesHistory({ meetingId }) {
       setLoadingHistory(true);
       setErrHistory("");
       try {
-        const url = new URL(`${API_URL}/api/files/history`);
+        // ✅ gunakan endpoint materials
+        const url = new URL(`${API_URL}/api/materials/history`);
         if (meetingId) url.searchParams.set("excludeMeetingId", meetingId);
         url.searchParams.set("limit", "30");
-        url.searchParams.set("withFilesOnly", "0");
+        url.searchParams.set("withMaterialsOnly", "0");
         if (query.trim()) url.searchParams.set("q", query.trim());
 
         const res = await fetch(url.toString(), {
@@ -34,23 +35,23 @@ export default function useFilesHistory({ meetingId }) {
         const json = await res.json();
         const arr = Array.isArray(json?.data) ? json.data : [];
 
+        // ✅ mapping data sesuai struktur material
         const groups = arr.map((g) => ({
           meetingId: g.meetingId,
           title: g.title,
           startTime: g.startTime,
           endTime: g.endTime,
           status: g.status,
-          files: (g.files || []).map((f) => ({
-            id: f.id,
-            url: f.url,
-            urlAbs: absolutize(f.url),
-            name: f.name,
-            uploaderName: f.uploaderName,
-            createdAt: f.created_at || f.createdAt,
+          materials: (g.materials || []).map((m) => ({
+            id: m.id,
+            url: absolutize(m.url),
+            name: m.name,
+            uploaderName: m.uploaderName,
+            createdAt: m.created_at || m.createdAt,
           })),
         }));
 
-        // Urutkan berdasarkan waktu mulai (descending)
+        // Urutkan descending
         groups.sort((a, b) => {
           const da = a.startTime ? new Date(a.startTime).getTime() : 0;
           const db = b.startTime ? new Date(b.startTime).getTime() : 0;
@@ -67,7 +68,6 @@ export default function useFilesHistory({ meetingId }) {
     [meetingId]
   );
 
-  // ✅ Auto load saat mount seperti di useMaterialsHistory
   useEffect(() => {
     reloadHistory();
   }, [reloadHistory]);

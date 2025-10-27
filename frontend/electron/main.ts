@@ -53,7 +53,9 @@ function createWindow() {
     height: 300,
     frame: false,
     resizable: false,
-    transparent: true,
+    transparent: false,
+    backgroundColor: "#00000000", // transparansi manual
+
     alwaysOnTop: true,
     skipTaskbar: true,
     show: false,
@@ -354,6 +356,109 @@ process.env.TZ = "Asia/Jakarta";
 
 
 app.whenReady().then(createWindow);
+
+
+// === GANTI DENGAN INI JIKA MAU VERSI TERPISAH ===
+let annotationWindows: BrowserWindow[] = [];
+let toolbarWindow: BrowserWindow | null = null;
+
+ipcMain.on("show-annotation-overlay", () => {
+  if (annotationWindows.length > 0) return;
+
+  const displays = screen.getAllDisplays();
+
+  // 🖊️ Overlay (gambar)
+  annotationWindows = displays.map((display, idx) => {
+    const { x, y, width, height } = display.bounds;
+    const overlay = new BrowserWindow({
+      x,
+      y,
+      width,
+      height,
+      frame: false,
+      fullscreen: true,
+      transparent: true,
+      alwaysOnTop: true,
+      focusable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      webPreferences: { nodeIntegration: true, contextIsolation: false },
+    });
+
+    overlay.loadFile(path.join(process.env.VITE_PUBLIC!, "annotation-overlay.html"));
+    overlay.setAlwaysOnTop(true, "screen-saver");
+    overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    overlay.setIgnoreMouseEvents(false);
+    console.log(`🖊️ Overlay aktif di layar ${idx + 1}`);
+    return overlay;
+  });
+
+  // 🧰 Toolbar (melayang)
+  toolbarWindow = new BrowserWindow({
+    width: 480,          // sedikit lebih lebar agar tombol tidak terpotong
+    height: 80,          // menyesuaikan padding & border radius di HTML
+    x: 100,
+    y: 100,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: true,   // agar blur & shadow HTML terlihat natural
+    skipTaskbar: true,
+    resizable: false,
+    movable: true,
+    focusable: true,     // penting supaya bisa diklik tombolnya
+    hasShadow: true,
+    roundedCorners: true, // opsional (Electron 28+)
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      devTools: true,    // aktifkan devtools saat debug
+    },
+  });
+
+  // Pastikan toolbar muncul di atas semua jendela
+  toolbarWindow.setAlwaysOnTop(true, 'screen-saver');
+  toolbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  toolbarWindow.loadFile(path.join(process.env.VITE_PUBLIC!, "annotation-toolbar.html"));
+  toolbarWindow.once('ready-to-show', () => {
+    toolbarWindow?.show();
+    toolbarWindow?.focus();
+    console.log('✅ Toolbar ditampilkan di atas semua layar');
+  });
+
+  toolbarWindow.on('closed', () => {
+    toolbarWindow = null;
+  });
+});
+
+// 🔄 IPC antara toolbar & overlay
+ipcMain.on("annotation-action", (_event, action) => {
+  annotationWindows.forEach((overlay) => {
+    if (!overlay.isDestroyed()) {
+      overlay.webContents.send("annotation-action", action);
+
+      // 🧠 Jika toggle annotate → ubah mode klik overlay
+      if (action.type === "toggle") {
+        if (action.value) {
+          // Aktif (bisa menggambar)
+          overlay.setIgnoreMouseEvents(false);
+          console.log("🖊️ Overlay aktif untuk menggambar");
+        } else {
+          // Nonaktif (klik tembus ke belakang)
+          overlay.setIgnoreMouseEvents(true, { forward: true });
+          console.log("🖱️ Overlay tembus, bisa klik aplikasi di belakang");
+        }
+      }
+    }
+  });
+
+  if (action.type === "exit") {
+    annotationWindows.forEach((w) => !w.isDestroyed() && w.close());
+    annotationWindows = [];
+    if (toolbarWindow && !toolbarWindow.isDestroyed()) toolbarWindow.close();
+    toolbarWindow = null;
+  }
+});
 
 
 

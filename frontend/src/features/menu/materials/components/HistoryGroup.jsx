@@ -21,7 +21,7 @@ export default function HistoryGroup({ group, onPreview, onDownload }) {
           </div>
         </div>
         <div className="mtl-acc-count">
-          <Icon slug="file" />
+          <Icon slug="files" />
           {materials?.length || 0}
         </div>
       </button>

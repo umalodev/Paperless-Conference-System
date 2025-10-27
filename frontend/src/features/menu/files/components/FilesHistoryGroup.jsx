@@ -19,7 +19,7 @@ export default function FilesHistoryGroup({ group, me, onOpen, onDownload, onDel
           <div className="facc-meta">{formatDateRange(startTime, endTime)}</div>
         </div>
         <div className="facc-count">
-          <Icon slug="files" size={16} />
+          <Icon slug="files" style={{ width: 14, height: 14 }} />
           {files?.length || 0}
         </div>
       </button>

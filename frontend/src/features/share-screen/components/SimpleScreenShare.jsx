@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import simpleScreenShare from "../../../services/simpleScreenShare";
 import "../styles/SimpleScreenShare.css";
-import AnnotateZoomCanvas from "../../../components/AnnotateZoomCanvas";
 import { useScreenShare } from "../../../contexts/ScreenShareContext";
 
 const SimpleScreenShare = ({ meetingId, userId }) => {
@@ -12,6 +11,8 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
 
   const imageRef = useRef(null);
   const overlayRef = useRef(null);
+  const canvasRef = useRef(null);
+
 
   const {
     sharingUser,
@@ -21,6 +22,30 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
     isAnnotating,
     setIsAnnotating,
   } = useScreenShare();
+
+
+  useEffect(() => {
+    const handleAnnotationDraw = (e) => {
+      const { action, payload } = e.data;
+      if (action === "annotation-draw" && payload && canvasRef.current) {
+        const ctx = canvasRef.current.getContext("2d");
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "red";
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        for (let i = 0; i < payload.length; i++) {
+          const { x, y } = payload[i];
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    };
+    window.addEventListener("message", handleAnnotationDraw);
+    return () => window.removeEventListener("message", handleAnnotationDraw);
+  }, []);
+
+
 
   // ======================================================
   // 🔹 Helper: Ambil info user (displayName & role)
@@ -146,7 +171,17 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
     setSharingUser(null);
     setScreenShareOn(false);
     setIsAnnotating(false);
+
+    try {
+      // 🔻 Tutup overlay & toolbar langsung
+      window.electronAPI?.send("hide-annotation-overlay");
+      window.electronAPI?.send("hide-annotation-tools");
+      console.log("🧹 Overlay + tools hidden immediately after Stop Share");
+    } catch (err) {
+      console.warn("⚠️ Failed to hide overlays/tools immediately:", err);
+    }
   };
+
 
   // ======================================================
   // 🔹 Update Image when receiving new frame
@@ -204,18 +239,33 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
                   <div className="sharing-placeholder">
                     <p>🔴 You are sharing your screen</p>
                   </div>
-                  <AnnotateZoomCanvas attachTo={overlayRef} mode="receive-only" />
+
                 </>
               ) : (
                 <>
+                <div style={{ position: "relative", width: "100%", height: "100%" }}>
                   <img
                     ref={imageRef}
                     alt="Screen Share"
-                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                    }}
                   />
-                  {isAnnotating && (
-                    <AnnotateZoomCanvas attachTo={overlayRef} mode="full" />
-                  )}
+                  <canvas
+                    ref={canvasRef}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      pointerEvents: "none",
+                    }}
+                  />
+                </div>
                 </>
               )}
             </div>

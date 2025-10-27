@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Annotation Toolbar</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px 20px;
+        background: rgba(30, 32, 35, 0.85);
+        backdrop-filter: blur(14px);
+        color: #fff;
+        font-family: "Poppins", "Segoe UI", sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        border-radius: 50px;
+        user-select: none;
+        -webkit-app-region: drag;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+        transition: all 0.25s ease;
+        position: relative;
+      }
+
+      .btn svg {
+        width: 22px;
+        height: 22px;
+        stroke: #fff;
+        stroke-width: 1.8;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: stroke 0.25s ease, transform 0.25s ease;
+      }
+
+      .btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(1.08);
+      }
+
+      .btn:hover svg {
+        stroke: #60a5fa;
+      }
+
+      .separator {
+        width: 1px;
+        height: 26px;
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .color-wrapper {
+        position: relative;
+        width: 34px;
+        height: 34px;
+      }
+
+      .color-indicator {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        cursor: pointer;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+      }
+
+      input[type="color"] {
+        opacity: 0;
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+
+      .status-label {
+        font-size: 13px;
+        opacity: 0.85;
+        font-weight: 500;
+        min-width: 80px;
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- 🎨 Color Picker -->
+    <div class="color-wrapper">
+      <div
+        class="color-indicator"
+        id="colorIndicator"
+        style="background:#ff0000"
+      ></div>
+      <input type="color" id="colorPicker" value="#ff0000" />
+    </div>
+
+    <div class="separator"></div>
+
+    <!-- ↩️ Undo -->
+    <button class="btn" id="undoBtn" title="Undo">
+      <svg viewBox="0 0 24 24">
+        <polyline points="15 6 9 12 15 18"></polyline>
+      </svg>
+    </button>
+
+    <!-- 🗑️ Clear -->
+    <button class="btn" id="clearBtn" title="Clear">
+      <svg viewBox="0 0 24 24">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+        <line x1="10" y1="11" x2="10" y2="17"></line>
+        <line x1="14" y1="11" x2="14" y2="17"></line>
+      </svg>
+    </button>
+
+    <div class="separator"></div>
+
+    <!-- ✋ Toggle Annotate -->
+    <button class="btn" id="toggleBtn" title="Start / Stop">
+      <svg id="toggleIcon" viewBox="0 0 24 24">
+        <!-- ▶ Play icon (default OFF) -->
+        <polygon points="8 5 19 12 8 19 8 5"></polygon>
+      </svg>
+    </button>
+    <span id="statusLabel" class="status-label">Annotate: OFF</span>
+
+    <div class="separator"></div>
+
+    <!-- ❌ Exit -->
+    <button class="btn" id="exitBtn" title="Exit">
+      <svg viewBox="0 0 24 24">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+
+    <script>
+      const { ipcRenderer } = require("electron");
+
+      let isDrawing = false;
+      let color = "#ff0000";
+      const statusLabel = document.getElementById("statusLabel");
+      const toggleIcon = document.getElementById("toggleIcon");
+
+      const sendAction = (type, value) =>
+        ipcRenderer.send("annotation-action", { type, value });
+
+      // Default state: annotate OFF
+      sendAction("toggle", isDrawing);
+      updateStatus();
+
+      function updateStatus() {
+        statusLabel.textContent = `Annotate: ${isDrawing ? "ON" : "OFF"}`;
+        statusLabel.style.color = isDrawing ? "#4ade80" : "#f87171";
+      }
+
+      // 🎨 Color picker
+      const colorPicker = document.getElementById("colorPicker");
+      const colorIndicator = document.getElementById("colorIndicator");
+      colorPicker.oninput = (e) => {
+        color = e.target.value;
+        colorIndicator.style.background = color;
+        sendAction("color", color);
+      };
+
+      // ↩️ Undo
+      document.getElementById("undoBtn").onclick = () => sendAction("undo");
+
+      // 🧹 Clear
+      document.getElementById("clearBtn").onclick = () => sendAction("clear");
+
+      // ✋ Start / Stop annotate
+      document.getElementById("toggleBtn").onclick = () => {
+        isDrawing = !isDrawing;
+        sendAction("toggle", isDrawing);
+        toggleIcon.innerHTML = isDrawing
+          ? '<rect x="6" y="5" width="4" height="14"></rect><rect x="14" y="5" width="4" height="14"></rect>' // pause
+          : '<polygon points="8 5 19 12 8 19 8 5"></polygon>'; // play
+        updateStatus();
+      };
+
+      // ❌ Exit
+      document.getElementById("exitBtn").onclick = () => sendAction("exit");
+    </script>
+  </body>
+</html>
