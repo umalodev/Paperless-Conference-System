@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Annotation Overlay</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script>
+      const { ipcRenderer } = require("electron");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "red";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      let drawing = false;
+      let paths = [];
+      let currentPath = [];
+      let enabled = true; // ✅ ini kunci: bisa digambar atau tidak
+
+      function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const path of paths) {
+          ctx.beginPath();
+          for (let i = 0; i < path.length; i++) {
+            const { x, y } = path[i];
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      }
+
+      canvas.addEventListener("mousedown", (e) => {
+        if (!enabled) return; // ❌ jangan mulai menggambar kalau disabled
+        drawing = true;
+        currentPath = [{ x: e.clientX, y: e.clientY }];
+      });
+
+      canvas.addEventListener("mousemove", (e) => {
+        if (!enabled || !drawing) return; // ❌ stop kalau tidak aktif
+        currentPath.push({ x: e.clientX, y: e.clientY });
+        redraw();
+        ctx.beginPath();
+        for (let i = 0; i < currentPath.length; i++) {
+          const { x, y } = currentPath[i];
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (drawing && enabled) paths.push(currentPath);
+        drawing = false;
+        currentPath = [];
+      });
+
+      // 🔹 Handler aksi dari toolbar
+      ipcRenderer.on("annotation-action", (_, action) => {
+        switch (action.type) {
+          case "undo":
+            paths.pop();
+            redraw();
+            break;
+
+          case "clear":
+            paths = [];
+            redraw();
+            break;
+
+          case "color":
+            ctx.strokeStyle = action.value;
+            break;
+
+          case "toggle":
+            enabled = action.value;
+            console.log("✏️ Annotate toggled:", enabled);
+            break;
+
+          case "exit":
+            window.close();
+            break;
+        }
+      });
+    </script>
+
+  </body>
+</html>
