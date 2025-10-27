@@ -5,7 +5,6 @@ import { API_URL } from "../config.js";
 import "./MeetingLayout.css";
 import meetingService from "../services/meetingService.js";
 import { useScreenShare } from "../contexts/ScreenShareContext";
-import AnnotateZoomCanvas from "./AnnotateZoomCanvas";
 
 const MeetingLayout = ({
   children,

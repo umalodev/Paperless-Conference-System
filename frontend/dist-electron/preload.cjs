@@ -9070,10 +9070,13 @@ function stopMirror() {
   console.log("[mirror] Stopped");
 }
 electron.contextBridge.exposeInMainWorld("electronAPI", {
+  // 🔹 Fungsi utama kontrol server
   getPCInfo: () => ({ hostname: os.hostname(), os: os.platform() }),
   connectToControlServer,
-  // dipanggil dari Start.jsx setelah user isi displayName
-  disconnectFromControlServer
+  disconnectFromControlServer,
+  // 🔹 IPC umum untuk komunikasi ke main
+  send: (channel, data) => electron.ipcRenderer.send(channel, data),
+  invoke: (channel, data) => electron.ipcRenderer.invoke(channel, data)
 });
 electron.contextBridge.exposeInMainWorld("screenAPI", {
   isElectron: true,

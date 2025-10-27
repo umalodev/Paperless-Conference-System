@@ -1,5 +1,6 @@
 // src/components/MeetingFooter.jsx
 import React from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
@@ -30,6 +31,7 @@ export default function MeetingFFooter({
   const { sharingUser, screenShareOn, isAnnotating, setIsAnnotating } =
     useScreenShare();
 
+  // 🔹 Ambil user ID lebih awal (sebelum useEffect)
   const currentUserId = (() => {
     try {
       const rawUser = localStorage.getItem("user");
@@ -39,6 +41,38 @@ export default function MeetingFFooter({
       return null;
     }
   })();
+
+  // 🎯 Auto aktifkan annotation overlay ketika host mulai share screen
+  useEffect(() => {
+    const isCurrentUserSharing =
+      screenShareOn && String(sharingUser?.id) === String(currentUserId);
+
+    if (isCurrentUserSharing && !isAnnotating) {
+      console.log("🟢 Auto enabling annotation overlay for sharer...");
+      setIsAnnotating(true);
+
+      try {
+        window.electronAPI?.send("show-annotation-overlay");
+      } catch (err) {
+        console.warn("⚠️ Failed to auto-show annotation overlay:", err);
+      }
+    }
+
+if (!screenShareOn && isAnnotating) {
+  console.log("🔴 Auto hiding annotation overlay + tools (share stopped)...");
+  setIsAnnotating(false);
+
+  try {
+    // 🔻 Tutup canvas overlay
+    window.electronAPI?.send("hide-annotation-overlay");
+    // 🔻 Tutup toolbar overlay juga
+    window.electronAPI?.send("hide-annotation-tools");
+  } catch (err) {
+    console.warn("⚠️ Failed to auto-hide annotation overlay/tools:", err);
+  }
+}
+
+  }, [screenShareOn, sharingUser, currentUserId, isAnnotating, setIsAnnotating]);
 
   // Helpers
   const getCurrentMeeting = () => {
@@ -381,6 +415,10 @@ export default function MeetingFFooter({
       </div>
 
       <div className="pd-controls-right">
+
+      
+
+
         {/* 🟩 Screen Share Button (dengan badge) */}
         <button
           className="pd-ctrl"
@@ -389,6 +427,8 @@ export default function MeetingFFooter({
           style={{ position: "relative" }}
         >
           <Icon slug="screen-share" />
+
+
 
           {/* 🔴 Badge jika ada orang lain share */}
           {screenShareOn && String(sharingUser) !== String(currentUserId) && (
@@ -452,11 +492,31 @@ export default function MeetingFFooter({
           </button>
         )}
 
+        {/* ✏️ Annotation Overlay Toggle (only when sharing) */}
         {screenShareOn && String(sharingUser?.id) === String(currentUserId) && (
           <button
             className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
-            title={isAnnotating ? "Stop Annotating" : "Annotate My Screen"}
-            onClick={() => setIsAnnotating(!isAnnotating)}
+            title={isAnnotating ? "Stop Annotating" : "Start Annotating"}
+            onClick={() => {
+              const newState = !isAnnotating;
+              setIsAnnotating(newState);
+
+              try {
+                if (window.electronAPI?.send) {
+                  if (newState) {
+                    console.log("🟢 Showing annotation overlay...");
+                    window.electronAPI.send("show-annotation-overlay");
+                  } else {
+                    console.log("🔴 Hiding annotation overlay...");
+                    window.electronAPI.send("hide-annotation-overlay");
+                  }
+                } else {
+                  console.warn("⚠️ electronAPI not available");
+                }
+              } catch (err) {
+                console.error("❌ Failed to toggle annotation overlay:", err);
+              }
+            }}
           >
             <Icon slug="annotate" />
           </button>

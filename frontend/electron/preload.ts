@@ -303,13 +303,19 @@ function stopMirror() {
 // (Removed unused getScreenSources function)
 
 // =====================================================
-// 🌍 EXPOSE TO RENDERER
+// 🌍 EXPOSE TO RENDERER (FINAL COMBINED)
 // =====================================================
 contextBridge.exposeInMainWorld("electronAPI", {
+  // 🔹 Fungsi utama kontrol server
   getPCInfo: () => ({ hostname: os.hostname(), os: os.platform() }),
-  connectToControlServer, // dipanggil dari Start.jsx setelah user isi displayName
+  connectToControlServer,
   disconnectFromControlServer,
+
+  // 🔹 IPC umum untuk komunikasi ke main
+  send: (channel: string, data?: any) => ipcRenderer.send(channel, data),
+  invoke: (channel: string, data?: any) => ipcRenderer.invoke(channel, data),
 });
+
 
 /// =====================================================
 // 🌍 EXPOSE TO RENDERER (screenAPI via IPC)

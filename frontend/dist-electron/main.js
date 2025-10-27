@@ -269,6 +269,263 @@ ipcMain.on("hide-lock-overlay", () => {
 app.commandLine.appendSwitch("lang", "id-ID");
 process.env.TZ = "Asia/Jakarta";
 app.whenReady().then(createWindow);
+let annotationWindows = [];
+ipcMain.on("show-annotation-overlay", () => {
+  if (annotationWindows.length > 0) return;
+  const displays = screen.getAllDisplays();
+  let currentAnnotateState = true;
+  annotationWindows = displays.map((display, idx) => {
+    const { x, y, width, height } = display.bounds;
+    const win2 = new BrowserWindow({
+      x,
+      y,
+      width,
+      height,
+      frame: false,
+      fullscreen: true,
+      transparent: true,
+      alwaysOnTop: true,
+      focusable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      webPreferences: {
+        contextIsolation: true,
+        sandbox: true
+      }
+    });
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <title>Annotation Overlay</title>
+          <style>
+            html, body {
+              margin: 0; height: 100%; width: 100%;
+              background: transparent; overflow: hidden;
+            }
+            canvas { width: 100%; height: 100%; cursor: crosshair; }
+            .toolbar {
+              position: fixed;
+              top: 15px;
+              right: 15px;
+              background: rgba(0, 0, 0, 0.65);
+              color: white;
+              padding: 8px 12px;
+              border-radius: 10px;
+              display: flex;
+              gap: 8px;
+              z-index: 9999;
+              font-family: "Segoe UI", sans-serif;
+            }
+            button {
+              background: #2563eb;
+              border: none;
+              color: white;
+              padding: 6px 10px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: background 0.2s;
+            }
+            button:hover { background: #1e4ed8; }
+            button.secondary { background: #4b5563; }
+            button.danger { background: #dc2626; }
+          </style>
+        </head>
+        <body>
+          <canvas id="canvas"></canvas>
+          <div class="toolbar">
+            <button id="toggleDrawBtn">Stop Annotate</button>
+            <button id="undoBtn">Undo</button>
+            <button id="clearBtn">Clear</button>
+            <button id="exitBtn" class="danger">Exit</button>
+          </div>
+
+          <script>
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let drawing = false;
+            let enabled = true;
+            let paths = [];
+            let currentPath = [];
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'red';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            function redraw() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              for (const path of paths) {
+                ctx.beginPath();
+                for (let i = 0; i < path.length; i++) {
+                  const { x, y } = path[i];
+                  if (i === 0) ctx.moveTo(x, y);
+                  else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+              }
+            }
+
+            canvas.addEventListener('mousedown', e => {
+              if (!enabled) return;
+              drawing = true;
+              currentPath = [{ x: e.clientX, y: e.clientY }];
+            });
+
+            canvas.addEventListener('mousemove', e => {
+              if (!enabled || !drawing) return;
+              currentPath.push({ x: e.clientX, y: e.clientY });
+              redraw();
+              ctx.beginPath();
+              for (let i = 0; i < currentPath.length; i++) {
+                const { x, y } = currentPath[i];
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              }
+              ctx.stroke();
+            });
+
+            window.addEventListener('mouseup', () => {
+              if (drawing && enabled) paths.push(currentPath);
+              drawing = false;
+              currentPath = [];
+            });
+
+            const send = (action, payload) => {
+              console.log(JSON.stringify({ action, payload }));
+            };
+
+
+            document.getElementById('toggleDrawBtn').onclick = () => {
+              enabled = !enabled;
+              document.getElementById('toggleDrawBtn').textContent = enabled ? 'Stop Annotate' : 'Start Annotate';
+              send('annotation-toggle', enabled);
+            };
+
+            document.getElementById('undoBtn').onclick = () => {
+              paths.pop();
+              redraw();
+            };
+
+            document.getElementById('clearBtn').onclick = () => {
+              paths = [];
+              redraw();
+            };
+
+            document.getElementById('exitBtn').onclick = () => {
+              send('annotation-exit');
+            };
+          <\/script>
+        </body>
+      </html>
+    `;
+    win2.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    win2.setAlwaysOnTop(true, "screen-saver");
+    win2.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    win2.setIgnoreMouseEvents(false);
+    win2.webContents.on("ipc-message", (_, channel, data) => {
+      console.log("ipc-message:", channel, data);
+    });
+    win2.webContents.on("console-message", (_, __, message) => {
+      try {
+        const data = JSON.parse(message);
+        if (data.action === "toolbar-hover") {
+          if (data.payload) {
+            win2.setIgnoreMouseEvents(false);
+          } else if (currentAnnotateState === false) {
+            win2.setIgnoreMouseEvents(true, { forward: true });
+          }
+          return;
+        }
+        if (data.action === "annotation-toggle") {
+          currentAnnotateState = data.payload;
+          if (data.payload) {
+            win2.setIgnoreMouseEvents(false);
+            console.log("🖊️ Annotate ON (bisa menggambar lagi)");
+          } else {
+            win2.setIgnoreMouseEvents(true, { forward: true });
+            console.log("🖱️ Annotate OFF (passthrough aktif)");
+          }
+        }
+        if (data.action === "annotation-exit") {
+          if (!win2.isDestroyed()) win2.close();
+          annotationWindows = annotationWindows.filter((w) => w !== win2);
+          console.log("🧹 Annotation overlay closed");
+        }
+      } catch {
+      }
+    });
+    win2.webContents.on("did-finish-load", () => {
+      win2.webContents.executeJavaScript(`
+    const toolbar = document.querySelector('.toolbar');
+    window.addEventListener('mousemove', (e) => {
+      const rect = toolbar.getBoundingClientRect();
+      const inToolbar = (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      );
+      // kirim pesan ke main process: mouse di atas toolbar atau tidak
+      console.log(JSON.stringify({ action: 'toolbar-hover', payload: inToolbar }));
+    });
+
+    window.addEventListener("message", (e) => {
+      const { action, payload } = e.data;
+      if (action === "annotation-toggle") {
+        console.log(JSON.stringify({ action, payload }));
+      }
+      if (action === "annotation-exit") {
+        console.log(JSON.stringify({ action }));
+      }
+    });
+  `);
+    });
+    console.log("🖊️ Annotation overlay aktif di layar", idx + 1);
+    return win2;
+  });
+});
+ipcMain.on("hide-annotation-overlay", () => {
+  if (annotationWindows.length === 0) {
+    console.log("ℹ️ No annotation overlay to close.");
+    return;
+  }
+  console.log("🔴 Closing all annotation overlays...");
+  annotationWindows.forEach((win2) => {
+    try {
+      if (!win2.isDestroyed()) {
+        win2.close();
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to close annotation window:", err);
+    }
+  });
+  annotationWindows = [];
+});
+ipcMain.on("hide-annotation-tools", () => {
+  if (annotationWindows.length === 0) {
+    console.log("ℹ️ No annotation tools to close.");
+    return;
+  }
+  console.log("🔴 Hiding annotation toolbars (if any)...");
+  annotationWindows.forEach((win2) => {
+    try {
+      if (!win2.isDestroyed()) {
+        win2.webContents.executeJavaScript(`
+          const toolbar = document.querySelector('.toolbar');
+          if (toolbar) toolbar.remove();
+        `);
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to remove toolbar:", err);
+    }
+  });
+});
 app.whenReady().then(() => {
   createWindow();
   const template = [

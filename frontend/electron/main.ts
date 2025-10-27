@@ -356,6 +356,300 @@ process.env.TZ = "Asia/Jakarta";
 app.whenReady().then(createWindow);
 
 
+let annotationWindows: BrowserWindow[] = [];
+
+ipcMain.on("show-annotation-overlay", () => {
+  if (annotationWindows.length > 0) return; // sudah aktif
+
+  const displays = screen.getAllDisplays();
+
+  let currentAnnotateState = true;
+
+
+  annotationWindows = displays.map((display, idx) => {
+    const { x, y, width, height } = display.bounds;
+
+    const win = new BrowserWindow({
+      x,
+      y,
+      width,
+      height,
+      frame: false,
+      fullscreen: true,
+      transparent: true,
+      alwaysOnTop: true,
+      focusable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      webPreferences: {
+        contextIsolation: true,
+        sandbox: true,
+      },
+    });
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <title>Annotation Overlay</title>
+          <style>
+            html, body {
+              margin: 0; height: 100%; width: 100%;
+              background: transparent; overflow: hidden;
+            }
+            canvas { width: 100%; height: 100%; cursor: crosshair; }
+            .toolbar {
+              position: fixed;
+              top: 15px;
+              right: 15px;
+              background: rgba(0, 0, 0, 0.65);
+              color: white;
+              padding: 8px 12px;
+              border-radius: 10px;
+              display: flex;
+              gap: 8px;
+              z-index: 9999;
+              font-family: "Segoe UI", sans-serif;
+            }
+            button {
+              background: #2563eb;
+              border: none;
+              color: white;
+              padding: 6px 10px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: background 0.2s;
+            }
+            button:hover { background: #1e4ed8; }
+            button.secondary { background: #4b5563; }
+            button.danger { background: #dc2626; }
+          </style>
+        </head>
+        <body>
+          <canvas id="canvas"></canvas>
+          <div class="toolbar">
+            <button id="toggleDrawBtn">Stop Annotate</button>
+            <button id="undoBtn">Undo</button>
+            <button id="clearBtn">Clear</button>
+            <button id="exitBtn" class="danger">Exit</button>
+          </div>
+
+          <script>
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let drawing = false;
+            let enabled = true;
+            let paths = [];
+            let currentPath = [];
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'red';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            function redraw() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              for (const path of paths) {
+                ctx.beginPath();
+                for (let i = 0; i < path.length; i++) {
+                  const { x, y } = path[i];
+                  if (i === 0) ctx.moveTo(x, y);
+                  else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+              }
+            }
+
+            canvas.addEventListener('mousedown', e => {
+              if (!enabled) return;
+              drawing = true;
+              currentPath = [{ x: e.clientX, y: e.clientY }];
+            });
+
+            canvas.addEventListener('mousemove', e => {
+              if (!enabled || !drawing) return;
+              currentPath.push({ x: e.clientX, y: e.clientY });
+              redraw();
+              ctx.beginPath();
+              for (let i = 0; i < currentPath.length; i++) {
+                const { x, y } = currentPath[i];
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              }
+              ctx.stroke();
+            });
+
+            window.addEventListener('mouseup', () => {
+              if (drawing && enabled) paths.push(currentPath);
+              drawing = false;
+              currentPath = [];
+            });
+
+            const send = (action, payload) => {
+              console.log(JSON.stringify({ action, payload }));
+            };
+
+
+            document.getElementById('toggleDrawBtn').onclick = () => {
+              enabled = !enabled;
+              document.getElementById('toggleDrawBtn').textContent = enabled ? 'Stop Annotate' : 'Start Annotate';
+              send('annotation-toggle', enabled);
+            };
+
+            document.getElementById('undoBtn').onclick = () => {
+              paths.pop();
+              redraw();
+            };
+
+            document.getElementById('clearBtn').onclick = () => {
+              paths = [];
+              redraw();
+            };
+
+            document.getElementById('exitBtn').onclick = () => {
+              send('annotation-exit');
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+    win.setAlwaysOnTop(true, "screen-saver");
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    win.setIgnoreMouseEvents(false);
+
+    // ✅ Listener global postMessage dari overlay
+    win.webContents.on("ipc-message", (_, channel, data) => {
+      console.log("ipc-message:", channel, data);
+    });
+
+    // ✅ Listener dari window.postMessage di overlay
+win.webContents.on("console-message", (_, __, message) => {
+  try {
+    const data = JSON.parse(message);
+
+    // 🧠 Hover detection untuk toolbar
+    if (data.action === "toolbar-hover") {
+      // Saat mouse berada di toolbar → aktifkan kembali klik ke overlay
+      if (data.payload) {
+        win.setIgnoreMouseEvents(false);
+      }
+      // Saat keluar dari toolbar dan annotate sedang OFF → aktifkan passthrough lagi
+      else if (currentAnnotateState === false) {
+        win.setIgnoreMouseEvents(true, { forward: true });
+      }
+      return;
+    }
+    
+
+    // 🖊️ Toggle logic
+    if (data.action === "annotation-toggle") {
+      currentAnnotateState = data.payload;
+      if (data.payload) {
+        win.setIgnoreMouseEvents(false);
+        console.log("🖊️ Annotate ON (bisa menggambar lagi)");
+      } else {
+        win.setIgnoreMouseEvents(true, { forward: true });
+        console.log("🖱️ Annotate OFF (passthrough aktif)");
+      }
+    }
+
+    // 🧹 Exit logic
+    if (data.action === "annotation-exit") {
+      if (!win.isDestroyed()) win.close();
+      annotationWindows = annotationWindows.filter((w) => w !== win);
+      console.log("🧹 Annotation overlay closed");
+    }
+  } catch {}
+});
+
+
+    // ✅ Jalankan handler pesan dari window.postMessage
+    win.webContents.on("did-finish-load", () => {
+  // Jalankan kode deteksi area toolbar agar klik toolbar tetap diterima meskipun passthrough aktif
+  win.webContents.executeJavaScript(`
+    const toolbar = document.querySelector('.toolbar');
+    window.addEventListener('mousemove', (e) => {
+      const rect = toolbar.getBoundingClientRect();
+      const inToolbar = (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      );
+      // kirim pesan ke main process: mouse di atas toolbar atau tidak
+      console.log(JSON.stringify({ action: 'toolbar-hover', payload: inToolbar }));
+    });
+
+    window.addEventListener("message", (e) => {
+      const { action, payload } = e.data;
+      if (action === "annotation-toggle") {
+        console.log(JSON.stringify({ action, payload }));
+      }
+      if (action === "annotation-exit") {
+        console.log(JSON.stringify({ action }));
+      }
+    });
+  `);
+});
+
+
+    console.log("🖊️ Annotation overlay aktif di layar", idx + 1);
+    return win;
+  });
+});
+
+// 🧹 Tutup semua annotation overlay window
+ipcMain.on("hide-annotation-overlay", () => {
+  if (annotationWindows.length === 0) {
+    console.log("ℹ️ No annotation overlay to close.");
+    return;
+  }
+
+  console.log("🔴 Closing all annotation overlays...");
+  annotationWindows.forEach((win) => {
+    try {
+      if (!win.isDestroyed()) {
+        win.close();
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to close annotation window:", err);
+    }
+  });
+
+  annotationWindows = [];
+});
+
+// 🧹 Tutup hanya toolbar (kalau mau pisah nanti)
+ipcMain.on("hide-annotation-tools", () => {
+  if (annotationWindows.length === 0) {
+    console.log("ℹ️ No annotation tools to close.");
+    return;
+  }
+
+  console.log("🔴 Hiding annotation toolbars (if any)...");
+  annotationWindows.forEach((win) => {
+    try {
+      if (!win.isDestroyed()) {
+        win.webContents.executeJavaScript(`
+          const toolbar = document.querySelector('.toolbar');
+          if (toolbar) toolbar.remove();
+        `);
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to remove toolbar:", err);
+    }
+  });
+});
+
+
 
 
 

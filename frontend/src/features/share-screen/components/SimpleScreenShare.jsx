@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import simpleScreenShare from "../../../services/simpleScreenShare";
 import "../styles/SimpleScreenShare.css";
-import AnnotateZoomCanvas from "../../../components/AnnotateZoomCanvas";
 import { useScreenShare } from "../../../contexts/ScreenShareContext";
 
 const SimpleScreenShare = ({ meetingId, userId }) => {
@@ -146,7 +145,17 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
     setSharingUser(null);
     setScreenShareOn(false);
     setIsAnnotating(false);
+
+    try {
+      // 🔻 Tutup overlay & toolbar langsung
+      window.electronAPI?.send("hide-annotation-overlay");
+      window.electronAPI?.send("hide-annotation-tools");
+      console.log("🧹 Overlay + tools hidden immediately after Stop Share");
+    } catch (err) {
+      console.warn("⚠️ Failed to hide overlays/tools immediately:", err);
+    }
   };
+
 
   // ======================================================
   // 🔹 Update Image when receiving new frame
@@ -200,27 +209,22 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
             </div>
             <div className="video-container" ref={overlayRef}>
               {isSharing ? (
-  <>
-    <div className="sharing-placeholder">
-      <p>🔴 You are sharing your screen</p>
-    </div>
-    {isAnnotating && (
-      <AnnotateZoomCanvas attachTo={overlayRef} mode="full" />
-    )}
-  </>
-) : (
-  <>
-    <img
-      ref={imageRef}
-      alt="Screen Share"
-      style={{ width: "100%", height: "100%", objectFit: "contain" }}
-    />
-    {isAnnotating && (
-      <AnnotateZoomCanvas attachTo={overlayRef} mode="receive-only" />
-    )}
-  </>
-)}
+                <>
+                  <div className="sharing-placeholder">
+                    <p>🔴 You are sharing your screen</p>
+                  </div>
 
+                </>
+              ) : (
+                <>
+                  <img
+                    ref={imageRef}
+                    alt="Screen Share"
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  />
+
+                </>
+              )}
             </div>
           </div>
         ) : (
