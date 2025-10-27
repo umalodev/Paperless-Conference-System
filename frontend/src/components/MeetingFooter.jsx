@@ -60,7 +60,9 @@ export default function MeetingFFooter({
 
     // 🔴 Auto hide ketika stop share
     if (!screenShareOn && isAnnotating) {
-      console.log("🔴 Auto hiding annotation overlay + tools (share stopped)...");
+      console.log(
+        "🔴 Auto hiding annotation overlay + tools (share stopped)..."
+      );
       setIsAnnotating(false);
       try {
         window.electronAPI?.send("hide-annotation-overlay");
@@ -72,7 +74,13 @@ export default function MeetingFFooter({
       // 🧹 Reset flag agar auto-show bisa aktif lagi di sesi share berikutnya
       manualToggleRef.current = false;
     }
-  }, [screenShareOn, sharingUser, currentUserId, isAnnotating, setIsAnnotating]);
+  }, [
+    screenShareOn,
+    sharingUser,
+    currentUserId,
+    isAnnotating,
+    setIsAnnotating,
+  ]);
 
   // Helpers
   const getCurrentMeeting = () => {
@@ -263,27 +271,33 @@ export default function MeetingFFooter({
       // 🟢 2️⃣ Matikan media dan koneksi realtime
       await cleanupAllMediaAndRealtime();
 
-      // 🟣 3️⃣ Putuskan control server untuk participant
-      if (!isHost) {
-        try {
-          if (window.electronAPI?.disconnectFromControlServer) {
-            console.log("🔌 [Participant] Disconnecting from Control Server (Home button)...");
-            window.electronAPI.disconnectFromControlServer();
-          }
-        } catch (err) {
-          console.warn("⚠️ Failed to disconnect Control Server:", err);
+      // 3) PUTUSKAN CONTROL SERVER (optional)
+      try {
+        if (window.electronAPI?.disconnectFromControlServer) {
+          window.electronAPI.disconnectFromControlServer();
         }
+      } catch {}
 
-        if (meetingId) {
-          try {
-            await meetingService.leaveMeeting(meetingId);
-          } catch {}
+      // 4) KABARI ROOM LALU LEAVE DI BACKEND (UNTUK SEMUA PERAN)
+      try {
+        if (meetingId && window.meetingSocketService?.emit) {
+          // kalau service kamu expose emit, ini mempercepat notifikasi ke client lain
+          await window.meetingSocketService.emit("leave", { meetingId });
         }
-      } else {
-        console.log("ℹ️ Host navigates home — server session may stay, but local media is off.");
-      }
+      } catch {}
+      try {
+        if (meetingId) await meetingService.leaveMeeting(meetingId);
+      } catch {}
 
-      // 🔵 4️⃣ Sinkronkan ikon mic/cam jadi OFF
+      // 5) PUTUSKAN SOCKET SUPAYA PRESENCE TIDAK NYANGKUT
+      try {
+        if (window.meetingSocketService?.disconnect) {
+          await window.meetingSocketService.disconnect(true);
+          await new Promise((r) => setTimeout(r, 200)); // beri napas singkat
+        }
+      } catch {}
+
+      // 6) sinkron ikon mic/cam jadi OFF
       try {
         await stopMicCtx?.();
       } catch {}
@@ -297,7 +311,6 @@ export default function MeetingFFooter({
       navigate(isHost ? "/setup" : "/start");
     }
   };
-
 
   const defaultEndMeeting = async () => {
     const ok = await confirm({
@@ -415,8 +428,6 @@ export default function MeetingFFooter({
       </div>
 
       <div className="pd-controls-right">
-      
-
         <button
           className="pd-ctrl"
           title="Screen Share"
@@ -424,8 +435,6 @@ export default function MeetingFFooter({
           style={{ position: "relative" }}
         >
           <Icon slug="screen-share" />
-
-
 
           {/* 🔴 Badge jika ada orang lain share */}
           {screenShareOn && String(sharingUser) !== String(currentUserId) && (
@@ -489,36 +498,36 @@ export default function MeetingFFooter({
           </button>
         )}
 
-{screenShareOn && String(sharingUser?.id) === String(currentUserId) && (
-  <button
-    className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
-    title={isAnnotating ? "Stop Annotating" : "Start Annotating"}
-    onClick={() => {
-      const newState = !isAnnotating;
-      setIsAnnotating(newState);
+        {screenShareOn && String(sharingUser?.id) === String(currentUserId) && (
+          <button
+            className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
+            title={isAnnotating ? "Stop Annotating" : "Start Annotating"}
+            onClick={() => {
+              const newState = !isAnnotating;
+              setIsAnnotating(newState);
 
-      // ✅ tandai bahwa user men-toggle manual (supaya auto tidak aktif lagi)
-      manualToggleRef.current = true;
+              // ✅ tandai bahwa user men-toggle manual (supaya auto tidak aktif lagi)
+              manualToggleRef.current = true;
 
-      try {
-        if (window.electronAPI?.send) {
-          if (newState) {
-            console.log("🟢 Showing annotation overlay...");
-            window.electronAPI.send("show-annotation-overlay");
-          } else {
-            console.log("🔴 Hiding annotation overlay...");
-            window.electronAPI.send("hide-annotation-overlay");
-            window.electronAPI.send("hide-annotation-tools");
-          }
-        }
-      } catch (err) {
-        console.error("❌ Failed to toggle annotation overlay:", err);
-      }
-    }}
-  >
-    <Icon slug="annotate" />
-  </button>
-)}
+              try {
+                if (window.electronAPI?.send) {
+                  if (newState) {
+                    console.log("🟢 Showing annotation overlay...");
+                    window.electronAPI.send("show-annotation-overlay");
+                  } else {
+                    console.log("🔴 Hiding annotation overlay...");
+                    window.electronAPI.send("hide-annotation-overlay");
+                    window.electronAPI.send("hide-annotation-tools");
+                  }
+                }
+              } catch (err) {
+                console.error("❌ Failed to toggle annotation overlay:", err);
+              }
+            }}
+          >
+            <Icon slug="annotate" />
+          </button>
+        )}
 
         {/* Menu / Back / End */}
         <button className="pd-outline" onClick={handleMenu}>
