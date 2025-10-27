@@ -6,26 +6,19 @@ import Login from "./features/auth/pages/Login.jsx";
 // Import role-specific dashboards
 import AdminDashboard from "./features/admin/dashboard/pages/AdminDashboard.jsx";
 import ParticipantDashboard from "./features/participant/pages/ParticipantDashboard.jsx";
-
 import Agenda from "./features/menu/agenda/pages/AgendaPage.jsx";
 import Materials from "./features/menu/materials/pages/MaterialsPage.jsx";
 import ParticipantsPage from "./features/menu/participant/pages/ParticipantsPage.jsx";
 import Survey from "./features/menu/survey/pages/SurveyPage.jsx";
-
-
-
-
 import Start from "./features/start/pages/Start.jsx";
 import WaitingRoom from "./features/waiting/pages/WaitingRoom.jsx";
 import SetUp from "./features/setup/pages/SetUp.jsx";
-
 import ScreenSharePage from "./features/share-screen/pages/ScreenShare.jsx";
 import Files from "./features/menu/files/pages/FilesPage.jsx";
 import Chat from "./features/menu/chating/pages/ChatPage.jsx";
 import Notes from "./features/menu/notes/pages/NotesPage.jsx";
 import Services from "./features/menu/services/pages/ServicesPage.jsx";
 import Whiteboard from "./features/menu/whiteboard/pages/WhiteboardPage.jsx";
-
 import MasterController from "./features/master-controller/pages/MasterController.jsx";
 import { ModalProvider } from "./contexts/ModalProvider.jsx";
 import GlobalAuthEvents from "./contexts/GlobalAuthEvents.jsx";
