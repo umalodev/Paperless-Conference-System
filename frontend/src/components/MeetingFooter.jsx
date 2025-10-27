@@ -1,6 +1,5 @@
 // src/components/MeetingFooter.jsx
-import React from "react";
-import { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import meetingService from "../services/meetingService.js";
@@ -26,6 +25,7 @@ export default function MeetingFFooter({
   const mediaRoom = useMediaRoom?.() || null;
   const stopMicCtx = mediaRoom?.stopMic;
   const stopCamCtx = mediaRoom?.stopCam;
+  const manualToggleRef = useRef(false);
 
   // 🔹 Ambil state global screen share
   const { sharingUser, screenShareOn, isAnnotating, setIsAnnotating } =
@@ -47,10 +47,10 @@ export default function MeetingFFooter({
     const isCurrentUserSharing =
       screenShareOn && String(sharingUser?.id) === String(currentUserId);
 
-    if (isCurrentUserSharing && !isAnnotating) {
+    // 🟢 Auto-enable hanya saat pertama kali mulai share (bukan hasil toggle manual)
+    if (isCurrentUserSharing && !isAnnotating && !manualToggleRef.current) {
       console.log("🟢 Auto enabling annotation overlay for sharer...");
       setIsAnnotating(true);
-
       try {
         window.electronAPI?.send("show-annotation-overlay");
       } catch (err) {
@@ -58,20 +58,20 @@ export default function MeetingFFooter({
       }
     }
 
-if (!screenShareOn && isAnnotating) {
-  console.log("🔴 Auto hiding annotation overlay + tools (share stopped)...");
-  setIsAnnotating(false);
+    // 🔴 Auto hide ketika stop share
+    if (!screenShareOn && isAnnotating) {
+      console.log("🔴 Auto hiding annotation overlay + tools (share stopped)...");
+      setIsAnnotating(false);
+      try {
+        window.electronAPI?.send("hide-annotation-overlay");
+        window.electronAPI?.send("hide-annotation-tools");
+      } catch (err) {
+        console.warn("⚠️ Failed to auto-hide annotation overlay/tools:", err);
+      }
 
-  try {
-    // 🔻 Tutup canvas overlay
-    window.electronAPI?.send("hide-annotation-overlay");
-    // 🔻 Tutup toolbar overlay juga
-    window.electronAPI?.send("hide-annotation-tools");
-  } catch (err) {
-    console.warn("⚠️ Failed to auto-hide annotation overlay/tools:", err);
-  }
-}
-
+      // 🧹 Reset flag agar auto-show bisa aktif lagi di sesi share berikutnya
+      manualToggleRef.current = false;
+    }
   }, [screenShareOn, sharingUser, currentUserId, isAnnotating, setIsAnnotating]);
 
   // Helpers
@@ -415,11 +415,8 @@ if (!screenShareOn && isAnnotating) {
       </div>
 
       <div className="pd-controls-right">
-
       
 
-
-        {/* 🟩 Screen Share Button (dengan badge) */}
         <button
           className="pd-ctrl"
           title="Screen Share"
@@ -492,35 +489,36 @@ if (!screenShareOn && isAnnotating) {
           </button>
         )}
 
-        {/* ✏️ Annotation Overlay Toggle (only when sharing) */}
-        {screenShareOn && String(sharingUser?.id) === String(currentUserId) && (
-          <button
-            className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
-            title={isAnnotating ? "Stop Annotating" : "Start Annotating"}
-            onClick={() => {
-              const newState = !isAnnotating;
-              setIsAnnotating(newState);
+{screenShareOn && String(sharingUser?.id) === String(currentUserId) && (
+  <button
+    className={`pd-ctrl ${isAnnotating ? "is-active" : ""}`}
+    title={isAnnotating ? "Stop Annotating" : "Start Annotating"}
+    onClick={() => {
+      const newState = !isAnnotating;
+      setIsAnnotating(newState);
 
-              try {
-                if (window.electronAPI?.send) {
-                  if (newState) {
-                    console.log("🟢 Showing annotation overlay...");
-                    window.electronAPI.send("show-annotation-overlay");
-                  } else {
-                    console.log("🔴 Hiding annotation overlay...");
-                    window.electronAPI.send("hide-annotation-overlay");
-                  }
-                } else {
-                  console.warn("⚠️ electronAPI not available");
-                }
-              } catch (err) {
-                console.error("❌ Failed to toggle annotation overlay:", err);
-              }
-            }}
-          >
-            <Icon slug="annotate" />
-          </button>
-        )}
+      // ✅ tandai bahwa user men-toggle manual (supaya auto tidak aktif lagi)
+      manualToggleRef.current = true;
+
+      try {
+        if (window.electronAPI?.send) {
+          if (newState) {
+            console.log("🟢 Showing annotation overlay...");
+            window.electronAPI.send("show-annotation-overlay");
+          } else {
+            console.log("🔴 Hiding annotation overlay...");
+            window.electronAPI.send("hide-annotation-overlay");
+            window.electronAPI.send("hide-annotation-tools");
+          }
+        }
+      } catch (err) {
+        console.error("❌ Failed to toggle annotation overlay:", err);
+      }
+    }}
+  >
+    <Icon slug="annotate" />
+  </button>
+)}
 
         {/* Menu / Back / End */}
         <button className="pd-outline" onClick={handleMenu}>
