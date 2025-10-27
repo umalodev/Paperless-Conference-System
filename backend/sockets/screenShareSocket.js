@@ -46,6 +46,28 @@ module.exports = function setupScreenShareSocket(socket, io) {
     }
   });
 
+  // =====================================================
+  // ✏️ Annotation Sync (real-time)
+  // =====================================================
+  socket.on("annotationUpdate", (payload) => {
+    try {
+      if (!payload || !socket.data.meetingId) return;
+
+      // 🔁 Broadcast ke semua peserta lain di meeting yang sama
+      io.to(`meeting:${socket.data.meetingId}`).emit("annotationDraw", {
+        meetingId: socket.data.meetingId,
+        userId: socket.data.userId,
+        displayName: socket.data.displayName,
+        role: socket.data.role,
+        path: payload, // array koordinat [{x,y}, ...]
+        timestamp: Date.now(),
+      });
+    } catch (err) {
+      console.error("❌ Error broadcasting annotation:", err);
+    }
+  });
+
+
   // 🔹 Saat user disconnect → auto-stop share screen
   socket.on("disconnect", (reason) => {
     const { isSharingScreen, meetingId, userId, displayName, role } = socket.data || {};

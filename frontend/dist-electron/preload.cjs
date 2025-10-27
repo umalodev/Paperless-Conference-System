@@ -8892,6 +8892,7 @@ function connectToControlServer(token, displayName) {
     };
     socket.emit("register", payload);
     console.log("[preload] Registered participant:", payload);
+    setupAnnotationListener();
   });
   socket.io.on("reconnect_attempt", (attempt) => {
     console.log(`[preload] Attempting to reconnect... (try ${attempt})`);
@@ -9068,6 +9069,20 @@ function stopMirror() {
     mirrorInterval = null;
   }
   console.log("[mirror] Stopped");
+}
+window.addEventListener("message", (event) => {
+  const data = event.data;
+  if ((data == null ? void 0 : data.action) === "annotation-path" && socket && socket.connected) {
+    socket.emit("annotationUpdate", data.payload);
+  }
+});
+function setupAnnotationListener() {
+  if (!socket) return;
+  const s = socket;
+  s.on("annotationDraw", (pathData) => {
+    console.log("[preload] annotationDraw received:", pathData);
+    window.postMessage({ action: "annotation-draw", payload: pathData });
+  });
 }
 electron.contextBridge.exposeInMainWorld("electronAPI", {
   // 🔹 Fungsi utama kontrol server

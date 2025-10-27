@@ -62,6 +62,9 @@ function connectToControlServer(token?: string, displayName?: string) {
     // Kirim register setelah koneksi benar-benar terbentuk
     socket!.emit("register", payload);
     console.log("[preload] Registered participant:", payload);
+
+    // 🟢 Setelah konek, aktifkan listener anotasi
+    setupAnnotationListener();
   });
 
   // === RECONNECT HANDLER (modern socket.io)
@@ -300,7 +303,27 @@ function stopMirror() {
 // =====================================================
 // 🧰 SCREEN CAPTURE HELPERS
 // =====================================================
-// (Removed unused getScreenSources function)
+
+// === ANNOTATION EVENTS ===
+window.addEventListener("message", (event) => {
+  const data = event.data;
+  if (data?.action === "annotation-path" && socket && socket.connected) {
+    // data.payload = array koordinat path [{x,y}, {x,y}, ...]
+    socket.emit("annotationUpdate", data.payload);
+  }
+});
+
+  // === Terima path dari orang lain (real-time) ===
+  function setupAnnotationListener() {
+    if (!socket) return;
+    const s = socket as Socket; // pastikan bertipe Socket, bukan never
+
+    s.on("annotationDraw", (pathData: any) => {
+      console.log("[preload] annotationDraw received:", pathData);
+      window.postMessage({ action: "annotation-draw", payload: pathData });
+    });
+  }
+
 
 // =====================================================
 // 🌍 EXPOSE TO RENDERER (FINAL COMBINED)

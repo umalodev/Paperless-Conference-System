@@ -11,6 +11,8 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
 
   const imageRef = useRef(null);
   const overlayRef = useRef(null);
+  const canvasRef = useRef(null);
+
 
   const {
     sharingUser,
@@ -20,6 +22,30 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
     isAnnotating,
     setIsAnnotating,
   } = useScreenShare();
+
+
+  useEffect(() => {
+    const handleAnnotationDraw = (e) => {
+      const { action, payload } = e.data;
+      if (action === "annotation-draw" && payload && canvasRef.current) {
+        const ctx = canvasRef.current.getContext("2d");
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "red";
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        for (let i = 0; i < payload.length; i++) {
+          const { x, y } = payload[i];
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    };
+    window.addEventListener("message", handleAnnotationDraw);
+    return () => window.removeEventListener("message", handleAnnotationDraw);
+  }, []);
+
+
 
   // ======================================================
   // 🔹 Helper: Ambil info user (displayName & role)
@@ -217,12 +243,29 @@ const SimpleScreenShare = ({ meetingId, userId }) => {
                 </>
               ) : (
                 <>
+                <div style={{ position: "relative", width: "100%", height: "100%" }}>
                   <img
                     ref={imageRef}
                     alt="Screen Share"
-                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                    }}
                   />
-
+                  <canvas
+                    ref={canvasRef}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      pointerEvents: "none",
+                    }}
+                  />
+                </div>
                 </>
               )}
             </div>

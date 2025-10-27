@@ -53,7 +53,9 @@ function createWindow() {
     height: 300,
     frame: false,
     resizable: false,
-    transparent: true,
+    transparent: false,
+    backgroundColor: "#00000000", // transparansi manual
+
     alwaysOnTop: true,
     skipTaskbar: true,
     show: false,
@@ -451,6 +453,13 @@ ipcMain.on("show-annotation-overlay", () => {
             ctx.strokeStyle = 'red';
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+
+            if (currentPath.length % 10 === 0) { // kirim tiap 10 titik biar gak spam
+              window.postMessage({
+                action: "annotation-path",
+                payload: currentPath
+              });
+            }
 
             function redraw() {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
