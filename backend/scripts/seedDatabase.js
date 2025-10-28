@@ -49,7 +49,7 @@ async function seedDatabase() {
     const menuPayloads = [
       {
         displayLabel: "Participant",
-        iconMenu: "/img/participant.png",
+        iconMenu: "img/participant.png",
         sequenceMenu: 1,
         parentMenu: null,
         slug: "participant",
@@ -57,7 +57,7 @@ async function seedDatabase() {
       },
       {
         displayLabel: "Agenda",
-        iconMenu: "/img/agenda.png",
+        iconMenu: "img/agenda.png",
         sequenceMenu: 2,
         parentMenu: null,
         slug: "agenda",
@@ -65,7 +65,7 @@ async function seedDatabase() {
       },
       {
         displayLabel: "Materials",
-        iconMenu: "/img/materials.png",
+        iconMenu: "img/materials.png",
         sequenceMenu: 3,
         parentMenu: null,
         slug: "materials",
@@ -73,7 +73,7 @@ async function seedDatabase() {
       },
       {
         displayLabel: "Survey",
-        iconMenu: "/img/survey.png",
+        iconMenu: "img/survey.png",
         sequenceMenu: 4,
         parentMenu: null,
         slug: "survey",
@@ -81,7 +81,7 @@ async function seedDatabase() {
       },
       {
         displayLabel: "Files",
-        iconMenu: "/img/files.png",
+        iconMenu: "img/files.png",
         sequenceMenu: 5,
         parentMenu: null,
         slug: "files",
@@ -89,7 +89,7 @@ async function seedDatabase() {
       },
       {
         displayLabel: "Chating",
-        iconMenu: "/img/chating.png",
+        iconMenu: "img/chating.png",
         sequenceMenu: 6,
         parentMenu: null,
         slug: "chating",
@@ -97,7 +97,7 @@ async function seedDatabase() {
       },
       {
         displayLabel: "Notes",
-        iconMenu: "/img/notes.png",
+        iconMenu: "img/notes.png",
         sequenceMenu: 7,
         parentMenu: null,
         slug: "notes",
@@ -105,7 +105,7 @@ async function seedDatabase() {
       },
       {
         displayLabel: "Whiteboard",
-        iconMenu: "/img/whiteboard.png",
+        iconMenu: "img/whiteboard.png",
         sequenceMenu: 8,
         parentMenu: null,
         slug: "whiteboard",
@@ -114,7 +114,7 @@ async function seedDatabase() {
 
       {
         displayLabel: "Services",
-        iconMenu: "/img/services.png",
+        iconMenu: "img/services.png",
         sequenceMenu: 9,
         parentMenu: null,
         slug: "services",

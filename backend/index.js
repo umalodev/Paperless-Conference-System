@@ -68,7 +68,8 @@ const io = new Server(server, {
   path: "/meeting",
   cors: {
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
+      if (!origin || origin === "null" || origin.startsWith("file://"))
+        return cb(null, true); // ✅ izinkan app Electron
       if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
       cb(new Error("CORS not allowed: " + origin));
     },
@@ -139,13 +140,15 @@ setupAllSockets(
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
+      if (!origin || origin === "null" || origin.startsWith("file://"))
+        return cb(null, true); // ✅ izinkan dari Electron
       if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
       cb(new Error("CORS not allowed: " + origin));
     },
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
