@@ -39,7 +39,13 @@ export default function ParticipantCard({
     img.src = `data:image/jpeg;base64,${mirrorFrame}`;
     img.onload = () => {
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      ctx.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      ctx.drawImage(
+        img,
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
       frameCount.current += 1;
     };
   }, [mirrorFrame]);
@@ -80,7 +86,7 @@ export default function ParticipantCard({
           </div>
         ) : (
           <div className="mc-monitor-placeholder">
-            <img src="/img/display-slash.png" alt="No mirror" />
+            <img src="img/display-slash.png" alt="No mirror" />
             <p>No mirror active</p>
           </div>
         )}
@@ -98,7 +104,7 @@ export default function ParticipantCard({
           className="icon-btn green"
           onClick={() => setSelectedInfo(participant)} // ✅ pass full object
         >
-          <img src="/img/info.png" alt="Info" />
+          <img src="img/info.png" alt="Info" />
         </button>
 
         {mirrorFrame ? (
@@ -106,12 +112,12 @@ export default function ParticipantCard({
             className="icon-btn red"
             onClick={() => sendCommand(participant.id, "mirror-stop")}
           >
-            <img src="/img/cross.png" alt="Stop Mirror" />
+            <img src="img/cross.png" alt="Stop Mirror" />
           </button>
         ) : (
           <button
             className="icon-btn blue"
-            disabled={false} 
+            disabled={false}
             title={
               isAnotherMirrorActive
                 ? "Mirror sedang aktif untuk peserta lain"
@@ -119,7 +125,7 @@ export default function ParticipantCard({
             }
             onClick={() => sendCommand(participant.id, "mirror-start")}
           >
-            <img src="/img/eye.png" alt="Start Mirror" />
+            <img src="img/eye.png" alt="Start Mirror" />
           </button>
         )}
 
@@ -142,14 +148,14 @@ export default function ParticipantCard({
           className="icon-btn yellow"
           onClick={() => sendCommand(participant.id, "restart")}
         >
-          <img src="/img/refresh.png" alt="Restart" />
+          <img src="img/refresh.png" alt="Restart" />
         </button>
 
         <button
           className="icon-btn dark"
           onClick={() => sendCommand(participant.id, "shutdown")}
         >
-          <img src="/img/power.png" alt="Shutdown" />
+          <img src="img/power.png" alt="Shutdown" />
         </button>
       </div>
     </div>

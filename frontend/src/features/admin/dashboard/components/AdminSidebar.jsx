@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "../styles/admin-sidebar.css";
-import { useModal } from "../../../../contexts/ModalProvider.jsx"; 
+import { useModal } from "../../../../contexts/ModalProvider.jsx";
 
 const AdminSidebar = ({ activeMenu, onMenuChange }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -38,7 +38,7 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
         autoCloseMs: 1500,
       });
 
-        window.location.href = "/";
+      window.location.href = "/";
     }
   };
 
@@ -47,7 +47,7 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
       {/* Sidebar Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <img src="/img/logo.png" alt="Umalo Logo" className="umalo-logo" />
+          <img src="img/logo.png" alt="Umalo Logo" className="umalo-logo" />
         </div>
       </div>
 
@@ -57,9 +57,7 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
           {menuItems.map((item) => (
             <li key={item.id} className="nav-item">
               <button
-                className={`nav-link ${
-                  activeMenu === item.id ? "active" : ""
-                }`}
+                className={`nav-link ${activeMenu === item.id ? "active" : ""}`}
                 onClick={() => handleMenuClick(item.id)}
               >
                 <span className="nav-icon">{item.icon}</span>

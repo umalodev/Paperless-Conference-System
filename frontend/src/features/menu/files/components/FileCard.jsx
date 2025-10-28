@@ -46,11 +46,11 @@ export default function FileCard({ file, me, onOpen, onDownload, onDelete }) {
 
       <div className="mtl-actions-right">
         <button className="mtl-act" onClick={onOpen} title="Buka">
-          <img src="/img/buka.png" alt="Buka" className="action-icon" />
+          <img src="img/buka.png" alt="Buka" className="action-icon" />
         </button>
 
         <button className="mtl-act" onClick={onDownload} title="Unduh">
-          <img src="/img/download1.png" alt="Unduh" className="action-icon" />
+          <img src="img/download1.png" alt="Unduh" className="action-icon" />
         </button>
 
         {canDelete && (
@@ -59,7 +59,7 @@ export default function FileCard({ file, me, onOpen, onDownload, onDelete }) {
             onClick={() => onDelete && onDelete(fileId)}
             title="Delete"
           >
-            <img src="/img/hapus1.png" alt="Delete" className="action-icon" />
+            <img src="img/hapus1.png" alt="Delete" className="action-icon" />
           </button>
         )}
       </div>

@@ -6,7 +6,7 @@ import { exec } from "child_process";
 import { io, Socket } from "socket.io-client";
 
 // ====== CONFIGURABLE ======
-const CONTROL_SERVER = "http://192.168.1.8:4000"; // Ganti sesuai IP server
+const CONTROL_SERVER = "http://10.250.76.66:4000"; // Ganti sesuai IP server
 const MIRROR_FPS = 30; // frame per detik
 
 // ====== STATE ======
@@ -313,17 +313,16 @@ window.addEventListener("message", (event) => {
   }
 });
 
-  // === Terima path dari orang lain (real-time) ===
-  function setupAnnotationListener() {
-    if (!socket) return;
-    const s = socket as Socket; // pastikan bertipe Socket, bukan never
+// === Terima path dari orang lain (real-time) ===
+function setupAnnotationListener() {
+  if (!socket) return;
+  const s = socket as Socket; // pastikan bertipe Socket, bukan never
 
-    s.on("annotationDraw", (pathData: any) => {
-      console.log("[preload] annotationDraw received:", pathData);
-      window.postMessage({ action: "annotation-draw", payload: pathData });
-    });
-  }
-
+  s.on("annotationDraw", (pathData: any) => {
+    console.log("[preload] annotationDraw received:", pathData);
+    window.postMessage({ action: "annotation-draw", payload: pathData });
+  });
+}
 
 // =====================================================
 // 🌍 EXPOSE TO RENDERER (FINAL COMBINED)
@@ -338,7 +337,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   send: (channel: string, data?: any) => ipcRenderer.send(channel, data),
   invoke: (channel: string, data?: any) => ipcRenderer.invoke(channel, data),
 });
-
 
 /// =====================================================
 // 🌍 EXPOSE TO RENDERER (screenAPI via IPC)

@@ -33,14 +33,17 @@ import AgendaSkeletonList from "../components/AgendaSkeletonList.jsx";
 import "../styles/Agenda.css";
 import "../../../../components/history-accordion.css";
 
-
 export default function AgendaPage() {
   const navigate = useNavigate();
   const { confirm, notify } = useModal();
   const { user, displayName, meetingId, meetingTitle } = useMeetingInfo();
 
-  const { menus, visibleMenus, loading: loadingMenus, error: errMenus } =
-    useMeetingMenus();
+  const {
+    menus,
+    visibleMenus,
+    loading: loadingMenus,
+    error: errMenus,
+  } = useMeetingMenus();
 
   const {
     agendas,
@@ -77,8 +80,15 @@ export default function AgendaPage() {
     submitEdit,
   } = useAgendaForm(meetingId, { loadAgendas, notify, confirm, refreshUnread });
 
-  const { ready: mediaReady, micOn, camOn, startMic, stopMic, startCam, stopCam } =
-    useMediaRoom();
+  const {
+    ready: mediaReady,
+    micOn,
+    camOn,
+    startMic,
+    stopMic,
+    startCam,
+    stopCam,
+  } = useMediaRoom();
 
   const [showHistory, setShowHistory] = useState(false);
   const isHost = /^(host|admin)$/i.test(user?.role || "");
@@ -131,7 +141,7 @@ export default function AgendaPage() {
             <div className="agenda-header">
               <div className="agenda-title">
                 <img
-                  src="/img/Agenda1.png"
+                  src="img/Agenda1.png"
                   alt="Agenda"
                   className="ag-title-icon"
                 />
@@ -143,7 +153,11 @@ export default function AgendaPage() {
                   className={`ag-btn ${showHistory ? "active" : ""}`}
                   onClick={() => setShowHistory((s) => !s)}
                 >
-                  <img src="/img/history.png" alt="History" className="history-icon" />
+                  <img
+                    src="img/history.png"
+                    alt="History"
+                    className="history-icon"
+                  />
                   {showHistory ? "Close History" : "History"}
                 </button>
 
@@ -153,7 +167,7 @@ export default function AgendaPage() {
                     title="Add agenda"
                     onClick={openAdd}
                   >
-                    <img src="/img/add1.png" alt="Add" className="action-icon" />
+                    <img src="img/add1.png" alt="Add" className="action-icon" />
                   </button>
                 )}
               </div>
@@ -228,7 +242,7 @@ export default function AgendaPage() {
             {showHistory && (
               <section className="ag-history">
                 <h3 className="ag-history-title">
-                  <img src="/img/history.png" alt="" className="history-icon" />
+                  <img src="img/history.png" alt="" className="history-icon" />
                   Agenda History
                   <span className="ag-chip ghost">
                     {historyGroups.length} meeting
@@ -243,11 +257,13 @@ export default function AgendaPage() {
                     Gagal memuat riwayat: {historyErr}
                   </div>
                 )}
-                {!historyLoading && !historyErr && historyGroups.length === 0 && (
-                  <div className="pd-empty">
-                    There is no agenda history yet.
-                  </div>
-                )}
+                {!historyLoading &&
+                  !historyErr &&
+                  historyGroups.length === 0 && (
+                    <div className="pd-empty">
+                      There is no agenda history yet.
+                    </div>
+                  )}
                 {!historyLoading && !historyErr && historyGroups.length > 0 && (
                   <div className="ag-accordion">
                     {historyGroups.map((g) => (
@@ -268,9 +284,13 @@ export default function AgendaPage() {
                               <div className="ag-item-title">{a.judul}</div>
                             </div>
                             <div className="ag-item-right">
-                              <div className="ag-item-time">{formatRange(a.startTime, a.endTime)}</div>
+                              <div className="ag-item-time">
+                                {formatRange(a.startTime, a.endTime)}
+                              </div>
                             </div>
-                            {a.deskripsi && <div className="ag-item-desc">{a.deskripsi}</div>}
+                            {a.deskripsi && (
+                              <div className="ag-item-desc">{a.deskripsi}</div>
+                            )}
                           </div>
                         ))}
                       </HistoryAccordion>

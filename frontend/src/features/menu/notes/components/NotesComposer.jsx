@@ -44,7 +44,7 @@ export default function NotesComposer({
         {(title || body) && (
           <button className="note-btn" onClick={onClear} disabled={saving}>
             <img
-              src="/img/delete.png"
+              src="img/delete.png"
               alt="Delete"
               style={{ width: "20px", height: "20px" }}
             />

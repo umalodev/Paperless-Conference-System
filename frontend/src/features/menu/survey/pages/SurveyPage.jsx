@@ -75,7 +75,11 @@ export default function SurveyPage() {
         {/* === Header === */}
         <div className="svr-header">
           <div className="svr-title">
-            <img src="/img/Survey1.png" alt="Survey icon" className="svr-title-icon" />
+            <img
+              src="img/Survey1.png"
+              alt="Survey icon"
+              className="svr-title-icon"
+            />
             <span className="svr-title-text">Survey</span>
           </div>
 
@@ -85,7 +89,7 @@ export default function SurveyPage() {
                 className={`svr-btn ${manageMode ? "active" : ""}`}
                 onClick={() => setManageMode((v) => !v)}
               >
-                <img src="/img/pengaturan.png" alt="" className="pd-icon-img" />
+                <img src="img/pengaturan.png" alt="" className="pd-icon-img" />
                 <span>{manageMode ? "Close Manage" : "Manage Surveys"}</span>
               </button>
             )}
@@ -95,8 +99,10 @@ export default function SurveyPage() {
                 className={`svr-btn ${showResponses ? "active" : ""}`}
                 onClick={() => setShowResponses((v) => !v)}
               >
-                <img src="/img/eye.png" alt="" className="pd-icon-img" />
-                <span>{showResponses ? "Hide Responses" : "View Responses"}</span>
+                <img src="img/eye.png" alt="" className="pd-icon-img" />
+                <span>
+                  {showResponses ? "Hide Responses" : "View Responses"}
+                </span>
               </button>
             )}
 
@@ -105,7 +111,7 @@ export default function SurveyPage() {
               onClick={reload}
               disabled={loading}
             >
-              <img src="/img/refresh.png" alt="" className="pd-icon-img" />
+              <img src="img/refresh.png" alt="" className="pd-icon-img" />
               <span>Refresh</span>
             </button>
           </div>
@@ -164,7 +170,7 @@ export default function SurveyPage() {
                             onClick={() => startEdit(s)}
                           >
                             <img
-                              src="/img/edit.png"
+                              src="img/edit.png"
                               alt="Edit"
                               className="pd-icon-img"
                             />
@@ -176,13 +182,11 @@ export default function SurveyPage() {
                             onClick={() => setActive(s, s.isShow !== "Y")}
                           >
                             <img
-                              src="/img/eye.png"
+                              src="img/eye.png"
                               alt="Toggle"
                               className="pd-icon-img"
                             />
-                            <span>
-                              {s.isShow === "Y" ? "Hide" : "Show"}
-                            </span>
+                            <span>{s.isShow === "Y" ? "Hide" : "Show"}</span>
                           </button>
 
                           <button
@@ -190,7 +194,7 @@ export default function SurveyPage() {
                             onClick={() => removeSurvey(s)}
                           >
                             <img
-                              src="/img/delete.png"
+                              src="img/delete.png"
                               alt="Delete"
                               className="pd-icon-img"
                             />

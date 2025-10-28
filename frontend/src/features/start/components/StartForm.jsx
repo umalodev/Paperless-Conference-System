@@ -23,11 +23,7 @@ export default function StartForm() {
     <div className={styles["login-container"]}>
       <div className={styles["login-box"]}>
         <div className={styles["login-header"]}>
-          <img
-            src="/img/logo.png"
-            alt="Logo"
-            className={styles["login-logo"]}
-          />{" "}
+          <img src="img/logo.png" alt="Logo" className={styles["login-logo"]} />{" "}
           <div className="login-title-container">
             <h2 className={styles["login-title"]}>
               Paperless Conference System
@@ -40,7 +36,7 @@ export default function StartForm() {
         <label className={styles["label-bold"]}>I want to :</label>
         <div className={styles["option-box"]}>
           <img
-            src="/img/pc.png"
+            src="img/pc.png"
             alt={isHost ? "Host" : "Participant"}
             className={styles["icon"]}
           />

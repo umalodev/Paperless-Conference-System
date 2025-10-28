@@ -132,11 +132,7 @@ export default function FilesPage() {
           <section className="files-wrap">
             <div className="files-header">
               <div className="files-title">
-                <img
-                  src="/img/Files1.png"
-                  alt=""
-                  className="files-title-icon"
-                />
+                <img src="img/Files1.png" alt="" className="files-title-icon" />
                 <span className="files-title-text">Files</span>
               </div>
 
@@ -154,7 +150,7 @@ export default function FilesPage() {
                   className={`files-btn ${showHistory ? "active" : ""}`}
                   onClick={() => setShowHistory((s) => !s)}
                 >
-                  <Icon iconUrl="/img/history.png" size={18} />
+                  <Icon iconUrl="img/history.png" size={18} />
                   <span>{showHistory ? "Close History" : "History"}</span>
                 </button>
 
@@ -167,7 +163,7 @@ export default function FilesPage() {
                   disabled={loadingFiles || loadingHistory}
                   title="Refresh"
                 >
-                  <Icon iconUrl="/img/refresh.png" size={18} />
+                  <Icon iconUrl="img/refresh.png" size={18} />
                   <span>Refresh</span>
                 </button>
               </div>
@@ -183,7 +179,7 @@ export default function FilesPage() {
                   disabled={uploading || !meetingId}
                 >
                   <img
-                    src="/img/upload1.png"
+                    src="img/upload1.png"
                     alt="Upload"
                     style={{ width: 18, height: 18 }}
                   />
@@ -226,7 +222,7 @@ export default function FilesPage() {
               <section className="files-history">
                 <div className="files-history-head">
                   <h3 className="files-history-title">
-                    <Icon iconUrl="/img/history.png" size={18} /> History Files
+                    <Icon iconUrl="img/history.png" size={18} /> History Files
                   </h3>
 
                   <div className="files-history-actions">

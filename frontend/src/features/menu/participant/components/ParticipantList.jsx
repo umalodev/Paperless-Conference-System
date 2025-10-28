@@ -38,7 +38,7 @@ export default function ParticipantList({
         </div>
         <div className="prt-actions">
           <button className="prt-btn" onClick={reloadParticipants}>
-            <img src="/img/refresh.png" alt="Refresh" className="mute-img" />
+            <img src="img/refresh.png" alt="Refresh" className="mute-img" />
             <span className="prt-btn-label">Refresh</span>
           </button>
           {(user?.role === "host" || user?.role === "Host") && (
@@ -49,7 +49,7 @@ export default function ParticipantList({
                 if (!res?.ok) console.warn("mute-all failed:", res?.error);
               }}
             >
-              <img src="/img/mute.png" alt="Mute" className="mute-img" />
+              <img src="img/mute.png" alt="Mute" className="mute-img" />
               <span className="prt-btn-label">Mute all</span>
             </button>
           )}

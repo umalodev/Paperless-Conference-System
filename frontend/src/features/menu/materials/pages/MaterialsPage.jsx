@@ -92,8 +92,9 @@ export default function MaterialsPage() {
     deleteMaterial,
   } = useMaterials({ meetingId, notify, confirm });
 
-  const { historyGroups, loadingHistory, errHistory } =
-    useMaterialsHistory({ meetingId });
+  const { historyGroups, loadingHistory, errHistory } = useMaterialsHistory({
+    meetingId,
+  });
 
   const { showHistory, toggleHistory, markAllRead, setBadgeLocal } =
     useMaterialBadge({ meetingId });
@@ -156,7 +157,7 @@ export default function MaterialsPage() {
             <div className="mtl-header">
               <div className="mtl-title">
                 <img
-                  src="/img/Materials1.png"
+                  src="img/Materials1.png"
                   alt=""
                   className="mtl-title-icon"
                 />
@@ -182,7 +183,7 @@ export default function MaterialsPage() {
                   onClick={toggleHistory}
                   title="Materials History"
                 >
-                  <Icon iconUrl="/img/history.png" size={18} />
+                  <Icon iconUrl="img/history.png" size={18} />
                   <span>{showHistory ? "Close History" : "History"}</span>
                 </button>
 
@@ -191,7 +192,7 @@ export default function MaterialsPage() {
                   onClick={loadMaterials}
                   title="Refresh"
                 >
-                  <Icon iconUrl="/img/refresh.png" size={18} />
+                  <Icon iconUrl="img/refresh.png" size={18} />
                   <span>Refresh</span>
                 </button>
 
@@ -289,7 +290,11 @@ export default function MaterialsPage() {
                                   meta={formatMeta(it)}
                                   ext={extKind(it.name)}
                                   onPreview={() =>
-                                    window.open(it.url, "_blank", "noopener,noreferrer")
+                                    window.open(
+                                      it.url,
+                                      "_blank",
+                                      "noopener,noreferrer"
+                                    )
                                   }
                                   onDownload={() => {
                                     const a = document.createElement("a");

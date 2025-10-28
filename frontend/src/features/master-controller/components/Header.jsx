@@ -25,7 +25,7 @@ export default function Header({ latency, onRefresh }) {
           )}
         </div>
         <button className="note-btn ghost" onClick={onRefresh} title="Refresh">
-          <img src="/img/refresh.png" alt="Refresh" className="action-icon" />
+          <img src="img/refresh.png" alt="Refresh" className="action-icon" />
           <span>Refresh</span>
         </button>
       </div>
