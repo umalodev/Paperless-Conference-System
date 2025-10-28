@@ -1,7 +1,9 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Desktop app for UP-CONNECT (Paperless Conference System)",
+  "author": "Umalo Dev Team",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",

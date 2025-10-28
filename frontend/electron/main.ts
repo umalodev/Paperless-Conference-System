@@ -71,7 +71,7 @@ function createWindow() {
     height: 800,
     show: false,
     backgroundColor: "#111111",
-    icon: path.join(process.env.VITE_PUBLIC!, "img/logo.png"),
+    icon: path.join(process.env.VITE_PUBLIC!, "img/splash_logo.png"),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -86,8 +86,7 @@ function createWindow() {
     },
   });
 
-
-/*  gunakan ketika production
+  /*  gunakan ketika production
 
     win = new BrowserWindow({
     width: 1280,
@@ -234,7 +233,6 @@ ipcMain.handle("get-screen-sources", async () => {
   }
 });
 
-
 // =========================================================
 // 🧊 Lock Overlay Handler
 // =========================================================
@@ -354,9 +352,7 @@ app.commandLine.appendSwitch("lang", "id-ID");
 // Optional: set timezone manual ke WIB
 process.env.TZ = "Asia/Jakarta";
 
-
 app.whenReady().then(createWindow);
-
 
 // === GANTI DENGAN INI JIKA MAU VERSI TERPISAH ===
 let annotationWindows: BrowserWindow[] = [];
@@ -385,7 +381,9 @@ ipcMain.on("show-annotation-overlay", () => {
       webPreferences: { nodeIntegration: true, contextIsolation: false },
     });
 
-    overlay.loadFile(path.join(process.env.VITE_PUBLIC!, "annotation-overlay.html"));
+    overlay.loadFile(
+      path.join(process.env.VITE_PUBLIC!, "annotation-overlay.html")
+    );
     overlay.setAlwaysOnTop(true, "screen-saver");
     overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     overlay.setIgnoreMouseEvents(false);
@@ -395,38 +393,40 @@ ipcMain.on("show-annotation-overlay", () => {
 
   // 🧰 Toolbar (melayang)
   toolbarWindow = new BrowserWindow({
-    width: 480,          // sedikit lebih lebar agar tombol tidak terpotong
-    height: 80,          // menyesuaikan padding & border radius di HTML
+    width: 480, // sedikit lebih lebar agar tombol tidak terpotong
+    height: 80, // menyesuaikan padding & border radius di HTML
     x: 100,
     y: 100,
     frame: false,
     alwaysOnTop: true,
-    transparent: true,   // agar blur & shadow HTML terlihat natural
+    transparent: true, // agar blur & shadow HTML terlihat natural
     skipTaskbar: true,
     resizable: false,
     movable: true,
-    focusable: true,     // penting supaya bisa diklik tombolnya
+    focusable: true, // penting supaya bisa diklik tombolnya
     hasShadow: true,
     roundedCorners: true, // opsional (Electron 28+)
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      devTools: true,    // aktifkan devtools saat debug
+      devTools: true, // aktifkan devtools saat debug
     },
   });
 
   // Pastikan toolbar muncul di atas semua jendela
-  toolbarWindow.setAlwaysOnTop(true, 'screen-saver');
+  toolbarWindow.setAlwaysOnTop(true, "screen-saver");
   toolbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-  toolbarWindow.loadFile(path.join(process.env.VITE_PUBLIC!, "annotation-toolbar.html"));
-  toolbarWindow.once('ready-to-show', () => {
+  toolbarWindow.loadFile(
+    path.join(process.env.VITE_PUBLIC!, "annotation-toolbar.html")
+  );
+  toolbarWindow.once("ready-to-show", () => {
     toolbarWindow?.show();
     toolbarWindow?.focus();
-    console.log('✅ Toolbar ditampilkan di atas semua layar');
+    console.log("✅ Toolbar ditampilkan di atas semua layar");
   });
 
-  toolbarWindow.on('closed', () => {
+  toolbarWindow.on("closed", () => {
     toolbarWindow = null;
   });
 });
@@ -460,10 +460,6 @@ ipcMain.on("annotation-action", (_event, action) => {
   }
 });
 
-
-
-
-
 app.whenReady().then(() => {
   createWindow();
 
@@ -493,9 +489,9 @@ app.whenReady().then(() => {
 
   // 🛡️ Register global shortcuts yang diblokir (hanya reload)
   const shortcutsToBlock = [
-    "CommandOrControl+R",      // Refresh
-    "F5",                      // Refresh key
-    "CommandOrControl+Shift+R" // Hard reload
+    "CommandOrControl+R", // Refresh
+    "F5", // Refresh key
+    "CommandOrControl+Shift+R", // Hard reload
   ];
 
   shortcutsToBlock.forEach((sc) => {
@@ -508,7 +504,9 @@ app.whenReady().then(() => {
   app.on("browser-window-focus", () => {
     shortcutsToBlock.forEach((sc) => {
       if (!globalShortcut.isRegistered(sc)) {
-        globalShortcut.register(sc, () => console.log(`🚫 Blocked shortcut: ${sc}`));
+        globalShortcut.register(sc, () =>
+          console.log(`🚫 Blocked shortcut: ${sc}`)
+        );
       }
     });
   });
@@ -517,10 +515,6 @@ app.whenReady().then(() => {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
-
-
-
-
 
 /* gunakan ketika production untuk menghilagngkan browser window 
 
