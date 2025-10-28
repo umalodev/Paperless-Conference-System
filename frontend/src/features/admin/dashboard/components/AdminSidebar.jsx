@@ -18,29 +18,39 @@ const AdminSidebar = ({ activeMenu, onMenuChange }) => {
     if (window.innerWidth <= 768) setSidebarOpen(false);
   };
 
-  const handleLogout = async () => {
-    const confirmed = await confirm({
-      title: "Konfirmasi Logout",
-      message: "Apakah Anda yakin ingin keluar dari akun ini?",
-      okText: "Ya, Logout",
-      cancelText: "Batal",
-      destructive: true, // tombol merah
+const handleLogout = async () => {
+  const confirmed = await confirm({
+    title: "Konfirmasi Logout",
+    message: "Apakah Anda yakin ingin keluar dari akun ini?",
+    okText: "Ya, Logout",
+    cancelText: "Batal",
+    destructive: true,
+  });
+
+  if (confirmed) {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+
+    await notify({
+      variant: "success",
+      title: "Berhasil Logout",
+      message: "Anda telah keluar dari akun.",
+      autoCloseMs: 1200,
     });
 
-    if (confirmed) {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+    // Tunggu sebentar agar toast tampil dulu
+      const isElectron = navigator.userAgent.toLowerCase().includes("electron");
 
-      await notify({
-        variant: "success",
-        title: "Berhasil Logout",
-        message: "Anda telah keluar dari akun.",
-        autoCloseMs: 1500,
-      });
+      if (isElectron) {
+        // 🔄 Reload ulang app (karena Electron tidak punya route "/")
+        window.location.reload();
+      } else {
+        // 🌐 Mode dev/web biasa — arahkan ke halaman login
+        window.location.href = "/";
+      }
+  }
+};
 
-      window.location.href = "/";
-    }
-  };
 
   return (
     <div className={`admin-sidebar ${sidebarOpen ? "open" : "closed"}`}>

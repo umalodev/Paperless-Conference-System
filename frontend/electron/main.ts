@@ -97,7 +97,7 @@ function createWindow() {
     titleBarStyle: "hidden",    // (macOS) sembunyikan juga title area
     title: "UP-CONNECT",        // masih bisa diset, tapi tidak tampil
 
-    icon: path.join(process.env.VITE_PUBLIC!, "img/logo.png"),
+    icon: path.join(process.env.VITE_PUBLIC!, "img/splash_logo.png"),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -516,7 +516,6 @@ app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 
-/* gunakan ketika production untuk menghilagngkan browser window 
 
 app.whenReady().then(() => {
   createWindow();
@@ -553,4 +552,3 @@ app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 
-*/
