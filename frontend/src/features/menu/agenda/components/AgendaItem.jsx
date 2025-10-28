@@ -1,7 +1,15 @@
 // src/features/agenda/components/AgendaItem.jsx
 import React, { useState } from "react";
 
-export default function AgendaItem({ id, title, time, desc, canEdit, onEdit, onDelete }) {
+export default function AgendaItem({
+  id,
+  title,
+  time,
+  desc,
+  canEdit,
+  onEdit,
+  onDelete,
+}) {
   const [open, setOpen] = useState(false);
   const hasDesc = !!desc && desc.trim().length > 0;
   const toggle = () => hasDesc && setOpen((v) => !v);
@@ -35,7 +43,7 @@ export default function AgendaItem({ id, title, time, desc, canEdit, onEdit, onD
                 title="Edit agenda"
                 aria-label="Edit agenda"
               >
-                <img src="/img/edit.png" alt="" className="ag-icon-img" />
+                <img src="img/edit.png" alt="" className="ag-icon-img" />
               </button>
               <button
                 type="button"
@@ -47,7 +55,7 @@ export default function AgendaItem({ id, title, time, desc, canEdit, onEdit, onD
                 title="Hapus agenda"
                 aria-label="Hapus agenda"
               >
-                <img src="/img/delete.png" alt="" className="ag-icon-img" />
+                <img src="img/delete.png" alt="" className="ag-icon-img" />
               </button>
             </div>
           )}

@@ -27,16 +27,16 @@ export default function MaterialCard({
 
       <div className="mtl-actions-right">
         <button className="mtl-act" title="Lihat" onClick={onPreview}>
-          <img src="/img/buka.png" alt="Lihat" className="action-icon" />
+          <img src="img/buka.png" alt="Lihat" className="action-icon" />
         </button>
 
         <button className="mtl-act" title="Unduh" onClick={onDownload}>
-          <img src="/img/download1.png" alt="Unduh" className="action-icon" />
+          <img src="img/download1.png" alt="Unduh" className="action-icon" />
         </button>
 
         {canDelete && onDelete && (
           <button className="mtl-act danger" title="Delete" onClick={onDelete}>
-            <img src="/img/hapus1.png" alt="Delete" className="action-icon" />
+            <img src="img/hapus1.png" alt="Delete" className="action-icon" />
           </button>
         )}
       </div>

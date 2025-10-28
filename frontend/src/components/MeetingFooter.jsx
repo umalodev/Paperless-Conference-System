@@ -401,7 +401,7 @@ export default function MeetingFFooter({
         >
           {micOn === false ? (
             <img
-              src="/img/mute.png"
+              src="img/mute.png"
               alt="Mic Off"
               style={{ width: "20px", height: "20px" }}
             />
@@ -417,7 +417,7 @@ export default function MeetingFFooter({
         >
           {camOn === false ? (
             <img
-              src="/img/offcam.png"
+              src="img/offcam.png"
               alt="Camera Off"
               style={{ width: "20px", height: "20px" }}
             />

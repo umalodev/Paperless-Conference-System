@@ -24,7 +24,7 @@ export default function ChatList({ messages = [], userId, listRef }) {
       <div className="chat-list empty-state">
         <div className="empty-chat">
           <img
-            src="/img/message.png"
+            src="img/message.png"
             alt="No messages"
             className="empty-chat-icon"
           />
@@ -44,10 +44,7 @@ export default function ChatList({ messages = [], userId, listRef }) {
           key={`${m.id}-${m.userId}-${m.ts}-${index}`}
           className="chat-message-wrapper"
         >
-          <MessageItem
-            msg={m}
-            isMine={String(userId) === String(m.userId)}
-          />
+          <MessageItem msg={m} isMine={String(userId) === String(m.userId)} />
         </div>
       ))}
     </div>

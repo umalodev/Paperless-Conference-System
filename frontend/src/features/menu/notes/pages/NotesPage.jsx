@@ -33,8 +33,12 @@ export default function NotesPage() {
   const { user, displayName, meetingId, meetingTitle } = useMeetingInfo();
 
   // ✅ Ambil menu menggunakan hook global
-  const { menus, visibleMenus, loading: loadingMenus, error: errMenus } =
-    useMeetingMenus();
+  const {
+    menus,
+    visibleMenus,
+    loading: loadingMenus,
+    error: errMenus,
+  } = useMeetingMenus();
 
   // ✅ Kontrol mic/cam
   const {
@@ -119,7 +123,7 @@ export default function NotesPage() {
             <div className="notes-header">
               <div className="notes-title">
                 <img
-                  src="/img/notebook.png"
+                  src="img/notebook.png"
                   alt="Catatan"
                   className="action-icon"
                 />
@@ -132,7 +136,7 @@ export default function NotesPage() {
                   title="Refresh"
                   aria-label="Refresh"
                 >
-                  <Icon iconUrl="/img/refresh.png" size={18} />
+                  <Icon iconUrl="img/refresh.png" size={18} />
                   <span>Refresh</span>
                 </button>
               </div>

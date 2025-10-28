@@ -13,7 +13,21 @@ export default function Icon({
   ...rest
 }) {
   const [failed, setFailed] = useState(false);
-  const src = useMemo(() => (iconUrl ? publicUrl(iconUrl) : null), [iconUrl]);
+  const src = useMemo(() => {
+    if (!iconUrl) return null;
+
+    // kalau sudah http(s) → pakai apa adanya
+    if (/^https?:\/\//i.test(iconUrl)) return iconUrl;
+
+    // kalau sudah relatif (tidak diawali "/")
+    if (!iconUrl.startsWith("/")) {
+      // ex: "img/history.png" => pakai langsung
+      return iconUrl;
+    }
+
+    // fallback lama: lewat publicUrl (mungkin nambah slash dsb)
+    return publicUrl(iconUrl);
+  }, [iconUrl]);
 
   // pilih node SVG berdasarkan slug/name
   const key = (slug || name || "default").toLowerCase();
@@ -271,27 +285,26 @@ const ICONS = {
     </>
   ),
 
-undo: () => (
-  <>
-    {/* Panah ke kiri ← */}
-    <polyline points="15 6 9 12 15 18" />
-  </>
-),
-redo: () => (
-  <>
-    {/* Panah ke kanan → */}
-    <polyline points="9 6 15 12 9 18" />
-  </>
-),
-master: () => (
-  <>
-    {/* Monitor Screen */}
-    <rect x="4" y="4" width="16" height="12" rx="2" />  {/* Rounded screen */}
-    {/* Monitor Stand */}
-    <rect x="9" y="16" width="6" height="2" rx="1" />  {/* Stand */}
-  </>
-),
-
+  undo: () => (
+    <>
+      {/* Panah ke kiri ← */}
+      <polyline points="15 6 9 12 15 18" />
+    </>
+  ),
+  redo: () => (
+    <>
+      {/* Panah ke kanan → */}
+      <polyline points="9 6 15 12 9 18" />
+    </>
+  ),
+  master: () => (
+    <>
+      {/* Monitor Screen */}
+      <rect x="4" y="4" width="16" height="12" rx="2" /> {/* Rounded screen */}
+      {/* Monitor Stand */}
+      <rect x="9" y="16" width="6" height="2" rx="1" /> {/* Stand */}
+    </>
+  ),
 
   trash: () => (
     <>

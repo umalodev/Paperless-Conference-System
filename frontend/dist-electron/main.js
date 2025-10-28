@@ -1,82 +1,66 @@
-import { app, BrowserWindow, ipcMain, screen, desktopCapturer, Menu, globalShortcut, session } from "electron";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import fs from "node:fs";
-let lockWindows = [];
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path.join(__dirname, "..");
-const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-function findPreload() {
-  const candidates = [
-    path.join(__dirname, "preload.cjs"),
-    path.join(__dirname, "preload.js"),
-    path.join(__dirname, "preload.mjs"),
-    path.join(MAIN_DIST, "preload.cjs"),
-    path.join(MAIN_DIST, "preload.js"),
-    path.join(MAIN_DIST, "preload.mjs")
-  ];
-  const found = candidates.find((p) => fs.existsSync(p));
-  if (!found) {
-    console.error("[main] Preload NOT FOUND. Tried:");
-    candidates.forEach((p) => console.error("  -", p));
-    return candidates[0];
-  }
-  return found;
+import { app as c, BrowserWindow as p, ipcMain as h, screen as P, desktopCapturer as O, Menu as _, globalShortcut as y, session as I } from "electron";
+import { fileURLToPath as C } from "node:url";
+import r from "node:path";
+import E from "node:fs";
+let m = [];
+const b = r.dirname(C(import.meta.url));
+process.env.APP_ROOT = r.join(b, "..");
+const v = process.env.VITE_DEV_SERVER_URL, k = r.join(process.env.APP_ROOT, "dist-electron"), S = r.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = v ? r.join(process.env.APP_ROOT, "public") : S;
+function D() {
+  const n = [
+    r.join(b, "preload.cjs"),
+    r.join(b, "preload.js"),
+    r.join(b, "preload.mjs"),
+    r.join(k, "preload.cjs"),
+    r.join(k, "preload.js"),
+    r.join(k, "preload.mjs")
+  ], o = n.find((e) => E.existsSync(e));
+  return o || (console.error("[main] Preload NOT FOUND. Tried:"), n.forEach((e) => console.error("  -", e)), n[0]);
 }
-let win = null;
-let splashWin = null;
-function createWindow() {
-  const preloadPath = findPreload();
+let s = null, a = null;
+function T() {
+  const n = D();
   console.log(
     "[main] Using preload:",
-    preloadPath,
+    n,
     "exists?",
-    fs.existsSync(preloadPath)
-  );
-  splashWin = new BrowserWindow({
+    E.existsSync(n)
+  ), a = new p({
     width: 460,
     height: 300,
-    frame: false,
-    resizable: false,
-    transparent: false,
+    frame: !1,
+    resizable: !1,
+    transparent: !1,
     backgroundColor: "#00000000",
     // transparansi manual
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    show: false
-  });
-  splashWin.loadFile(path.join(process.env.VITE_PUBLIC, "splash.html")).catch(console.error);
-  splashWin.once("ready-to-show", () => splashWin == null ? void 0 : splashWin.show());
-  win = new BrowserWindow({
+    alwaysOnTop: !0,
+    skipTaskbar: !0,
+    show: !1
+  }), a.loadFile(r.join(process.env.VITE_PUBLIC, "splash.html")).catch(console.error), a.once("ready-to-show", () => a == null ? void 0 : a.show()), s = new p({
     width: 1280,
     height: 800,
-    show: false,
+    show: !1,
     backgroundColor: "#111111",
-    icon: path.join(process.env.VITE_PUBLIC, "img/logo.png"),
+    icon: r.join(process.env.VITE_PUBLIC, "img/logo.png"),
     webPreferences: {
-      preload: preloadPath,
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
+      preload: n,
+      contextIsolation: !0,
+      nodeIntegration: !1,
+      sandbox: !1,
       // penting agar modul Electron tersedia di preload
-      webSecurity: false,
+      webSecurity: !1,
       // dev only
-      allowRunningInsecureContent: true,
-      experimentalFeatures: true,
+      allowRunningInsecureContent: !0,
+      experimentalFeatures: !0,
       // Enable screen capture APIs
       // Additional permissions for screen sharing
       additionalArguments: ["--enable-features=VaapiVideoDecoder"]
     }
-  });
-  win.webContents.on("preload-error", (_e, p, err) => {
-    console.error("[main] PRELOAD ERROR at", p, err);
-  });
-  win.webContents.on("dom-ready", () => {
-    console.log("[main] DOM ready, checking preload status");
-    win.webContents.executeJavaScript(
+  }), s.webContents.on("preload-error", (o, e, l) => {
+    console.error("[main] PRELOAD ERROR at", e, l);
+  }), s.webContents.on("dom-ready", () => {
+    console.log("[main] DOM ready, checking preload status"), s.webContents.executeJavaScript(
       `
         console.log("[renderer] has screenAPI?", !!window.screenAPI);
         console.log("[renderer] screenAPI contents:", window.screenAPI);
@@ -84,112 +68,74 @@ function createWindow() {
         console.log("[renderer] screenAPI.isElectron:", window.screenAPI?.isElectron);
         console.log("[renderer] screenAPI.getScreenSources:", typeof window.screenAPI?.getScreenSources);
         `
-    ).catch((err) => console.error("[main] executeJavaScript error:", err));
-  });
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
-    console.log(`[main] Permission requested: ${permission}`);
-    if (permission === "media") {
-      console.log(`[main] Granting permission: ${permission}`);
-      return cb(true);
-    }
-    console.log(`[main] Granting permission: ${permission}`);
-    cb(true);
-  });
-  session.defaultSession.setPermissionCheckHandler(
-    (_wc, permission, _origin, _details) => {
-      console.log(`[main] Permission check: ${permission}`);
-      if (permission === "media") {
-        return true;
-      }
-      return true;
-    }
-  );
-  if (VITE_DEV_SERVER_URL) win.loadURL(VITE_DEV_SERVER_URL);
-  else win.loadFile(path.join(RENDERER_DIST, "index.html"));
-  win.webContents.once("did-finish-load", () => {
+    ).catch((o) => console.error("[main] executeJavaScript error:", o));
+  }), I.defaultSession.setPermissionRequestHandler((o, e, l) => {
+    if (console.log(`[main] Permission requested: ${e}`), e === "media")
+      return console.log(`[main] Granting permission: ${e}`), l(!0);
+    console.log(`[main] Granting permission: ${e}`), l(!0);
+  }), I.defaultSession.setPermissionCheckHandler(
+    (o, e, l, f) => (console.log(`[main] Permission check: ${e}`), !0)
+  ), v ? s.loadURL(v) : s.loadFile(r.join(S, "index.html")), s.webContents.once("did-finish-load", () => {
     setTimeout(() => {
-      if (splashWin && !splashWin.isDestroyed()) splashWin.close();
-      splashWin = null;
-      if (!(win == null ? void 0 : win.isDestroyed())) {
-        win.show();
-        win.focus();
-      }
+      a && !a.isDestroyed() && a.close(), a = null, s != null && s.isDestroyed() || (s.show(), s.focus());
     }, 400);
-  });
-  win.webContents.on("did-fail-load", (_e, _c, _d, _l, errDesc) => {
-    console.error("[main] did-fail-load:", errDesc);
-    if (splashWin && !splashWin.isDestroyed()) splashWin.close();
-    splashWin = null;
-    win == null ? void 0 : win.show();
+  }), s.webContents.on("did-fail-load", (o, e, l, f, d) => {
+    console.error("[main] did-fail-load:", d), a && !a.isDestroyed() && a.close(), a = null, s == null || s.show();
   });
 }
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+c.on("window-all-closed", () => {
+  process.platform !== "darwin" && c.quit();
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+c.on("activate", () => {
+  p.getAllWindows().length === 0 && T();
 });
-app.commandLine.appendSwitch("--enable-usermedia-screen-capture");
-app.commandLine.appendSwitch("--disable-features", "VizDisplayCompositor");
-app.commandLine.appendSwitch("--enable-features", "VaapiVideoDecoder");
-app.commandLine.appendSwitch("--autoplay-policy", "no-user-gesture-required");
-ipcMain.handle("capture-screen", async () => {
-  const primary = screen.getPrimaryDisplay();
-  const { width, height } = primary.size;
-  const maxWidth = 1920;
-  const maxHeight = 1080;
-  const scale = Math.min(maxWidth / width, maxHeight / height, 1);
-  const captureWidth = Math.floor(width * scale);
-  const captureHeight = Math.floor(height * scale);
-  const sources = await desktopCapturer.getSources({
+c.commandLine.appendSwitch("--enable-usermedia-screen-capture");
+c.commandLine.appendSwitch("--disable-features", "VizDisplayCompositor");
+c.commandLine.appendSwitch("--enable-features", "VaapiVideoDecoder");
+c.commandLine.appendSwitch("--autoplay-policy", "no-user-gesture-required");
+h.handle("capture-screen", async () => {
+  const n = P.getPrimaryDisplay(), { width: o, height: e } = n.size, d = Math.min(1920 / o, 1080 / e, 1), u = Math.floor(o * d), i = Math.floor(e * d), w = await O.getSources({
     types: ["screen"],
-    thumbnailSize: { width: captureWidth, height: captureHeight }
+    thumbnailSize: { width: u, height: i }
   });
-  if (!sources.length) return null;
-  const image = sources[0].thumbnail;
-  const adaptiveQuality = captureWidth >= 1920 ? 70 : captureWidth >= 1280 ? 75 : 80;
-  const base64 = image.toJPEG(adaptiveQuality).toString("base64");
-  return base64;
+  if (!w.length) return null;
+  const R = w[0].thumbnail, x = u >= 1920 ? 70 : u >= 1280 ? 75 : 80;
+  return R.toJPEG(x).toString("base64");
 });
-ipcMain.handle("get-screen-sources", async () => {
+h.handle("get-screen-sources", async () => {
   try {
-    const sources = await desktopCapturer.getSources({
+    return (await O.getSources({
       types: ["screen", "window"],
       thumbnailSize: { width: 300, height: 200 }
-    });
-    return sources.map((s) => ({
-      id: s.id,
-      name: s.name,
-      thumbnail: s.thumbnail.toDataURL()
+    })).map((o) => ({
+      id: o.id,
+      name: o.name,
+      thumbnail: o.thumbnail.toDataURL()
     }));
-  } catch (err) {
-    console.error("[main] get-screen-sources failed:", err);
-    return [];
+  } catch (n) {
+    return console.error("[main] get-screen-sources failed:", n), [];
   }
 });
-ipcMain.on("show-lock-overlay", () => {
-  if (lockWindows.length > 0) return;
-  const displays = screen.getAllDisplays();
-  console.log(`🖥️ Creating lock overlay on ${displays.length} screen(s)`);
-  lockWindows = displays.map((d, idx) => {
-    const { width, height, x, y } = d.bounds;
-    const win2 = new BrowserWindow({
-      x,
-      y,
-      width,
-      height,
-      frame: false,
-      fullscreen: true,
-      kiosk: true,
-      transparent: false,
-      alwaysOnTop: true,
-      movable: false,
-      resizable: false,
-      skipTaskbar: true,
+h.on("show-lock-overlay", () => {
+  if (m.length > 0) return;
+  const n = P.getAllDisplays();
+  console.log(`🖥️ Creating lock overlay on ${n.length} screen(s)`), m = n.map((o, e) => {
+    const { width: l, height: f, x: d, y: u } = o.bounds, i = new p({
+      x: d,
+      y: u,
+      width: l,
+      height: f,
+      frame: !1,
+      fullscreen: !0,
+      kiosk: !0,
+      transparent: !1,
+      alwaysOnTop: !0,
+      movable: !1,
+      resizable: !1,
+      skipTaskbar: !0,
       backgroundColor: "#000000",
-      webPreferences: { contextIsolation: true }
-    });
-    const lockHtml = `
+      webPreferences: { contextIsolation: !0 }
+    }), w = `
       <!DOCTYPE html>
       <html lang="en">
         <head>
@@ -253,115 +199,75 @@ ipcMain.on("show-lock-overlay", () => {
         </body>
       </html>
     `;
-    win2.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(lockHtml)}`);
-    win2.setAlwaysOnTop(true, "screen-saver");
-    win2.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    console.log(`✅ Lock overlay created on display ${idx + 1}`);
-    return win2;
+    return i.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(w)}`), i.setAlwaysOnTop(!0, "screen-saver"), i.setVisibleOnAllWorkspaces(!0, { visibleOnFullScreen: !0 }), console.log(`✅ Lock overlay created on display ${e + 1}`), i;
   });
 });
-ipcMain.on("hide-lock-overlay", () => {
-  if (lockWindows.length === 0) return;
-  console.log("🔓 Removing lock overlays...");
-  lockWindows.forEach((w) => {
-    if (!w.isDestroyed()) w.close();
-  });
-  lockWindows = [];
+h.on("hide-lock-overlay", () => {
+  m.length !== 0 && (console.log("🔓 Removing lock overlays..."), m.forEach((n) => {
+    n.isDestroyed() || n.close();
+  }), m = []);
 });
-app.commandLine.appendSwitch("lang", "id-ID");
+c.commandLine.appendSwitch("lang", "id-ID");
 process.env.TZ = "Asia/Jakarta";
-app.whenReady().then(createWindow);
-let annotationWindows = [];
-let toolbarWindow = null;
-ipcMain.on("show-annotation-overlay", () => {
-  if (annotationWindows.length > 0) return;
-  const displays = screen.getAllDisplays();
-  annotationWindows = displays.map((display, idx) => {
-    const { x, y, width, height } = display.bounds;
-    const overlay = new BrowserWindow({
-      x,
-      y,
-      width,
-      height,
-      frame: false,
-      fullscreen: true,
-      transparent: true,
-      alwaysOnTop: true,
-      focusable: false,
-      skipTaskbar: true,
-      hasShadow: false,
-      webPreferences: { nodeIntegration: true, contextIsolation: false }
+c.whenReady().then(T);
+let g = [], t = null;
+h.on("show-annotation-overlay", () => {
+  if (g.length > 0) return;
+  g = P.getAllDisplays().map((o, e) => {
+    const { x: l, y: f, width: d, height: u } = o.bounds, i = new p({
+      x: l,
+      y: f,
+      width: d,
+      height: u,
+      frame: !1,
+      fullscreen: !0,
+      transparent: !0,
+      alwaysOnTop: !0,
+      focusable: !1,
+      skipTaskbar: !0,
+      hasShadow: !1,
+      webPreferences: { nodeIntegration: !0, contextIsolation: !1 }
     });
-    overlay.loadFile(path.join(process.env.VITE_PUBLIC, "annotation-overlay.html"));
-    overlay.setAlwaysOnTop(true, "screen-saver");
-    overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    overlay.setIgnoreMouseEvents(false);
-    console.log(`🖊️ Overlay aktif di layar ${idx + 1}`);
-    return overlay;
-  });
-  toolbarWindow = new BrowserWindow({
+    return i.loadFile(r.join(process.env.VITE_PUBLIC, "annotation-overlay.html")), i.setAlwaysOnTop(!0, "screen-saver"), i.setVisibleOnAllWorkspaces(!0, { visibleOnFullScreen: !0 }), i.setIgnoreMouseEvents(!1), console.log(`🖊️ Overlay aktif di layar ${e + 1}`), i;
+  }), t = new p({
     width: 480,
     // sedikit lebih lebar agar tombol tidak terpotong
     height: 80,
     // menyesuaikan padding & border radius di HTML
     x: 100,
     y: 100,
-    frame: false,
-    alwaysOnTop: true,
-    transparent: true,
+    frame: !1,
+    alwaysOnTop: !0,
+    transparent: !0,
     // agar blur & shadow HTML terlihat natural
-    skipTaskbar: true,
-    resizable: false,
-    movable: true,
-    focusable: true,
+    skipTaskbar: !0,
+    resizable: !1,
+    movable: !0,
+    focusable: !0,
     // penting supaya bisa diklik tombolnya
-    hasShadow: true,
-    roundedCorners: true,
+    hasShadow: !0,
+    roundedCorners: !0,
     // opsional (Electron 28+)
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      devTools: true
+      nodeIntegration: !0,
+      contextIsolation: !1,
+      devTools: !0
       // aktifkan devtools saat debug
     }
-  });
-  toolbarWindow.setAlwaysOnTop(true, "screen-saver");
-  toolbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  toolbarWindow.loadFile(path.join(process.env.VITE_PUBLIC, "annotation-toolbar.html"));
-  toolbarWindow.once("ready-to-show", () => {
-    toolbarWindow == null ? void 0 : toolbarWindow.show();
-    toolbarWindow == null ? void 0 : toolbarWindow.focus();
-    console.log("✅ Toolbar ditampilkan di atas semua layar");
-  });
-  toolbarWindow.on("closed", () => {
-    toolbarWindow = null;
+  }), t.setAlwaysOnTop(!0, "screen-saver"), t.setVisibleOnAllWorkspaces(!0, { visibleOnFullScreen: !0 }), t.loadFile(r.join(process.env.VITE_PUBLIC, "annotation-toolbar.html")), t.once("ready-to-show", () => {
+    t == null || t.show(), t == null || t.focus(), console.log("✅ Toolbar ditampilkan di atas semua layar");
+  }), t.on("closed", () => {
+    t = null;
   });
 });
-ipcMain.on("annotation-action", (_event, action) => {
-  annotationWindows.forEach((overlay) => {
-    if (!overlay.isDestroyed()) {
-      overlay.webContents.send("annotation-action", action);
-      if (action.type === "toggle") {
-        if (action.value) {
-          overlay.setIgnoreMouseEvents(false);
-          console.log("🖊️ Overlay aktif untuk menggambar");
-        } else {
-          overlay.setIgnoreMouseEvents(true, { forward: true });
-          console.log("🖱️ Overlay tembus, bisa klik aplikasi di belakang");
-        }
-      }
-    }
-  });
-  if (action.type === "exit") {
-    annotationWindows.forEach((w) => !w.isDestroyed() && w.close());
-    annotationWindows = [];
-    if (toolbarWindow && !toolbarWindow.isDestroyed()) toolbarWindow.close();
-    toolbarWindow = null;
-  }
+h.on("annotation-action", (n, o) => {
+  g.forEach((e) => {
+    e.isDestroyed() || (e.webContents.send("annotation-action", o), o.type === "toggle" && (o.value ? (e.setIgnoreMouseEvents(!1), console.log("🖊️ Overlay aktif untuk menggambar")) : (e.setIgnoreMouseEvents(!0, { forward: !0 }), console.log("🖱️ Overlay tembus, bisa klik aplikasi di belakang"))));
+  }), o.type === "exit" && (g.forEach((e) => !e.isDestroyed() && e.close()), g = [], t && !t.isDestroyed() && t.close(), t = null);
 });
-app.whenReady().then(() => {
-  createWindow();
-  const template = [
+c.whenReady().then(() => {
+  T();
+  const n = [
     {
       label: "View",
       submenu: [
@@ -369,15 +275,15 @@ app.whenReady().then(() => {
           label: "Toggle Developer Tools",
           accelerator: "CommandOrControl+Shift+I",
           click: () => {
-            const focused = BrowserWindow.getFocusedWindow();
-            if (focused) focused.webContents.toggleDevTools();
+            const e = p.getFocusedWindow();
+            e && e.webContents.toggleDevTools();
           }
         }
       ]
     }
   ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-  const shortcutsToBlock = [
+  _.setApplicationMenu(_.buildFromTemplate(n));
+  const o = [
     "CommandOrControl+R",
     // Refresh
     "F5",
@@ -385,25 +291,21 @@ app.whenReady().then(() => {
     "CommandOrControl+Shift+R"
     // Hard reload
   ];
-  shortcutsToBlock.forEach((sc) => {
-    const success = globalShortcut.register(sc, () => {
-      console.log(`🚫 Blocked shortcut: ${sc}`);
-    });
-    if (!success) console.warn(`⚠️ Failed to block ${sc}`);
-  });
-  app.on("browser-window-focus", () => {
-    shortcutsToBlock.forEach((sc) => {
-      if (!globalShortcut.isRegistered(sc)) {
-        globalShortcut.register(sc, () => console.log(`🚫 Blocked shortcut: ${sc}`));
-      }
+  o.forEach((e) => {
+    y.register(e, () => {
+      console.log(`🚫 Blocked shortcut: ${e}`);
+    }) || console.warn(`⚠️ Failed to block ${e}`);
+  }), c.on("browser-window-focus", () => {
+    o.forEach((e) => {
+      y.isRegistered(e) || y.register(e, () => console.log(`🚫 Blocked shortcut: ${e}`));
     });
   });
 });
-app.on("will-quit", () => {
-  globalShortcut.unregisterAll();
+c.on("will-quit", () => {
+  y.unregisterAll();
 });
 export {
-  MAIN_DIST,
-  RENDERER_DIST,
-  VITE_DEV_SERVER_URL
+  k as MAIN_DIST,
+  S as RENDERER_DIST,
+  v as VITE_DEV_SERVER_URL
 };

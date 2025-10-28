@@ -20,7 +20,7 @@ export default function ChatComposer({
         title="Lampirkan File"
         onClick={() => fileInputRef.current?.click()}
       >
-        <Icon slug="attach" iconUrl="/img/icons/attach.svg" size={18} />
+        <Icon slug="attach" iconUrl="img/icons/attach.svg" size={18} />
       </button>
       <input
         ref={fileInputRef}

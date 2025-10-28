@@ -46,7 +46,7 @@ export default function VideoTile({
       {placeholder ? (
         <div className="video-dummy" aria-label="camera off">
           <img
-            src="/img/offcam.png"
+            src="img/offcam.png"
             alt="Camera off"
             className="video-placeholder-icon"
           />

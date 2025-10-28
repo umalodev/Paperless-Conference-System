@@ -34,7 +34,11 @@ export default function NoteCard({
           <span>Diedit sekarang</span>
         </div>
         <div className="note-actions">
-          <button className="note-btn primary" onClick={onSaveEdit} disabled={saving}>
+          <button
+            className="note-btn primary"
+            onClick={onSaveEdit}
+            disabled={saving}
+          >
             <SaveIcon />
             <span>Simpan</span>
           </button>
@@ -56,8 +60,12 @@ export default function NoteCard({
         {note.author && <span> · {note.author}</span>}
       </div>
       <div className="note-actions">
-        <button className="note-btn" onClick={() => onStartEdit(note)} disabled={saving}>
-          <img src="/img/edit.png" alt="Edit" className="action-icon" />
+        <button
+          className="note-btn"
+          onClick={() => onStartEdit(note)}
+          disabled={saving}
+        >
+          <img src="img/edit.png" alt="Edit" className="action-icon" />
           <span>Edit</span>
         </button>
         <button
@@ -65,14 +73,13 @@ export default function NoteCard({
           onClick={() => onDelete(note.id)}
           disabled={saving}
         >
-          <img src="/img/delete.png" alt="Delete" className="action-icon" />
+          <img src="img/delete.png" alt="Delete" className="action-icon" />
           <span>Delete</span>
         </button>
       </div>
     </div>
   );
 }
-
 
 function SaveIcon() {
   return (

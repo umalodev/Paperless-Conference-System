@@ -4,7 +4,7 @@ export default function TopHeader({ hostName, onLogout }) {
   return (
     <header className="hd-top">
       <div className="hd-brand">
-        <img src="/img/logo.png" alt="Logo" className="hd-logo" />
+        <img src="img/logo.png" alt="Logo" className="hd-logo" />
         <div>
           <h1 className="hd-title">Host Dashboard</h1>
           <div className="hd-sub">welcome back, {hostName}</div>

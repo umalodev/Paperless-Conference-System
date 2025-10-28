@@ -33,10 +33,8 @@ export default function ParticipantTabs({
           disabled={refreshingVideo}
           title="Refresh video feeds"
         >
-            <img src="/img/refresh.png" alt="Refresh" className="mute-img" />
-          <span>
-            {refreshingVideo ? "Refreshing..." : "Refresh Video"}
-          </span>
+          <img src="img/refresh.png" alt="Refresh" className="mute-img" />
+          <span>{refreshingVideo ? "Refreshing..." : "Refresh Video"}</span>
         </button>
       )}
     </div>
