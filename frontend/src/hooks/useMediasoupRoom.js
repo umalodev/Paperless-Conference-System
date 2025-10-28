@@ -120,8 +120,10 @@ export default function useMediasoupRoom({ roomId, peerId }) {
 
         const socket = socketIO(MEDIA_URL, {
           timeout: 10000,
-          path: "/socket.io",
-          withCredentials: false,
+          path: "/socket.io/",
+          transports: ["websocket"], // force WebSocket (hindari polling timeout)
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
         });
         socketRef.current = socket;
 

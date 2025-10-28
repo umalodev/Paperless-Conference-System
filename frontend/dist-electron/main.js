@@ -1,4 +1,4 @@
-import { app as c, BrowserWindow as p, ipcMain as h, screen as P, desktopCapturer as O, Menu as _, globalShortcut as y, session as I } from "electron";
+import { app as c, BrowserWindow as p, ipcMain as h, screen as P, desktopCapturer as O, Menu as T, globalShortcut as y, session as I } from "electron";
 import { fileURLToPath as C } from "node:url";
 import r from "node:path";
 import E from "node:fs";
@@ -19,7 +19,7 @@ function D() {
   return o || (console.error("[main] Preload NOT FOUND. Tried:"), n.forEach((e) => console.error("  -", e)), n[0]);
 }
 let s = null, a = null;
-function T() {
+function _() {
   const n = D();
   console.log(
     "[main] Using preload:",
@@ -42,7 +42,7 @@ function T() {
     height: 800,
     show: !1,
     backgroundColor: "#111111",
-    icon: r.join(process.env.VITE_PUBLIC, "img/logo.png"),
+    icon: r.join(process.env.VITE_PUBLIC, "img/splash_logo.png"),
     webPreferences: {
       preload: n,
       contextIsolation: !0,
@@ -87,7 +87,7 @@ c.on("window-all-closed", () => {
   process.platform !== "darwin" && c.quit();
 });
 c.on("activate", () => {
-  p.getAllWindows().length === 0 && T();
+  p.getAllWindows().length === 0 && _();
 });
 c.commandLine.appendSwitch("--enable-usermedia-screen-capture");
 c.commandLine.appendSwitch("--disable-features", "VizDisplayCompositor");
@@ -209,7 +209,7 @@ h.on("hide-lock-overlay", () => {
 });
 c.commandLine.appendSwitch("lang", "id-ID");
 process.env.TZ = "Asia/Jakarta";
-c.whenReady().then(T);
+c.whenReady().then(_);
 let g = [], t = null;
 h.on("show-annotation-overlay", () => {
   if (g.length > 0) return;
@@ -228,7 +228,9 @@ h.on("show-annotation-overlay", () => {
       hasShadow: !1,
       webPreferences: { nodeIntegration: !0, contextIsolation: !1 }
     });
-    return i.loadFile(r.join(process.env.VITE_PUBLIC, "annotation-overlay.html")), i.setAlwaysOnTop(!0, "screen-saver"), i.setVisibleOnAllWorkspaces(!0, { visibleOnFullScreen: !0 }), i.setIgnoreMouseEvents(!1), console.log(`🖊️ Overlay aktif di layar ${e + 1}`), i;
+    return i.loadFile(
+      r.join(process.env.VITE_PUBLIC, "annotation-overlay.html")
+    ), i.setAlwaysOnTop(!0, "screen-saver"), i.setVisibleOnAllWorkspaces(!0, { visibleOnFullScreen: !0 }), i.setIgnoreMouseEvents(!1), console.log(`🖊️ Overlay aktif di layar ${e + 1}`), i;
   }), t = new p({
     width: 480,
     // sedikit lebih lebar agar tombol tidak terpotong
@@ -254,7 +256,9 @@ h.on("show-annotation-overlay", () => {
       devTools: !0
       // aktifkan devtools saat debug
     }
-  }), t.setAlwaysOnTop(!0, "screen-saver"), t.setVisibleOnAllWorkspaces(!0, { visibleOnFullScreen: !0 }), t.loadFile(r.join(process.env.VITE_PUBLIC, "annotation-toolbar.html")), t.once("ready-to-show", () => {
+  }), t.setAlwaysOnTop(!0, "screen-saver"), t.setVisibleOnAllWorkspaces(!0, { visibleOnFullScreen: !0 }), t.loadFile(
+    r.join(process.env.VITE_PUBLIC, "annotation-toolbar.html")
+  ), t.once("ready-to-show", () => {
     t == null || t.show(), t == null || t.focus(), console.log("✅ Toolbar ditampilkan di atas semua layar");
   }), t.on("closed", () => {
     t = null;
@@ -266,7 +270,7 @@ h.on("annotation-action", (n, o) => {
   }), o.type === "exit" && (g.forEach((e) => !e.isDestroyed() && e.close()), g = [], t && !t.isDestroyed() && t.close(), t = null);
 });
 c.whenReady().then(() => {
-  T();
+  _();
   const n = [
     {
       label: "View",
@@ -282,7 +286,7 @@ c.whenReady().then(() => {
       ]
     }
   ];
-  _.setApplicationMenu(_.buildFromTemplate(n));
+  T.setApplicationMenu(T.buildFromTemplate(n));
   const o = [
     "CommandOrControl+R",
     // Refresh
@@ -297,7 +301,10 @@ c.whenReady().then(() => {
     }) || console.warn(`⚠️ Failed to block ${e}`);
   }), c.on("browser-window-focus", () => {
     o.forEach((e) => {
-      y.isRegistered(e) || y.register(e, () => console.log(`🚫 Blocked shortcut: ${e}`));
+      y.isRegistered(e) || y.register(
+        e,
+        () => console.log(`🚫 Blocked shortcut: ${e}`)
+      );
     });
   });
 });
