@@ -437,3 +437,91 @@
   width: 18px;
   height: 18px;
 }
+/* layout dua kolom: sidebar + konten */
+.files-body-split {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+/* sidebar uploader */
+.files-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 160px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* tombol setiap tab uploader */
+.files-sidebar-tab {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.files-sidebar-tab:hover {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.files-sidebar-tab.active {
+  background: linear-gradient(135deg, #34d399, #10b981);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3);
+}
+
+.files-sidebar-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.files-sidebar-count {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* konten file grid */
+.files-content {
+  flex: 1;
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* responsive: ubah ke vertikal di mobile */
+@media (max-width: 700px) {
+  .files-body-split {
+    flex-direction: column;
+  }
+  .files-sidebar {
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .files-sidebar-tab {
+    flex: 1;
+    justify-content: center;
+  }
+}
