@@ -4,7 +4,14 @@ import Icon from "../../../../components/Icon.jsx";
 import { formatSize, formatDate } from "../../../../utils/format.js";
 import { extKind, extLabel, getExt } from "../utils/extKind";
 
-export default function FileCard({ file, me, onOpen, onDownload, onDelete }) {
+export default function FileCard({
+  file,
+  me,
+  nameMap = {},
+  onOpen,
+  onDownload,
+  onDelete,
+}) {
   const {
     fileId,
     name = "Untitled",
@@ -20,6 +27,9 @@ export default function FileCard({ file, me, onOpen, onDownload, onDelete }) {
     me &&
     (Number(me.id) === Number(uploaderId) ||
       ["admin", "host"].includes(me?.role));
+
+  const prettyUploaderName =
+    nameMap?.[String(uploaderId)] || uploaderName || "Participant";
 
   return (
     <div className="mtl-card">
@@ -38,7 +48,7 @@ export default function FileCard({ file, me, onOpen, onDownload, onDelete }) {
           {name}
         </div>
         <div className="mtl-meta">
-          {uploaderName ? `oleh ${uploaderName}` : "—"}
+          {`oleh ${prettyUploaderName}`}
           {size ? ` · ${formatSize(size)}` : ""}
           {createdAt ? ` · ${formatDate(createdAt)}` : ""}
         </div>
